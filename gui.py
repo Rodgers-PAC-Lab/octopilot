@@ -1,12 +1,21 @@
-## TODO: 
+## Main script that runs the GUI on the desktop
+# Must be run in "sukrith" conda environment
+# Run this script as follows:
+#   python3 gui.py BOXNAME
+# BOXNAME must match a configuration file in gui/configs
+# 
+# Current boxes:
+#   box1 - Testing on seaturtle computer 
+#   box2-5 - Behavior Boxes 
+#
+# TODO: 
 # Document what each class in this script does.
 # Separate the classes that are for running the GUI from the classes
 # that interact with the Pi and run the task 
 # Put the ones that run the GUI in another script and import them here
 
 
-## IMPORTING LIBRARIES
-
+## Module imports
 import sys
 import zmq
 import numpy as np
@@ -20,20 +29,29 @@ import json
 import argparse
 from datetime import datetime
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QMenu, QAction, QComboBox, QGroupBox, QMessageBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem
-from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
+from PyQt5.QtWidgets import (
+    QMenu, QAction, QComboBox, QGroupBox, QMessageBox, QLabel, 
+    QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, 
+    QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, 
+    QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, 
+    QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem,
+    )
+from PyQt5.QtCore import (
+    QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot, 
+    QMetaObject, Qt,
+    )
 from PyQt5.QtGui import QFont, QColor
 from pyqttoast import Toast, ToastPreset
 
-## SELECTING BOX 
-"""
-Multiple GUI windows can be opened at once by using by inputting the name of the box in the command line (eg: python3 gui.py box1)
-box1 - Testing on seaturtle computer 
-box2-5 - Behavior Boxes 
-"""
+
+## Use argparse to identify the box that we are controlling
 # Set up argument parsing to select box
-parser = argparse.ArgumentParser(description="Load parameters for a specific box.")
-parser.add_argument('json_filename', type=str, help="The name of the JSON file (without 'configs/' and '.json')")
+parser = argparse.ArgumentParser(
+    description="Load parameters for a specific box.")
+parser.add_argument(
+    'json_filename', type=str, 
+    help="The name of the JSON file (without 'configs/' and '.json')",
+    )
 args = parser.parse_args()
 
 # Constructing the full path to the config file
@@ -43,12 +61,17 @@ param_directory = f"gui/configs/{args.json_filename}.json"
 with open(param_directory, "r") as p:
     params = json.load(p)
 
-# Fetching all the ports to use for the trials (This was implemented becuase I had to test on less than 8 nosepokes)    
+
+## TODO: move this
+# Fetching all the ports to use for the trials 
+# (This was implemented becuase I had to test on less than 8 nosepokes)    
 active_nosepokes = [int(i) for i in params['active_nosepokes']]
 
-# Variable to store the name of the current task and the timestamp at which the session was started (mainly used for saving)
+# Variable to store the name of the current task and the timestamp at 
+# which the session was started (mainly used for saving)
 current_task = None
 current_time = None
+
 
 ## SAVING TERMINAL INFO
 """
