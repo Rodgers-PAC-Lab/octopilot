@@ -1,30 +1,18 @@
+"""Define the MainWindow of the GUI"""
 import sys
 import zmq
 import numpy as np
 import time
 import os
-import math
-import pyqtgraph as pg
-import random
-import csv
 import json
-import argparse
-from datetime import datetime
-import plotting
+
+# From this module
+from . import plotting
+from . import config_dialog
+
+# Qt imports
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import (
-    QMenu, QAction, QComboBox, QGroupBox, QMessageBox, QLabel, 
-    QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, 
-    QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, 
-    QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, 
-    QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem,
-    )
-from PyQt5.QtCore import (
-    QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot, 
-    QMetaObject, Qt,
-    )
-from PyQt5.QtGui import QFont, QColor
-from pyqttoast import Toast, ToastPreset
+from PyQt5.QtWidgets import QAction, QWidget, QVBoxLayout, QHBoxLayout
 
 
 ## TODO: find a way to not hardcode this
@@ -86,7 +74,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.Pi_widget = plotting.PiWidget(self, self.params)
         
         # Instatiate a ConfigurationList to choose the task
-        self.config_list = plotting.ConfigurationList(self.params)
+        self.config_list = config_dialog.ConfigurationList(self.params)
 
         # Initializing PlotWindow to show the pokes
         # Note that it uses information from Pi_widget

@@ -21,6 +21,25 @@ Their functions are as follows:
     not able to implement it properly. Can be changed if needed)
 """
 
+import json
+import os
+import zmq
+
+from PyQt5 import QtWidgets
+from PyQt5.QtWidgets import (
+    QMenu, QAction, QComboBox, QGroupBox, QMessageBox, QLabel, 
+    QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, 
+    QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, 
+    QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, 
+    QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem,
+    )
+from PyQt5.QtCore import (
+    QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot, 
+    QMetaObject, Qt,
+    )
+from PyQt5.QtGui import QFont, QColor
+from pyqttoast import Toast, ToastPreset
+
 # Displays a Dialog box with all the details of the task when you click View Details after right-clicking
 class ConfigurationDetailsDialog(QDialog):
     def __init__(self, config, parent=None):

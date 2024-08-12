@@ -1,3 +1,24 @@
+import math
+import zmq
+import pyqtgraph as pg
+
+
+from PyQt5 import QtWidgets
+from PyQt5.QtWidgets import (
+    QMenu, QAction, QComboBox, QGroupBox, QMessageBox, QLabel, 
+    QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, 
+    QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, 
+    QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, 
+    QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem,
+    )
+from PyQt5.QtCore import (
+    QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot, 
+    QMetaObject, Qt,
+    )
+from PyQt5.QtGui import QFont, QColor
+from pyqttoast import Toast, ToastPreset
+
+
 ## VISUAL REPRESENTATION OF PORTS
 class PiSignal(QGraphicsEllipseItem):
     """Creating a class for the individual ports on the Raspberry Pi 
