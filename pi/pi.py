@@ -355,6 +355,7 @@ class SoundQueue:
         left_target_rate = self.target_rate 
         right_target_rate = self.target_rate 
         
+        # Debug Statements
         #print(self.target_rate)
         #print(left_on)
         #print(right_on)
@@ -490,13 +491,6 @@ class SoundQueue:
 
             # Don't want to iterate too quickly, but rather add chunks
             # in a controlled fashion every so often
-            #time.sleep(0.1)
-    
-        ## Continue to the next stage (which is this one again)
-        # If it is cleared, then nothing happens until the next message
-        # from the Parent (not sure why)
-        # If we never end this function, then it won't respond to END
-        #self.stage_block.set()
     
     def append_sound_to_queue_as_needed(self):
         """Dump frames from `self.sound_cycle` into queue
