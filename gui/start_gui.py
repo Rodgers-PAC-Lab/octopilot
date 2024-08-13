@@ -17,7 +17,7 @@
 
 ## Module imports
 # shared defines all widgets
-from . import shared
+from . import main_window
 
 # This defines standard QApplication
 from PyQt5.QtWidgets import QApplication
@@ -45,7 +45,7 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     
     # Instantiate a MainWindow
-    main_window = shared.MainWindow(args.json_filename)
+    this_main_window = main_window.MainWindow(args.json_filename)
     
     # TODO: Sukrith what does this do?
     sys.exit(app.exec())

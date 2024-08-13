@@ -1,3 +1,5 @@
+"""Module for the individual plot widgets"""
+
 import math
 import zmq
 import pyqtgraph as pg
@@ -20,27 +22,50 @@ from pyqttoast import Toast, ToastPreset
 
 
 ## VISUAL REPRESENTATION OF PORTS
-class PiSignal(QGraphicsEllipseItem):
-    """Creating a class for the individual ports on the Raspberry Pi 
+class NosepokeCircle(QGraphicsEllipseItem):
+    """Object to represent each individual nosepoke
     
+    The ArenaWidget contains references to each of its individual NosepokeCircle.
+    Each NosepokeCircle can respond to
+    * calculate_position
+    * set_color
     """
     def __init__(self, index, total_ports, params):
-        super(PiSignal, self).__init__(0, 0, 38, 38) # Setting the diameters of the ellipse while initializing the class
-        self.index = index # The location at which the different ports will be arranged (range from 0-7)
-        self.total_ports = total_ports # Creating a variable for the total number of ports
+        # Setting the diameters of the ellipse while initializing the class
+        super(NosepokeCircle, self).__init__(0, 0, 38, 38) 
+        
+        # The location at which the different ports will be arranged (range from 0-7)
+        self.index = index 
+        
+        # Creating a variable for the total number of ports
+        self.total_ports = total_ports 
         
         # Defining list and order of the ports
-        if 0 <= self.index < len(params['ports']): # Ensure index is within specified number of ports listed in params 
+        # Ensure index is within specified number of ports listed in params 
+        if 0 <= self.index < len(params['ports']): 
             port_data = params['ports'][self.index]
-            label_text = port_data['label'] # Assigning a label to each port index in params 
+            
+            # Assigning a label to each port index in params 
+            label_text = port_data['label'] 
         
-        self.label = QGraphicsTextItem(f"Port-{port_data['label']}", self) # Setting the label for each port on the GUI
+        # Setting the label for each port on the GUI
+        self.label = QGraphicsTextItem(f"Port-{port_data['label']}", self) 
         font = QFont()
-        font.setPointSize(8)  # Set the font size here (10 in this example)
+        
+        # Set the font size here (10 in this example)
+        font.setPointSize(8)  
         self.label.setFont(font)
-        self.label.setPos(19 - self.label.boundingRect().width() / 2, 19 - self.label.boundingRect().height() / 2) # Positioning the labels within the ellipse
-        self.setPos(self.calculate_position()) # Positioning the individual ports
-        self.setBrush(QColor("gray")) # Setting the initial color of the ports to gray
+        
+        # Positioning the labels within the ellipse
+        self.label.setPos(
+            19 - self.label.boundingRect().width() / 2, 
+            19 - self.label.boundingRect().height() / 2) 
+        
+        # Positioning the individual ports
+        self.setPos(self.calculate_position()) 
+        
+        # Setting the initial color of the ports to gray
+        self.setBrush(QColor("gray")) 
 
     def calculate_position(self):  
         """
@@ -50,13 +75,19 @@ class PiSignal(QGraphicsEllipseItem):
         radius = 62
         x = radius * math.cos(angle)
         y = radius * math.sin(angle)
-        return QPointF(200 + x, 200 + y) # Arranging the Pi signals in a circle based on x and y coordinates calculated using the radius
+        
+        # Arranging the Pi signals in a circle based on x and y coordinates 
+        # calculated using the radius
+        return QPointF(200 + x, 200 + y) 
 
     def set_color(self, color):
         """
-        Function used to change the color from the individual ports during a a trial according to the pokes. 
-        The logic for when to change to color of the individual ports is mostly present in the worker class.
-        QColors currently used for ports: gray (default), green(reward port), red(incorrect port), blue(used previously but not currently)
+        Function used to change the color from the individual ports during a 
+        trial according to the pokes. 
+        The logic for when to change to color of the individual ports is 
+        mostly present in the worker class.
+        QColors currently used for ports: gray (default), green(reward port), 
+        red(incorrect port), blue(used previously but not currently)
         """
         if color == "green":
             self.setBrush(QColor("green"))
@@ -69,19 +100,25 @@ class PiSignal(QGraphicsEllipseItem):
         else:
             print_out("Invalid color:", color)
 
-## HANDLING LOGIC FOR OTHER GUI CLASSES (TO LOWER LOAD)
 
+## HANDLING LOGIC FOR OTHER GUI CLASSES (TO LOWER LOAD)
 class Worker(QObject):
     """
-    The Worker class primarily communicates with the PiSignal and PiWidget classes. 
-    It handles the logic of starting sessions, stopping sessions, choosing reward ports
-    sending messages to the pis (about reward ports), sending acknowledgements for completed trials (needs to be changed).
-    The Worker class also handles tracking information regarding each poke / trial and saving them to a csv file.
+    The Worker class primarily communicates with the NosepokeCircle and 
+    ArenaWidget classes. 
+    It handles the logic of starting sessions, stopping sessions, 
+    choosing reward ports
+    sending messages to the pis (about reward ports), sending acknowledgements 
+    for completed trials (needs to be changed).
+    The Worker class also handles tracking information regarding each 
+    poke / trial and saving them to a csv file.
     """
-    # Signal emitted when a poke occurs (This is used to communicate with other classes that strictly handle defining GUI elements)
+    # Sukrith: Why is this a class variable?
+    # Signal emitted when a poke occurs (This is used to communicate with 
+    # other classes that strictly handle defining GUI elements)
     pokedportsignal = pyqtSignal(int, str)
 
-    def __init__(self, pi_widget, params):
+    def __init__(self, arena_widget, params):
         super().__init__()
         self.initial_time = None
         
@@ -121,11 +158,11 @@ class Worker(QObject):
         self.ports = None
 
         
-        # Connecting the Worker Class to PiWidget elements 
-        self.pi_widget = pi_widget
-        self.total_ports = self.pi_widget.total_ports 
-        self.Pi_signals = self.pi_widget.Pi_signals
-        self.poked_port_numbers = self.pi_widget.poked_port_numbers 
+        # Connecting the Worker Class to ArenaWidget elements 
+        self.arena_widget = arena_widget
+        self.total_ports = self.arena_widget.total_ports 
+        self.Pi_signals = self.arena_widget.Pi_signals
+        self.poked_port_numbers = self.arena_widget.poked_port_numbers 
 
         """
         Variables used to store the functions to map the labels of ports present in the params file of a particular to indicies and vice versa
@@ -436,14 +473,14 @@ class Worker(QObject):
         for index, Pi in enumerate(self.Pi_signals):
             Pi.set_color("gray")
 
-## TRIAL INFORMATION DISPLAY / SESSION CONTROL    
 
-# PiWidget Class that represents all ports
-class PiWidget(QWidget):
+## TRIAL INFORMATION DISPLAY / SESSION CONTROL    
+# ArenaWidget Class that represents all ports
+class ArenaWidget(QWidget):
     """This class is the main GUI class that displays the ports on the Raspberry 
     Pi and the information related to the trials. The primary use of the widget 
     is to keep track of the pokes in the trial (done through the port icons 
-    and details box). This information is then used to calclate performance 
+    and details box). This information is then used to calculate performance 
     metrics like fraction correct and RCP. It also has additional logic to 
     stop and start sessions. 
     """
@@ -454,7 +491,7 @@ class PiWidget(QWidget):
 
     def __init__(self, main_window, params, *args, **kwargs):
         # Superclass QWidget init
-        super(PiWidget, self).__init__(*args, **kwargs)
+        super(ArenaWidget, self).__init__(*args, **kwargs)
 
         # Creating the GUI widget to display the Pi signals
         self.main_window = main_window
@@ -463,7 +500,7 @@ class PiWidget(QWidget):
 
         # Adding individual ports to the widget 
         self.total_ports = 8
-        self.Pi_signals = [PiSignal(i, self.total_ports, params) for i in range(self.total_ports)]
+        self.Pi_signals = [NosepokeCircle(i, self.total_ports, params) for i in range(self.total_ports)]
         [self.scene.addItem(Pi) for Pi in self.Pi_signals]
         
         # Setting for bold font
@@ -681,44 +718,89 @@ class PiWidget(QWidget):
         toast.applyPreset(ToastPreset.SUCCESS)  # Apply style preset
         toast.show()
 
+
 ## PLOTTING 
 
-# Widget that contains a plot that is continuously depending on the ports that are poked
 class PlotWindow(QWidget):
-    """
-    This class defines a pyqtgraph plot that updates in real-time based on the pokes received by Pi Widget
-    It is connected to PiWidget but updates in accordance to updates received by worker since PiWidget uses its methods
+    """Widget that plots the pokes as they happen
+    
+    This class defines a pyqtgraph plot that updates in real-time based on 
+    the pokes received by Pi Widget
+    It is connected to ArenaWidget but updates in accordance to updates 
+    received by worker since ArenaWidget uses its methods
     It communicates using the signals updateSignal and startbuttonClicked 
     """
-    def __init__(self, pi_widget, *args, **kwargs):
+    def __init__(self, arena_widget, *args, **kwargs):
+        """Initialize a new PlotWindow
+        
+        arena_widget : the corresponding ArenaWidget 
+        """
+        ## Superclass QWidget init
         super().__init__(*args, **kwargs)
-        self.is_active = False  # Flag to check if the Start Button is pressed
-        self.start_time = None # Initializing the start time 
-        self.timer = QTimer(self)  # Create a QTimer object
-        self.timer.timeout.connect(self.update_plot)  # Connecting the timer to a method used to continuously update the plot
+        
+        
+        ## Flags
+        # Flag to check if the Start Button is pressed
+        self.is_active = False  
+        
+        # Initializing the start time 
+        self.start_time = None 
+        
+        
+        ## Timers for continuous updating
+        # Create a QTimer object to continuously update the plot         
+        self.timer = QTimer(self) 
+        self.timer.timeout.connect(self.update_plot)  
         
         # Creating a QTimer for updating the moving time bar
         self.time_bar_timer = QTimer(self)
-        self.time_bar_timer.timeout.connect(self.update_time_bar) # Connecting it to the method used to update the time bar
+        self.time_bar_timer.timeout.connect(self.update_time_bar) 
 
-        # Entering the plot parameters and titles
-        self.plot_graph = pg.PlotWidget() # Initializing the pyqtgraph widget
-        self.start_time = None  # Initializing the varaible that defines the start time 
-        self.plot_graph.setXRange(0, 1600)  # Set x-axis range to [0, 1600] which is more or less the duration of the task in seconds (can be changed) (might be better to display in minutes also)
+
+        ## Entering the plot parameters and titles
+        # Initializing the pyqtgraph widget
+        self.plot_graph = pg.PlotWidget() 
         
-        # Setting the layout of the plotting widget 
+        # Initializing the varaible that defines the start time 
+        self.start_time = None  
+        
+        # Set x-axis range to [0, 1600] which is more or less the duration of 
+        # the task in seconds (can be changed) (might be better to display in 
+        # minutes also)
+        self.plot_graph.setXRange(0, 1600)  
+        
+        
+        ## Setting the layout of the plotting widget 
         self.layout = QVBoxLayout(self) 
         self.layout.addWidget(self.plot_graph)
-        self.plot_graph.setBackground("k") # Setting the background of the plot to be black. Use 'w' for white
-        self.plot_graph.setTitle("Pokes vs Time", color="white", size="12px") # Setting the title of the plot 
-        styles = {"color": "white", "font-size": "11px"} # Setting the font/style for the rest of the text used in the plot
-        self.plot_graph.setLabel("left", "Port", **styles) # Setting label for y axis
-        self.plot_graph.setLabel("bottom", "Time (s)", **styles) # Setting label for x axis 
+        
+        # Setting the background of the plot to be black. Use 'w' for white
+        self.plot_graph.setBackground("k") 
+        
+        # Setting the title of the plot 
+        self.plot_graph.setTitle("Pokes vs Time", color="white", size="12px") 
+        
+        # Setting the font/style for the rest of the text used in the plot
+        styles = {"color": "white", "font-size": "11px"} 
+        
+        # Setting label for y axis
+        self.plot_graph.setLabel("left", "Port", **styles) 
+        
+        # Setting label for x axis 
+        self.plot_graph.setLabel("bottom", "Time (s)", **styles) 
         self.plot_graph.addLegend()
-        self.plot_graph.showGrid(x=True, y=True) # Adding a grid background to make it easier to see where pokes are in time
-        self.plot_graph.setYRange(1, 9) # Setting the range for the Y axis
-        self.timestamps = []  # List to store timestamps
-        self.signal = []  # List to store pokes 
+        
+        # Adding a grid background to make it easier to see where pokes are in time
+        self.plot_graph.showGrid(x=True, y=True) 
+        
+        # Setting the range for the Y axis
+        self.plot_graph.setYRange(1, 9) 
+        
+        # List to store timestamps
+        self.timestamps = []  
+        
+        # List to store pokes 
+        self.signal = []  
         
         # Defining the parameters for the sliding timebar 
         self.line_of_current_time_color = 0.5
@@ -737,9 +819,9 @@ class PlotWindow(QWidget):
         # List to keep track of all plotted items to make it easier to clear the plot
         self.plotted_items = []
 
-        # Connecting to signals from PiWidget and Worker 
-        pi_widget.updateSignal.connect(self.handle_update_signal)
-        pi_widget.worker.pokedportsignal.connect(self.plot_poked_port)
+        # Connecting to signals from ArenaWidget and Worker 
+        arena_widget.updateSignal.connect(self.handle_update_signal)
+        arena_widget.worker.pokedportsignal.connect(self.plot_poked_port)
 
     def start_plot(self):
         # Activating the plot window and starting the plot timer
@@ -759,8 +841,8 @@ class PlotWindow(QWidget):
         self.time_bar_timer.stop()
         self.clear_plot() # Using a method to reset the plot to its initial state 
 
-    # Method to reset plot
     def clear_plot(self):
+        """Resets the plot"""
         # Clear the plot information by clearing lists
         self.timestamps.clear()
         self.signal.clear()
@@ -775,8 +857,9 @@ class PlotWindow(QWidget):
         # Resetting thje timebar to zero 
         self.line_of_current_time.setData(x=[], y=[])
 
-    # Method that controls how the timebar moves according to the timer 
+    
     def update_time_bar(self):
+        """Controls how the timebar moves according to the timer"""
         # Using current time to approximately update timebar based on total seconds 
         if self.start_time is not None:
             current_time = datetime.now()
@@ -791,20 +874,23 @@ class PlotWindow(QWidget):
                 pen=pg.mkPen(np.abs(self.line_of_current_time_color - 1)),
             )
     
-    # Getting information from the other classes and appending it to the lists in this class 
     def handle_update_signal(self, update_value):
+        """Append info from other classes to lists in this class"""
         if self.is_active:
             # Append current timestamp and update value to the lists
             self.timestamps.append((datetime.now() - self.start_time).total_seconds())
             self.signal.append(update_value)
             self.update_plot()
 
-    """
-    This is the main function used to draw the poke items as rasters on the plot. It is similar to the previous implementation in autopilot
-    It appends the items to a list based on the position of the relative time from the start of the session
-    Currently it does not used the timestamps sent from the pi to plot these pokes but this could be changed in the future 
-    """
     def plot_poked_port(self, poked_port_value, color):
+        """Main function used to draw the poke items as rasters on the plot. 
+        
+        It is similar to the previous implementation in autopilot
+        It appends the items to a list based on the position of the relative 
+        time from the start of the session
+        Currently it does not used the timestamps sent from the pi to plot 
+        these pokes but this could be changed in the future 
+        """
         if self.is_active:
             brush_color = "g" if color == "green" else "r" if color == "red" else "b" # Setting item colors to match the logic present in the worker class
             relative_time = (datetime.now() - self.start_time).total_seconds()  # Convert to seconds to plot according to start time

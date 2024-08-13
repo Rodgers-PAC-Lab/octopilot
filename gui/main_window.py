@@ -39,16 +39,16 @@ class MainWindow(QtWidgets.QMainWindow):
         ---------------
         * Load the parameters file.
         * Instantiate the following widgets:
-            * PiWidget - in the middle, displays each port as a circle
+            * ArenaWidget - in the middle, displays each port as a circle
             * ConfigurationList - on the left, allows choosing task params
             * PlotWindow - on the right, shows progress over time
         * Add a menu bar with one entry: File > Load Config Directory
             * Connect that entry to self.config_list.load_configurations
         * Create containers for each widget and lay them out
         * Connect signals
-            * Pi_widget.worker.pokedportsignal to plot_window.handle_update_signal
+            * arena_widget.worker.pokedportsignal to plot_window.handle_update_signal
             * widget.updateSignal to plot_window.handle_update_signal
-            * Pi_widget.startButtonClicked to config_list.on_start_button_clicked
+            * arena_widget.startButtonClicked to config_list.on_start_button_clicked
         """
         ## Superclass QMainWindow init
         super().__init__()
@@ -70,15 +70,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
         
         ## Set up the graphical objects
-        # Instantiate a PiWidget to show the ports
-        self.Pi_widget = plotting.PiWidget(self, self.params)
+        # Instantiate a ArenaWidget to show the ports
+        self.arena_widget = plotting.ArenaWidget(self, self.params)
         
         # Instatiate a ConfigurationList to choose the task
         self.config_list = config_dialog.ConfigurationList(self.params)
 
         # Initializing PlotWindow to show the pokes
-        # Note that it uses information from Pi_widget
-        self.plot_window = plotting.PlotWindow(self.Pi_widget)
+        # Note that it uses information from arena_widget
+        self.plot_window = plotting.PlotWindow(self.arena_widget)
 
 
         ## Set up the actions for the menu bar
@@ -99,19 +99,19 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Container for each widget
         config_list_container = QWidget()
-        pi_widget_container = QWidget()
+        arena_widget_container = QWidget()
         
         # Set the widths of the containers
         config_list_container.setFixedWidth(250)  
-        pi_widget_container.setFixedWidth(500)  
+        arena_widget_container.setFixedWidth(500)  
         
         # Set each one to have a vertical layout
         config_list_container.setLayout(QVBoxLayout())
-        pi_widget_container.setLayout(QVBoxLayout())
+        arena_widget_container.setLayout(QVBoxLayout())
         
         # Add each widget to its container
         config_list_container.layout().addWidget(self.config_list)
-        pi_widget_container.layout().addWidget(self.Pi_widget)
+        arena_widget_container.layout().addWidget(self.arena_widget)
 
 
         ## Create a layout for all containers
@@ -122,10 +122,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # Horizontal layout because it will contain three things side by side
         container_layout = QtWidgets.QHBoxLayout(container_widget)
         
-        # Add config_list_container, pi_widget_container, and plot_window
+        # Add config_list_container, arena_widget_container, and plot_window
         # Why is plot_window handled differently
         container_layout.addWidget(config_list_container)
-        container_layout.addWidget(pi_widget_container)
+        container_layout.addWidget(arena_widget_container)
         container_layout.addWidget(self.plot_window)
         
         # Set this one as the central widget
@@ -149,16 +149,16 @@ class MainWindow(QtWidgets.QMainWindow):
         # as a result?
         
         # Connect the pokedportsignal to handle_update_signal
-        self.Pi_widget.worker.pokedportsignal.connect(
+        self.arena_widget.worker.pokedportsignal.connect(
             self.plot_window.handle_update_signal)
         
-        # Connect the pi_widget updateSignal to the handle_update_signal
-        self.Pi_widget.updateSignal.connect(
+        # Connect the arena_widget updateSignal to the handle_update_signal
+        self.arena_widget.updateSignal.connect(
             self.plot_window.handle_update_signal)
         
         # Connect the startButtonClicked signal to 
         # config_list.on_start_button_clicked
-        self.Pi_widget.startButtonClicked.connect(
+        self.arena_widget.startButtonClicked.connect(
             self.config_list.on_start_button_clicked)
 
     def load_params(self, json_filename):
@@ -183,6 +183,6 @@ class MainWindow(QtWidgets.QMainWindow):
         Send 'exit' signal to all IP addresses bound to the GUI
         """
         # Iterate through identities and send 'exit' message
-        for identity in self.Pi_widget.worker.identities:
-            self.Pi_widget.worker.socket.send_multipart([identity, b"exit"])
+        for identity in self.arena_widget.worker.identities:
+            self.arena_widget.worker.socket.send_multipart([identity, b"exit"])
         event.accept()
