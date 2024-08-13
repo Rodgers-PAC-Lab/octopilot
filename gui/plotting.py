@@ -124,11 +124,14 @@ class Worker(QObject):
         
         """
         Setting up a ZMQ socket to send and receive information about poked ports 
-        (the DEALER socket on the Pi initiates the connection and then the ROUTER manages the message queue from different dealers and sends acknowledgements)
+        (the DEALER socket on the Pi initiates the connection and then the ROUTER 
+        manages the message queue from different dealers and sends acknowledgements)
         """
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.ROUTER)
-        self.socket.bind("tcp://*" + params['worker_port'])  # Making it bind to the port used for sending poke related information 
+        
+        # Making it bind to the port used for sending poke related information
+        self.socket.bind("tcp://*" + params['worker_port'])   
         
         """
         Making lists to store the trial parameters for each poke.
@@ -150,10 +153,14 @@ class Worker(QObject):
         self.current_correct_trials = 0
         self.current_fraction_correct = 0
         
-        # Initialize variables to track information used to control the logic of the task 
-        self.last_pi_received = None # Stores the identity of the pi that sent the most recent message
-        self.prev_choice = None # Used while randomly selecting ports to make sure that the same port is not rewarded twice
-        self.timer = None # Used to create a QTimer when the sequence is started 
+        # Initializing variables to track information used to control the logic of the task
+        
+        # Stores the identity of the pi that sent the most recent message
+        self.last_pi_received = None 
+        # Used while randomly selecting ports to make sure that the same port is not rewarded twice
+        self.prev_choice = None 
+        # Used to create a QTimer when the sequence is started
+        self.timer = None  
         self.current_task = None # Used to keep track of the current task (used in naming the CSV file)
         self.ports = None
 
@@ -165,8 +172,10 @@ class Worker(QObject):
         self.poked_port_numbers = self.arena_widget.poked_port_numbers 
 
         """
-        Variables used to store the functions to map the labels of ports present in the params file of a particular to indicies and vice versa
-        It is essentially to make sure that the labels of the ports are at the right positions on the GUI widget
+        Variables used to store the functions to map the labels of ports present 
+        in the params file of a particular to indicies and vice versa
+        It is essentially to make sure that the labels of the ports are at the 
+        right positions on the GUI widget
         """
         self.label_to_index = None # Used to relate a label of a port to the index of that particular port in the GUI
         self.index_to_label = None # Used this to properly update the port according to its label
@@ -188,7 +197,8 @@ class Worker(QObject):
         self.reward_ports = []
         
         """
-        These variables were used in my calculation for RCP, I don't think I've implemented it correctly so these might need to be removed or changed
+        These variables were used in my calculation for RCP, I don't think I've 
+        implemented it correctly so these might need to be removed or changed
         """
         self.unique_ports_visited = []  # List to store unique ports visited in each trial
         self.unique_ports_colors = {}  # Dictionary to store the outcome for each unique port
@@ -198,8 +208,9 @@ class Worker(QObject):
     @pyqtSlot()
     def start_sequence(self):
         """
-        First we store the initial timestamp where the session was started in a variable.
-        This used with the poketimes sent by the pi to calculate the time at which the pokes occured
+        First we store the initial timestamp where the session was started in a 
+        variable. This used with the poketimes sent by the pi to calculate the 
+        time at which the pokes occured
         """
         self.initial_time = datetime.now() 
         print(self.initial_time)
@@ -288,10 +299,13 @@ class Worker(QObject):
         
         """
         This is the logic on what to do when the GUI receives messages that aren't pokes
-        'rpi': Initial connection to all the pis trying to connect to the GUI (Debug message to see if all Pis are connected)
+        'rpi': Initial connection to all the pis trying to connect to the GUI 
+        (Debug message to see if all Pis are connected)
         'stop': Pauses all updates from the Pi when the session is stopped
-        'start': Setting a new reward port whenever a new session is started after the previous one is stopped (might be redundant but works for now)
-        'Current Parameters': Sends all the sound parameters for every trial; the values are extracted from a string and then appended to lists to be saved in a csv 
+        'start': Setting a new reward port whenever a new session is started 
+        after the previous one is stopped (might be redundant but works for now)
+        'Current Parameters': Sends all the sound parameters for every trial; 
+        the values are extracted from a string and then appended to lists to be saved in a csv 
         """
         try:
             # Waiting to receive messages from the pis
@@ -593,9 +607,12 @@ class ArenaWidget(QWidget):
     # Function to emit the update signal
     def emit_update_signal(self, poked_port_number, color):
         """
-        This method is to communicate with the plotting object to plot the different outcomes of each poke. 
-        This is also used to update the labels present in Pi Widget based on the information received over the network by the Worker class
-        Some of this logic is already present in the worker class for CSV saving but that was implemented after I implemented the initial version here
+        This method is to communicate with the plotting object to plot the 
+        different outcomes of each poke. 
+        This is also used to update the labels present in Pi Widget based on the
+        information received over the network by the Worker class
+        Some of this logic is already present in the worker class for CSV saving
+        but that was implemented after I implemented the initial version here
         """
         # Emit the updateSignal with the received poked_port_number and color (used for plotting)
         self.updateSignal.emit(poked_port_number, color)
