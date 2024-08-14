@@ -177,8 +177,11 @@ class Worker(QObject):
         It is essentially to make sure that the labels of the ports are at the 
         right positions on the GUI widget
         """
-        self.label_to_index = None # Used to relate a label of a port to the index of that particular port in the GUI
-        self.index_to_label = None # Used this to properly update the port according to its label
+        # Used to relate a label of a port to the index of that particular port in the GUI
+        self.label_to_index = None 
+        
+        # Used this to properly update the port according to its label
+        self.index_to_label = None 
         self.index = None
         
         # Variables to keep track of reward related messages 
@@ -230,9 +233,13 @@ class Worker(QObject):
         
         # Creating a dictionary that takes the label of each port and matches it to the index on the GUI (used for reordering)
         self.ports = params['ports']
-        self.label_to_index = {port['label']: port['index'] for port in self.ports} # Refer to when variables were initialized above
+        
+        # Refer to documentation when variables were initialized 
+        self.label_to_index = {port['label']: port['index'] for port in self.ports} 
         self.index_to_label = {port['index']: port['label'] for port in self.ports}
-        self.index = self.label_to_index.get(str(self.reward_port)) # Setting an index of remapped ports (so that colors can be changed accordign to label)
+        
+        # Setting an index of remapped ports (so that colors can be changed accordign to label)
+        self.index = self.label_to_index.get(str(self.reward_port)) 
         
         # Set the color of the initial reward port to green
         self.Pi_signals[self.index].set_color("green")
@@ -247,7 +254,9 @@ class Worker(QObject):
     def stop_sequence(self):
         if self.timer is not None:
             self.timer.stop() # Stops the timer for the session 
-            self.timer.timeout.disconnect(self.update_Pi) # Blocking out communication with the Pis till a new session is started 
+            
+            # Blocking out communication with the Pis till a new session is started 
+            self.timer.timeout.disconnect(self.update_Pi) 
         
         # Clearing recorded data for the completed session and resetting necessary variables
         self.initial_time = None
@@ -280,9 +289,15 @@ class Worker(QObject):
     # Method to randomly choose next port to reward
     def choose(self):
         ports = active_nosepokes # Getting the list of choices to choose from  
-        poss_choices = [choice for choice in ports if choice != self.prev_choice] # Setting up a new set of possible choices after omitting the previously rewarded port
-        new_choice =  random.choice(poss_choices) # Randomly choosing within the new set of possible choices
-        self.prev_choice = new_choice # Updating the previous choice that was made so the next choice can omit it 
+        
+        # Setting up a new set of possible choices after omitting the previously rewarded port
+        poss_choices = [choice for choice in ports if choice != self.prev_choice] 
+        
+        # Randomly choosing within the new set of possible choices
+        new_choice =  random.choice(poss_choices) 
+        
+        #Updating the previous choice that was made so the next choice can omit it 
+        self.prev_choice = new_choice  
         return new_choice
     
     """
@@ -533,7 +548,9 @@ class ArenaWidget(QWidget):
 
         # Making a timer to be displayed on the GUI 
         self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_time_elapsed) # Method to calculate and update elapsed time (can be replaced with date time instead of current implementation if needed)
+        
+        # Method to calculate and update elapsed time (can be replaced with date time instead of current implementation if needed)
+        self.timer.timeout.connect(self.update_time_elapsed) 
         
         # Setting initial time to zero for all labels
         self.start_time = QTime(0, 0)
@@ -596,13 +613,20 @@ class ArenaWidget(QWidget):
         self.worker = Worker(self, params)
         self.thread = QThread()
         self.worker.moveToThread(self.thread)  # Move the worker object to the thread
-        self.start_button.clicked.connect(self.start_sequence)  # Connect the start button to the start_sequence function (includes start logic from the worker class)
-        self.stop_button.clicked.connect(self.stop_sequence)  # Connect the stop button to the stop_sequence function
+        
+        # Connect the start button to the start_sequence function (includes start logic from the worker class)
+        self.start_button.clicked.connect(self.start_sequence)
+
+        # Connect the stop button to the stop_sequence function
+        self.stop_button.clicked.connect(self.stop_sequence)  
         
         # Connect the pokedportsignal from the Worker to slots that call some methods in Pi Widget
+        
         self.worker.pokedportsignal.connect(self.emit_update_signal)  # Connect the pokedportsignal to the emit_update_signal function
         self.worker.pokedportsignal.connect(self.reset_last_poke_time)
-        self.worker.pokedportsignal.connect(self.calc_and_update_avg_unique_ports) # Used for RCP calculation (needs to be changed)
+        
+        # Used for RCP calculation (needs to be changed)
+        self.worker.pokedportsignal.connect(self.calc_and_update_avg_unique_ports) 
 
     # Function to emit the update signal
     def emit_update_signal(self, poked_port_number, color):
@@ -669,7 +693,11 @@ class ArenaWidget(QWidget):
         # Stopping the plot
         self.main_window.plot_window.stop_plot()
         
-        # Reset all labels to intial values (Currently an issue with time since last poke updating after session is stopped. This parameter is not saved on the CSV but is just for display)
+        # Reset all labels to intial values 
+        """
+        Currently hasan issue with time since last poke updating after session is stopped. 
+        Note: This parameter is not saved on the CSV but is just for display)
+        """
         self.time_label.setText("Time Elapsed: 00:00")
         self.poke_time_label.setText("Time since last poke: 00:00")
         self.red_label.setText("Number of Pokes: 0")
@@ -689,11 +717,12 @@ class ArenaWidget(QWidget):
         # Quitting the thread so a new session can be started
         self.thread.quit()
 
-    # Timer to display the elapsed time in a particular session 
-    @pyqtSlot() # decorater function being used here because these methods are being used with slots
+    # Decorater function used to incorporate methods into slots
+    @pyqtSlot() 
     def update_time_elapsed(self):
+        # Timer to display the elapsed time in a particular session 
         elapsed_time = self.start_time.elapsed() / 1000.0  # Convert milliseconds to seconds
-        minutes, seconds = divmod(elapsed_time, 60)  # Convert seconds to minutes and seconds
+        minutes, seconds = divmod(elapsed_time, 60)  # Convert seconds to minutes:seconds
         # Update the QLabel text with the elapsed time in minutes and seconds
         self.time_label.setText(f"Time elapsed: {str(int(minutes)).zfill(2)}:{str(int(seconds)).zfill(2)}")
            
@@ -704,7 +733,7 @@ class ArenaWidget(QWidget):
         self.last_poke_timer.stop()
 
         # Start the timer again
-        self.last_poke_timer.start(1000)  # Setting update interval to 1000 milliseconds (1 second)
+        self.last_poke_timer.start(1000)  # Setting update interval to 1s (1000 ms)
         
     # RCP related function to calculate the number of unique ports visited in a trial and calculate average (currently incorrect)
     @pyqtSlot()
@@ -909,8 +938,11 @@ class PlotWindow(QWidget):
         these pokes but this could be changed in the future 
         """
         if self.is_active:
-            brush_color = "g" if color == "green" else "r" if color == "red" else "b" # Setting item colors to match the logic present in the worker class
-            relative_time = (datetime.now() - self.start_time).total_seconds()  # Convert to seconds to plot according to start time
+            # Setting item colors to match the logic present in the worker class
+            brush_color = "g" if color == "green" else "r" if color == "red" else "b" 
+            
+            # Converting to seconds to plot according to start time
+            relative_time = (datetime.now() - self.start_time).total_seconds()  
             
             # Setting the parameters for the individual items being plotted
             item = self.plot_graph.plot(
