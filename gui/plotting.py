@@ -309,8 +309,12 @@ class Worker(QObject):
         
         # Updating time related information 
         current_time = datetime.now() # Used to name the file 
-        elapsed_time = current_time - self.initial_time # Used to display elapsed time in the Pi Widget class
-        self.last_poke_timestamp = current_time # Update the last poke timestamp whenever a poke  occurs
+        
+        # Used to display elapsed time in the Arena Widget class
+        elapsed_time = current_time - self.initial_time 
+        
+        # Update the last poke timestamp whenever a poke  occurs
+        self.last_poke_timestamp = current_time 
         
         """
         This is the logic on what to do when the GUI receives messages that aren't pokes
@@ -403,7 +407,9 @@ class Worker(QObject):
                     
                     # Appending the poked port to a sequence that contains all pokes during a session
                     self.poked_port_numbers.append(poked_port)
-                    print_out("Sequence:", self.poked_port_numbers) # Can be commented out to declutter terminal
+                    
+                    # Can be commented out to declutter terminal
+                    print_out("Sequence:", self.poked_port_numbers)
                     self.last_pi_received = identity
 
                     # Sending information regarding poke and outcome of poke to Pi Widget
@@ -417,7 +423,8 @@ class Worker(QObject):
                     
                     # Updating poke / trial related information depending on the outcome of the poke
                     if color == "green" or color == "blue":
-                        self.current_poke += 1 # Updating number of pokes in the session 
+                        # Updating number of pokes in the session 
+                        self.current_poke += 1 
                         self.current_completed_trials += 1 # Updating the number of trials in the session 
                         
                         # Sending an acknowledgement to the Pis when the reward port is poked
@@ -432,7 +439,9 @@ class Worker(QObject):
                         
                         # Logic for if a correct trial is completed
                         if color == "green":
-                            self.current_correct_trials += 1 # Updating count for correct trials
+                            # Updating count for correct trials
+                            self.current_correct_trials += 1 
+                            # Updating Fraction Correct
                             self.current_fraction_correct = self.current_correct_trials / self.current_completed_trials
 
                         # Finding the index in the visual representation depending on the 
@@ -440,7 +449,8 @@ class Worker(QObject):
                         
                         # When a new trial is started reset color of all non-reward ports to gray and set new reward port to green
                         for index, Pi in enumerate(self.Pi_signals):
-                            if index + 1 == self.reward_port: # This might be a hack that doesnt work for some boxes (needs to be changed)
+                            # This might be a hack that doesnt work for some boxes (needs to be changed)
+                            if index + 1 == self.reward_port: 
                                 Pi.set_color("green")
                             else:
                                 Pi.set_color("gray")
@@ -515,9 +525,11 @@ class ArenaWidget(QWidget):
     """
 
     # Signals that communicate with the Worker class
-    startButtonClicked = pyqtSignal() # Signal that is emitted whenever the start button is pressed (connects to the logic in Worker class)
-    updateSignal = pyqtSignal(int, str) # Signal to emit the id and outcome of the current poke
-
+    # Signal that is emitted whenever the start button is pressed (connects to the logic in Worker class)
+    startButtonClicked = pyqtSignal() 
+    # Signal to emit the id and outcome of the current poke
+    updateSignal = pyqtSignal(int, str) 
+    
     def __init__(self, main_window, params, *args, **kwargs):
         # Superclass QWidget init
         super(ArenaWidget, self).__init__(*args, **kwargs)
@@ -544,7 +556,9 @@ class ArenaWidget(QWidget):
         self.stop_button = QPushButton("Stop Session")
         self.stop_button.setStyleSheet("background-color : red; color: white;") 
         #self.stop_button.setFont(font)   
-        self.stop_button.clicked.connect(self.save_results_to_csv)  # Making it so that the results are saved to a csvv when the session is stopped
+        
+        # Making it so that the results are saved to a csvv when the session is stopped
+        self.stop_button.clicked.connect(self.save_results_to_csv)  
 
         # Making a timer to be displayed on the GUI 
         self.timer = QTimer(self)
@@ -621,8 +635,8 @@ class ArenaWidget(QWidget):
         self.stop_button.clicked.connect(self.stop_sequence)  
         
         # Connect the pokedportsignal from the Worker to slots that call some methods in Pi Widget
-        
-        self.worker.pokedportsignal.connect(self.emit_update_signal)  # Connect the pokedportsignal to the emit_update_signal function
+        # Connect the pokedportsignal to the emit_update_signal function
+        self.worker.pokedportsignal.connect(self.emit_update_signal)  
         self.worker.pokedportsignal.connect(self.reset_last_poke_time)
         
         # Used for RCP calculation (needs to be changed)
@@ -640,7 +654,9 @@ class ArenaWidget(QWidget):
         """
         # Emit the updateSignal with the received poked_port_number and color (used for plotting)
         self.updateSignal.emit(poked_port_number, color)
-        self.last_poke_timestamp = time.time() # This timer was present before I changed timing implementation. Did not try to change it 
+        
+        # This timer was present before I changed timing implementation. Did not try to change it 
+        self.last_poke_timestamp = time.time() 
 
         # Logic for non-reward pokes
         if color == "red":
@@ -857,7 +873,9 @@ class PlotWindow(QWidget):
             self.timestamps,
             self.signal,
             pen=None,
-            symbol="o", # Included a separate symbol here that shows as a tiny dot under the raster to make it easier to distinguish multiple pokes in sequence
+            
+            # Included a separate symbol here that shows as a tiny dot under the raster to make it easier to distinguish multiple pokes in sequence
+            symbol="o", 
             symbolSize=1,
             symbolBrush="r",
         )
@@ -872,7 +890,9 @@ class PlotWindow(QWidget):
     def start_plot(self):
         # Activating the plot window and starting the plot timer
         self.is_active = True # Flag to initiate plotting 
-        self.start_time = datetime.now()  # Setting the initial time at which plotting starts 
+        
+        # Setting the initial time at which plotting starts 
+        self.start_time = datetime.now()  
         self.timer.start(10)  # Start the timer to update every 10 ms 
 
         # Start the timer for updating the time bar when the plot starts
@@ -948,9 +968,12 @@ class PlotWindow(QWidget):
             item = self.plot_graph.plot(
                 [relative_time],
                 [poked_port_value],
-                pen=None, # No connecting line between these points 
-                symbol="arrow_down",  # "o" for dots # Previous implementation used this to display rasters 
-                symbolSize=20,  # use 8 or lower if using dots
+                # No connecting line between these points 
+                pen=None, 
+                # "o" for dots # Previous implementation used this to display rasters 
+                symbol="arrow_down",  
+                # use 8 or lower if using dots
+                symbolSize=20,  
                 symbolBrush=brush_color, # Setting brush color to change dynamically 
                 symbolPen=None,
             )

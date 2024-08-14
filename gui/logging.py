@@ -1,8 +1,11 @@
 ## SAVING TERMINAL INFO
 """
-This function was implemented to save logs for test sessions or sessions that weren't saved due to crashes. 
-It logs all the terminal information being printed on the GUI side of the code and saves it to a txt file. 
-This implementation hasn't been done for the terminal information on the pi side. (currently does not use the logging library - maybe can be included later)
+This function was implemented to save logs for test sessions or sessions 
+that weren't saved due to crashes. 
+It logs all the terminal information being printed on the GUI side of the code 
+and saves it to a txt file. 
+This implementation hasn't been done for the terminal information on the pi side. 
+(currently does not use the logging library - maybe can be included later)
 """
 # Function to print to terminal and store log files as txt
 def print_out(*args, **kwargs):
