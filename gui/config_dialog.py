@@ -110,15 +110,22 @@ class PresetTaskDialog(QDialog):
         return self.name_edit.text(), self.task_combo.currentText()
 
 
-# Displays an editable dialog box on clicking 'Edit Configuration' to change the parameters for the tasks if needed (after right clicking task) 
 class ConfigurationDialog(QDialog):
+    """
+    Displays an editable dialog box on clicking 'Edit Configuration' to change 
+    the parameters for the tasks if needed (after right clicking task) 
+    """
+    
     def __init__(self, parent=None, config=None):
         super().__init__(parent)
         
         # Setting window title 
         self.setWindowTitle("Edit Configuration Details")
         
-        # Initializing the format for edited configs to be saved in (if more parameters need to be added later this needs to be changed)
+        """
+        Initializing the format for edited configs to be saved in 
+        (if more parameters need to be added later this needs to be changed)
+        """
         self.config = config if config else {
             "name": "",
             "task": "",
@@ -146,8 +153,10 @@ class ConfigurationDialog(QDialog):
         self.name_edit = QLineEdit(self.config.get("name", ""))
         
         """
-        Currently the main format tasks are saved in are for the sweep task. The hack to making the logic work for fixed is to make both the min and max values the same
-        For poketrain, these values are set to a very small number so there is no sound playing at all
+        Currently the main format tasks are saved in are for the sweep task. 
+        The hack to making the logic work for fixed is to make both the min and
+        max values the same. For poketrain, these values are set to a very small
+        number so there is no sound playing at all
         """
 
         # Task remains fixed (cannot be edited currently)
@@ -239,8 +248,8 @@ class ConfigurationDialog(QDialog):
     def update_widgets_based_on_task(self):
         """
         This method makes it so that the range is hidden for when the task is Fixed. 
-        Since Fixed doesnt need a min or max range, we remove extra editable boxes and ranges.
-        This method also sets the min and max values to be the same 
+        Since Fixed doesnt need a min or max range, we remove extra editable 
+        boxes and ranges. This method also sets the min and max values to be the same 
         (This can be done for poketrain too)
         """
         task = self.config.get("task", "")
@@ -291,7 +300,8 @@ class ConfigurationDialog(QDialog):
     def get_configuration(self):
         """
         Method to save all the updated values of the task / mouse. 
-        It grabs the text entered in the boxes and formats it according to the format we sent earlier.
+        It grabs the text entered in the boxes and formats it according to the 
+        format we sent earlier.
         It overwrites the current json file used for the task 
         """
         
@@ -335,9 +345,18 @@ class ConfigurationDialog(QDialog):
         return updated_config
 
 
-# List of mice that have been saved under certain tasks. It is used to send task parameters to the Pi
 class ConfigurationList(QWidget):
-    send_config_signal = pyqtSignal(dict) # Currently unused. I think I put this here while trying to make the Worker send the configs instead but that didnt work
+    """
+    List of mice that have been saved under certain tasks. It is used to 
+    send task parameters to the Pi
+    """
+    
+    """
+    Currently unused. I think I put this here while trying to make the Worker 
+    send the configs instead but that didnt work
+    """
+    
+    send_config_signal = pyqtSignal(dict) 
     
     def __init__(self, params):
         super().__init__()
@@ -416,8 +435,12 @@ class ConfigurationList(QWidget):
         # Executing a method to filter configs when the text in the search box is changed 
         self.search_box.textChanged.connect(self.filter_configurations)
         
-    # Executes a method to display only the configs that contain the same string as it and update the whole list dynamically
+     
     def filter_configurations(self, text):
+        """
+        Executes a method to display only the configs that contain the same string
+        as it and update the whole list dynamically
+        """
         # Logic to remove mice that do not match the string 
         if not text:
             self.update_config_list()
@@ -544,7 +567,9 @@ class ConfigurationList(QWidget):
 
         # Categorizing mice based on their different tasks (name of task is extracted from json)
         for config in configs:
-            category = config.get("task", "Uncategorized") # Making a category for config files without task (unused now)
+            
+            # Making a category for config files without task (unused now)
+            category = config.get("task", "Uncategorized") 
             if category not in categories:
                 category_item = QTreeWidgetItem([category])
                 self.config_tree.addTopLevelItem(category_item)
@@ -567,7 +592,9 @@ class ConfigurationList(QWidget):
         if item.parent():  # Ensure it's a config item, not a category
             selected_config = item.data(0, Qt.UserRole)
             self.current_config = selected_config
-            self.selected_config_label.setText(f"Selected Config: {selected_config['name']}") # Changing the label text to indicate the currently selected config. Otherwise None
+            
+            # Changing the label text to indicate the currently selected config. Otherwise None
+            self.selected_config_label.setText(f"Selected Config: {selected_config['name']}") 
             
             # Prompt to confirm selected configuration (to prevent accidentally using parameters for wrong mouse)
             confirm_dialog = QMessageBox()
@@ -593,7 +620,8 @@ class ConfigurationList(QWidget):
                 toast = Toast(self)
                 toast.setDuration(5000)  # Hide after 5 seconds
                 toast.setTitle('Task Parameters Sent') # Setting title
-                toast.setText(f'Parameters for task {current_task} have been sent to {args.json_filename}') # Setting test
+                # Setting task
+                toast.setText(f'Parameters for task {current_task} have been sent to {args.json_filename}') 
                 toast.applyPreset(ToastPreset.SUCCESS)  # Apply style preset
                 toast.show()
             else:
@@ -621,12 +649,18 @@ class ConfigurationList(QWidget):
     # Method for what to do when 'Edit Configuration' is clicked
     def edit_configuration(self, item):
         selected_config = item.data(0, Qt.UserRole)
-        dialog = ConfigurationDialog(self, selected_config) # Displays the menu to edit configurations
+        
+        # Displays the menu to edit configurations
+        dialog = ConfigurationDialog(self, selected_config) 
         if dialog.exec_() == QDialog.Accepted: 
-            updated_config = dialog.get_configuration() # Updating details based on saved information 
+            
+            # Updating details based on saved information 
+            updated_config = dialog.get_configuration() 
             if updated_config:
                 self.configurations = [config if config['name'] != selected_config['name'] else updated_config for config in self.configurations] # overwriting 
-                self.update_config_list() # Updating list of configs based on edits made 
+                
+                # Updating list of configs based on edits made 
+                self.update_config_list() 
 
                 # Saving the updated configuration as a json file/ Updating existing json
                 config_name = updated_config["name"]
@@ -637,5 +671,6 @@ class ConfigurationList(QWidget):
     # Method for what to do when 'View Details' is clicked 
     def view_configuration_details(self, item):
         selected_config = item.data(0, Qt.UserRole)
-        dialog = ConfigurationDetailsDialog(selected_config, self) # Display the menu
+        # Display the menu
+        dialog = ConfigurationDetailsDialog(selected_config, self) 
         dialog.exec_()
