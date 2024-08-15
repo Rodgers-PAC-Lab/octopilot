@@ -930,18 +930,17 @@ try:
             
             # Different messages have different effects
             if msg == "True": 
-                flash()
+                #flash()
                 # Condition to start the task
-                #sound_chooser.running = True
-                #sound_chooser.set_sound_cycle()
-                #sound_chooser.play()
+                sound_chooser.running = True
+                sound_chooser.set_sound_cycle()
+                sound_chooser.set_channel('right')
+                sound_chooser.play()
                 print("Received start command. Starting task.")
             
             elif msg == "False":
                 # Condition to stop the task
-                
-                #sound_chooser.running = False
-                #sound_chooser.empty_queue()
+                sound_chooser.set_channel('none')
                 print("Received stop command. Stopping task.")
 
         # Separate logic for Poketrain task
