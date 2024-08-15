@@ -914,7 +914,7 @@ try:
             print("Parameters updated")
             
         if task == 'Poketrain':
-            if left_poke_detected == True or right_poke_detected = True:
+            if left_poke_detected == True or right_poke_detected == True:
                 open_valve()
         
         ## Check for incoming messages on poke_socket
