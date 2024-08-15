@@ -840,6 +840,7 @@ pi.callback(nosepoke_pinR, pigpio.RISING_EDGE, poke_detectedR)
 poller = zmq.Poller()
 poller.register(poke_socket, zmq.POLLIN)
 poller.register(json_socket, zmq.POLLIN)
+poller.register(bonsai_socket, zmq.POLLIN)
 
 ## Initialize variables for sound parameters
 # These are not sound parameters .. TODO document
