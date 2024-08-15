@@ -40,8 +40,12 @@ from PyQt5.QtCore import (
 from PyQt5.QtGui import QFont, QColor
 from pyqttoast import Toast, ToastPreset
 
-# Displays a Dialog box with all the details of the task when you click View Details after right-clicking
+
 class ConfigurationDetailsDialog(QDialog):
+    """
+    Displays a Dialog box with all the details of the task when you click View 
+    Details after right-clicking
+    """
     def __init__(self, config, parent=None):
         super().__init__(parent)
         
@@ -76,8 +80,12 @@ class ConfigurationDetailsDialog(QDialog):
         self.setLayout(layout)
 
 
-# Displays the prompt to make a new task based on default parameters (with the option to edit if needed)
 class PresetTaskDialog(QDialog):
+    """
+    Displays the prompt to make a new task based on default parameters 
+    (with the option to edit if needed)
+    
+    """
     def __init__(self, parent=None):
         super().__init__(parent)
         
@@ -374,8 +382,10 @@ class ConfigurationList(QWidget):
         # causing problems
         self.init_ui()
 
-        # Loading default parameters for tasks and also the list of tasks 
-        # from the default directory
+        """
+        Loading default parameters for tasks and also the list of tasks 
+        from the default directory
+        """
         self.default_parameters = self.load_default_parameters()
         
         # Call the method to load configurations from a default directory 
@@ -446,11 +456,15 @@ class ConfigurationList(QWidget):
             self.update_config_list()
             return
         
-        # Displaying the list of configs that contain the same characters as the text in the search box
+        """
+        Displaying the list of configs that contain the same characters as the 
+        text in the search box
+        """
         filtered_configs = [] # Empty list to add matching configs to
         for config in self.configurations:
             if text.lower() in config["name"].lower():
-                filtered_configs.append(config) # Appending matching configs to a list 
+                # Appending matching configs to a list 
+                filtered_configs.append(config) 
 
         # Updating the entire list of configs
         self.update_config_list(filtered_configs)
@@ -520,8 +534,12 @@ class ConfigurationList(QWidget):
             self.configurations.remove(selected_config)
             self.update_config_list()
 
-            # Get the filename of the selected mouse
-            config_name = selected_config["name"] # Make sure filename is the same as name in the json
+            """
+            Get the filename of the selected mouse
+            
+            (Make sure filename is the same as name in the json)
+            """
+            config_name = selected_config["name"] 
             
             # Constructing the full file path with the name
             file_path = os.path.join(params['task_configs'], f"{config_name}.json")
@@ -530,14 +548,20 @@ class ConfigurationList(QWidget):
             if os.path.exists(file_path):
                 os.remove(file_path)
 
-    # This function is an extra functionality to load configs from a folder apart from the default location in directory if needed
+    """
+    This function is an extra functionality to load configs from a folder apart 
+    from the default location in directory if needed
+    """
     def load_configurations(self):
         folder = QFileDialog.getExistingDirectory(self, "Select Configuration Folder")
         if folder:
             self.configurations = self.import_configs_from_folder(folder)
             self.update_config_list()
 
-    # This is a function that loads all the saved task from the default directory where mice are saved
+    """
+    This is a function that loads all the saved task from the default directory 
+    where mice are saved
+    """
     def load_default(self):
         default_directory = os.path.abspath(self.params['task_configs'])
         if os.path.isdir(default_directory):
@@ -548,11 +572,13 @@ class ConfigurationList(QWidget):
     def import_configs_from_folder(self, folder):
         configurations = [] # list of configs
         for filename in os.listdir(folder): 
-            if filename.endswith(".json"): # Looking at all json files in specified folder
+            # Looking at all json files in specified folder
+            if filename.endswith(".json"): 
                 file_path = os.path.join(folder, filename) 
                 with open(file_path, 'r') as file:
                     config = json.load(file) # Loading all json files 
-                    configurations.append(config) # Appending to list of configuration s
+                    # Appending to list of configurations
+                    configurations.append(config) 
         return configurations
 
     # Method used to update cascading lists whenever a change is made (adding/removing/update)
@@ -565,7 +591,10 @@ class ConfigurationList(QWidget):
         if configs is None:
             configs = self.configurations
 
-        # Categorizing mice based on their different tasks (name of task is extracted from json)
+        """
+        Categorizing mice based on their different tasks (name of task is 
+        extracted from json)
+        """
         for config in configs:
             
             # Making a category for config files without task (unused now)
@@ -582,7 +611,10 @@ class ConfigurationList(QWidget):
             config_item.setData(0, Qt.UserRole, config)
             category_item.addChild(config_item)
 
-        # Executing the method for sending a config file to the pi when a mouse on the list is double clicked 
+        """
+        Executing the method for sending a config file to the pi when a mouse on
+        the list is double clicked 
+        """
         self.config_tree.itemDoubleClicked.connect(self.config_item_clicked)
         
     # Method for logic on what to do when a mouse is double clicked (mainly used to send data to pi)
@@ -596,7 +628,10 @@ class ConfigurationList(QWidget):
             # Changing the label text to indicate the currently selected config. Otherwise None
             self.selected_config_label.setText(f"Selected Config: {selected_config['name']}") 
             
-            # Prompt to confirm selected configuration (to prevent accidentally using parameters for wrong mouse)
+            """
+            Prompt to confirm selected configuration (to prevent accidentally 
+            using parameters for wrong mouse)
+            """
             confirm_dialog = QMessageBox()
             confirm_dialog.setIcon(QMessageBox.Question)
             confirm_dialog.setText(f"Do you want to use '{selected_config['name']}'?")
@@ -616,7 +651,10 @@ class ConfigurationList(QWidget):
                 current_time = self.current_time
                 current_task = self.current_task
 
-                # Creating a toast message to indicate that the message has been sent to all IPs connected to the config port
+                """
+                Creating a toast message to indicate that the message has been 
+                sent to all IPs connected to the config port
+                """
                 toast = Toast(self)
                 toast.setDuration(5000)  # Hide after 5 seconds
                 toast.setTitle('Task Parameters Sent') # Setting title
@@ -657,7 +695,8 @@ class ConfigurationList(QWidget):
             # Updating details based on saved information 
             updated_config = dialog.get_configuration() 
             if updated_config:
-                self.configurations = [config if config['name'] != selected_config['name'] else updated_config for config in self.configurations] # overwriting 
+                # Overwriting
+                self.configurations = [config if config['name'] != selected_config['name'] else updated_config for config in self.configurations] 
                 
                 # Updating list of configs based on edits made 
                 self.update_config_list() 
