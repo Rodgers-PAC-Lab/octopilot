@@ -114,6 +114,10 @@ class Worker(QObject):
     poke / trial and saving them to a csv file.
     """
     # Sukrith: Why is this a class variable?
+    """
+    I think all signals are class variables because they need to be shared between
+    classes
+    """
     # Signal emitted when a poke occurs (This is used to communicate with 
     # other classes that strictly handle defining GUI elements)
     pokedportsignal = pyqtSignal(int, str)
@@ -203,9 +207,14 @@ class Worker(QObject):
         These variables were used in my calculation for RCP, I don't think I've 
         implemented it correctly so these might need to be removed or changed
         """
-        self.unique_ports_visited = []  # List to store unique ports visited in each trial
-        self.unique_ports_colors = {}  # Dictionary to store the outcome for each unique port
-        self.average_unique_ports = 0  # Variable to store the average number of unique ports visited
+        # List to store unique ports visited in each trial
+        self.unique_ports_visited = []  
+        
+        # Dictionary to store the outcome for each unique port
+        self.unique_ports_colors = {}  
+        
+        # Variable to store the average number of unique ports visited
+        self.average_unique_ports = 0  
     
     # Method that contains logic to be executed when a new session is started
     @pyqtSlot()
@@ -231,7 +240,10 @@ class Worker(QObject):
         for identity in self.identities:
             self.socket.send_multipart([identity, bytes(reward_message, 'utf-8')])
         
-        # Creating a dictionary that takes the label of each port and matches it to the index on the GUI (used for reordering)
+        """
+        Creating a dictionary that takes the label of each port and matches it to
+        the index on the GUI (used for reordering)
+        """
         self.ports = params['ports']
         
         # Refer to documentation when variables were initialized 
@@ -382,13 +394,17 @@ class Worker(QObject):
                      # If it is, do nothing and return
                         return
 
-                # For any label in the list of port labels, correlate it to the index of the port in the visual arrangement in the widget  
+                """
+                For any label in the list of port labels, correlate it to the 
+                index of the port in the visual arrangement in the widget 
+                """                
                 if 1 <= poked_port <= self.total_ports:
                     poked_port_index = self.label_to_index.get(message_str)
                     poked_port_icon = self.Pi_signals[poked_port_index]
 
                     """
-                    Choosing colors to represent the outcome of each poke in the context of the trial
+                    Choosing colors to represent the outcome of each poke 
+                    in the context of the trial
                     green: correct trial
                     blue: completed trial
                     red: pokes at all ports that aren't the reward port
@@ -423,9 +439,12 @@ class Worker(QObject):
                     
                     # Updating poke / trial related information depending on the outcome of the poke
                     if color == "green" or color == "blue":
+                        
                         # Updating number of pokes in the session 
                         self.current_poke += 1 
-                        self.current_completed_trials += 1 # Updating the number of trials in the session 
+                        
+                        # Updating the number of completed trials in the session 
+                        self.current_completed_trials += 1 
                         
                         # Sending an acknowledgement to the Pis when the reward port is poked
                         for identity in self.identities:
@@ -434,7 +453,11 @@ class Worker(QObject):
                         # Storing the completed reward port to make sure the next choice is not at the same port
                         self.last_rewarded_port = self.reward_port 
                         self.reward_port = self.choose() 
-                        self.trials = 0 # Resetting the number of pokes that have happened in the trial
+                        
+                        # Resetting the number of pokes that have happened in the trial
+                        self.trials = 0 
+                        
+                        # Printing reward port
                         print_out(f"Reward Port: {self.reward_port}")
                         
                         # Logic for if a correct trial is completed
@@ -447,7 +470,9 @@ class Worker(QObject):
                         # Finding the index in the visual representation depending on the 
                         index = self.index_to_label.get(poked_port_index)
                         
-                        # When a new trial is started reset color of all non-reward ports to gray and set new reward port to green
+                        """When a new trial is started reset color of all 
+                        non-reward ports to gray and set new reward port to green
+                        """
                         for index, Pi in enumerate(self.Pi_signals):
                             # This might be a hack that doesnt work for some boxes (needs to be changed)
                             if index + 1 == self.reward_port: 
@@ -460,7 +485,10 @@ class Worker(QObject):
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
                             
                     
-                    # Appending all the information at the time of a particular poke to their respective lists
+                    """
+                    Appending all the information at the time of a particular 
+                    poke to their respective lists
+                    """
                     self.pokes.append(self.current_poke)
                     self.timestamps.append(elapsed_time)
                     self.amplitudes.append(self.current_amplitude)
@@ -548,10 +576,15 @@ class ArenaWidget(QWidget):
         font = QFont()
         font.setBold(True)
         
-        # Creating buttons to control the session (connects to the stop and start logic present in the worker class )
+        """
+        Creating buttons to control the session (connects to the stop and start 
+        logic present in the worker class)
+        """
         self.poked_port_numbers = []
         self.start_button = QPushButton("Start Session")
-        self.start_button.setStyleSheet("background-color : green; color: white;") # Changing the color of the buttons
+        
+        # Changing the color of the buttons
+        self.start_button.setStyleSheet("background-color : green; color: white;") 
         #self.start_button.setFont(font)   
         self.stop_button = QPushButton("Stop Session")
         self.stop_button.setStyleSheet("background-color : red; color: white;") 
@@ -563,7 +596,10 @@ class ArenaWidget(QWidget):
         # Making a timer to be displayed on the GUI 
         self.timer = QTimer(self)
         
-        # Method to calculate and update elapsed time (can be replaced with date time instead of current implementation if needed)
+        """
+        Method to calculate and update elapsed time (can be replaced with date 
+        time instead of current implementation if needed)
+        """
         self.timer.timeout.connect(self.update_time_elapsed) 
         
         # Setting initial time to zero for all labels
@@ -623,7 +659,10 @@ class ArenaWidget(QWidget):
         # Set main_layout as the layout for this widget
         self.setLayout(main_layout)
 
-        # Creating an instance of the Worker Class and a QThread to handle the logic in a separate thread from the GUI elements
+        """
+        Creating an instance of the Worker Class and a QThread to handle the logic
+        in a separate thread from the GUI elements
+        """
         self.worker = Worker(self, params)
         self.thread = QThread()
         self.worker.moveToThread(self.thread)  # Move the worker object to the thread
@@ -661,15 +700,19 @@ class ArenaWidget(QWidget):
         # Logic for non-reward pokes
         if color == "red":
             self.red_count += 1
-            self.red_label.setText(f"Number of Pokes: {(self.red_count + self.green_count + self.blue_count)}") # Updating the number of pokes
+            # Updating the number of pokes
+            self.red_label.setText(f"Number of Pokes: {(self.red_count + self.green_count + self.blue_count)}") 
 
         # Logic for completed trials
         if color == "blue":
             self.blue_count += 1
             self.red_label.setText(f"Number of Pokes: {(self.red_count + self.green_count + self.blue_count)}")
-            self.blue_label.setText(f"Number of Trials: {(self.blue_count + self.green_count)}") # Updating number of completed trials
+            
+            # Updating number of completed trials
+            self.blue_label.setText(f"Number of Trials: {(self.blue_count + self.green_count)}") 
             if self.blue_count != 0:
-                self.fraction_correct = self.green_count / (self.blue_count + self.green_count) # Updating fraction correct
+                
+                self.fraction_correct = self.green_count / (self.blue_count + self.green_count) 
                 self.fraction_correct_label.setText(f"Fraction Correct (FC): {self.fraction_correct:.3f}")
 
         # Logic for correct trials
@@ -677,7 +720,9 @@ class ArenaWidget(QWidget):
             self.green_count += 1
             self.red_label.setText(f"Number of Pokes: {(self.red_count + self.green_count + self.blue_count)}")
             self.blue_label.setText(f"Number of Trials: {(self.blue_count + self.green_count)}")
-            self.green_label.setText(f"Number of Correct Trials: {self.green_count}") # Updating number of correct trials 
+            
+            # Updating number of correct trials 
+            self.green_label.setText(f"Number of Correct Trials: {self.green_count}") 
             if self.blue_count == 0:
                 self.fraction_correct_label.setText(f"Fraction Correct (FC): {(self.green_count/self.green_count):.3f}")    
             elif self.blue_count != 0:
@@ -751,7 +796,10 @@ class ArenaWidget(QWidget):
         # Start the timer again
         self.last_poke_timer.start(1000)  # Setting update interval to 1s (1000 ms)
         
-    # RCP related function to calculate the number of unique ports visited in a trial and calculate average (currently incorrect)
+    """ 
+    RCP related function to calculate the number of unique ports visited in a 
+    trial and calculate average (currently incorrect)
+    """
     @pyqtSlot()
     def calc_and_update_avg_unique_ports(self):
         self.worker.calculate_average_unique_ports()
@@ -776,7 +824,9 @@ class ArenaWidget(QWidget):
         toast = Toast(self) # Initializing a toast message
         toast.setDuration(5000)  # Hide after 5 seconds
         toast.setTitle('Results Saved') # Printing acknowledgement in terminal
-        toast.setText('Log saved to /home/mouse/dev/paclab_sukrith/logs') # Setting text for the toast message
+        
+        # Setting text for the toast message
+        toast.setText('Log saved to /home/mouse/dev/paclab_sukrith/logs') 
         toast.applyPreset(ToastPreset.SUCCESS)  # Apply style preset
         toast.show()
 
@@ -874,7 +924,11 @@ class PlotWindow(QWidget):
             self.signal,
             pen=None,
             
-            # Included a separate symbol here that shows as a tiny dot under the raster to make it easier to distinguish multiple pokes in sequence
+            """
+            Included a separate symbol here that shows as a tiny dot under the 
+            raster to make it easier to distinguish multiple pokes in sequence
+            """
+            
             symbol="o", 
             symbolSize=1,
             symbolBrush="r",
