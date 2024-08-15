@@ -649,6 +649,14 @@ poke_socket.identity = bytes(f"{pi_identity}", "utf-8")
 json_context = zmq.Context()
 json_socket = json_context.socket(zmq.SUB)
 
+## Creating a ZeroMQ context and socket for communication with bonsai
+bonsai_context = zmq.Context()
+bonsai_socket = bonsai_context.socket(zmq.SUB)
+router_ip3 = "tcp://" + f"{params['gui_ip']}" + f"{params['bonsai_port']}"
+bonsai_socket.connect(router_ip3)
+
+# Subscribe to all incoming messages
+bonsai_socket.subscribe(b"")
 
 ## Connect to the server
 # Connecting to IP address (192.168.0.99 for laptop, 192.168.0.207 for seaturtle)
@@ -912,7 +920,28 @@ try:
             
             # Debug print
             print("Parameters updated")
+
+        # Logic to handle messages from the bonsai socket
+        if bonsai_socket in socks and socks[bonsai_socket] == zmq.POLLIN:
+            # Non-blocking receive: #flags=zmq.NOBLOCK)  
+            # Blocking receive
+            msg = bonsai_socket.recv_string()  
             
+            # Different messages have different effects
+            if msg == 'True': 
+                # Condition to start the task
+                sound_chooser.running = True
+                sound_chooser.set_sound_cycle()
+                sound_chooser.play()
+                print("Received start command. Starting task.")
+            
+            elif msg == 'False':
+                # Condition to stop the task
+                sound_chooser.running = False
+                sound_chooser.empty_queue()
+                print("Received stop command. Stopping task.")
+
+        # Separate logic for Poketrain task
         if task == 'Poketrain':
             if left_poke_detected == True or right_poke_detected == True:
                 open_valve()
