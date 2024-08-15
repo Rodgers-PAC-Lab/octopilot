@@ -41,11 +41,21 @@ args = parser.parse_args()
 ## Start
 if __name__ == '__main__':
     # Create a QApplication
-    # Sukrith why does it need sys.argv?
+    """
+    QApplication manages the inital settings of the GUI. We pass sys.argv as an 
+    argument to let it know that the settings for each box might be different 
+    (for example,the particular log folder to use, the mice saved for that box etc.).
+    Right now the settings for all boxes have the same directories but we can use 
+    different locations to save session results and tasks for each box. 
+    """
     app = QApplication(sys.argv)
     
     # Instantiate a MainWindow
     this_main_window = main_window.MainWindow(args.json_filename)
     
     # TODO: Sukrith what does this do?
+    """
+    '.exec() is used to to enter the main loop and run the different widgets on 
+    the GUI until it is closed (which is when sys.exit() is called)
+    """
     sys.exit(app.exec())
