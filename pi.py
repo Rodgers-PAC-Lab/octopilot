@@ -928,14 +928,14 @@ try:
             msg = bonsai_socket.recv_string()  
             
             # Different messages have different effects
-            if msg == 'True': 
+            if msg == 1: 
                 # Condition to start the task
                 sound_chooser.running = True
                 sound_chooser.set_sound_cycle()
                 sound_chooser.play()
                 print("Received start command. Starting task.")
             
-            elif msg == 'False':
+            elif msg == 0:
                 # Condition to stop the task
                 sound_chooser.running = False
                 sound_chooser.empty_queue()
