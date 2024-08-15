@@ -928,17 +928,19 @@ try:
             msg = bonsai_socket.recv_string()  
             
             # Different messages have different effects
-            if msg == 1: 
+            if msg == "True": 
+                flash()
                 # Condition to start the task
-                sound_chooser.running = True
-                sound_chooser.set_sound_cycle()
-                sound_chooser.play()
+                #sound_chooser.running = True
+                #sound_chooser.set_sound_cycle()
+                #sound_chooser.play()
                 print("Received start command. Starting task.")
             
-            elif msg == 0:
+            elif msg == "False":
                 # Condition to stop the task
-                sound_chooser.running = False
-                sound_chooser.empty_queue()
+                
+                #sound_chooser.running = False
+                #sound_chooser.empty_queue()
                 print("Received stop command. Stopping task.")
 
         # Separate logic for Poketrain task
