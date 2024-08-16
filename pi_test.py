@@ -881,7 +881,7 @@ try:
         # TODO: how long does it wait? # Can be set, currently not sure
         sound_chooser.append_sound_to_queue_as_needed()
         socks = dict(poller.poll(100))
-        #socks2 = dict(poller.poll(100))
+        socks2 = dict(poller.poll(100))
 
         ## Check for incoming messages on json_socket
         # If so, use it to update the acoustic parameters
@@ -922,38 +922,38 @@ try:
             # Debug print
             print("Parameters updated")
 
-        # # Logic to handle messages from the bonsai socket
-        # if bonsai_socket in socks and socks[bonsai_socket] == zmq.POLLIN:
-        #     # Non-blocking receive: #flags=zmq.NOBLOCK)  
-        #     # Blocking receive
-        #     sound_chooser.update_parameters(
-        #             rate_min, rate_max, irregularity_min, irregularity_max, 
-        #             amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
-        #     sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
-        #         sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
+        # Logic to handle messages from the bonsai socket
+        if bonsai_socket in socks and socks[bonsai_socket] == zmq.POLLIN:
+            # Non-blocking receive: #flags=zmq.NOBLOCK)  
+            # Blocking receive
+            sound_chooser.update_parameters(
+                    rate_min, rate_max, irregularity_min, irregularity_max, 
+                    amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
+            sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+                sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
             
-        #     sound_chooser.set_sound_cycle()
-        #     msg = bonsai_socket.recv_string()  
+            sound_chooser.set_sound_cycle()
+            msg = bonsai_socket.recv_string()  
             
-        #     # Different messages have different effects
-        #     if msg == "True":
-        #         # Testing amplitude
-        #         amplitude_min = 0.25
-        #         amplitude_max = 0.25
+            # Different messages have different effects
+            if msg == "True":
+                # Testing amplitude
+                amplitude_min = 0.25
+                amplitude_max = 0.25
 
-        #         # Condition to start the task
-        #         sound_chooser.running = True
-        #         #sound_chooser.set_channel('right')
-        #         print("Received start command. Starting task.")
+                # Condition to start the task
+                sound_chooser.running = True
+                #sound_chooser.set_channel('right')
+                print("Received start command. Starting task.")
             
-        #     elif msg == "False":
-        #         # Testing amplitude
-        #         amplitude_min = config_data['amplitude_min']
-        #         amplitude_max = config_data['amplitude_max']
+            elif msg == "False":
+                # Testing amplitude
+                amplitude_min = config_data['amplitude_min']
+                amplitude_max = config_data['amplitude_max']
 
-        #         # Condition to stop the task
-        #         sound_chooser.running = False
-        #         print("Received stop command. Stopping task.")
+                # Condition to stop the task
+                sound_chooser.running = False
+                print("Received stop command. Stopping task.")
 
         # Separate logic for Poketrain task
         if task == 'Poketrain':
