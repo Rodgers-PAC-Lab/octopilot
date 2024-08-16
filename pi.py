@@ -883,8 +883,6 @@ try:
         socks = dict(poller.poll(100))
         socks2 = dict(poller.poll(100))
         
-
-        
         ## Check for incoming messages on json_socket
         # If so, use it to update the acoustic parameters
         if json_socket in socks and socks[json_socket] == zmq.POLLIN:
@@ -925,7 +923,7 @@ try:
             print("Parameters updated")
 
         # Logic to handle messages from the bonsai socket
-        if bonsai_socket in socks and socks[bonsai_socket] == zmq.POLLIN:
+        if bonsai_socket in socks2 and socks2[bonsai_socket] == zmq.POLLIN:
             # Non-blocking receive: #flags=zmq.NOBLOCK)  
             # Blocking receive
             sound_chooser.set_sound_cycle()
