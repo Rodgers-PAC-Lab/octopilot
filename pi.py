@@ -924,7 +924,7 @@ try:
             print("Parameters updated")
 
         # Logic to handle messages from the bonsai socket
-        if bonsai_socket in socks2 and socks2[bonsai_socket] == zmq.POLLIN:
+        if bonsai_socket in socks and socks[bonsai_socket] == zmq.POLLIN:
             # Non-blocking receive: #flags=zmq.NOBLOCK)  
             # Blocking receive
             msg = bonsai_socket.recv_string()  
