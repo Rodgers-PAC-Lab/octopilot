@@ -938,6 +938,7 @@ try:
             
             elif msg == "False":
                 # Condition to stop the task
+                sound_chooser.empty_queue()
                 sound_chooser.running = False
                 print("Received stop command. Stopping task.")
 
