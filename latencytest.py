@@ -209,7 +209,6 @@ pig.callback(nosepoke_pinR, pigpio.RISING_EDGE, poke_detectedR)
 # TODO: document .. What is this?
 poller = zmq.Poller()
 poller.register(poke_socket, zmq.POLLIN)
-poller.register(json_socket, zmq.POLLIN)
 
 ## Main loop to keep the program running and exit when it receives an exit command
 try:
