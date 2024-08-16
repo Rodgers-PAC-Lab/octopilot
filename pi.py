@@ -934,6 +934,7 @@ try:
                 #flash()
                 # Condition to start the task
                 sound_chooser.running = True
+                sound_chooser.set_sound_cycle()
                 sound_chooser.set_channel('right')
                 print("Received start command. Starting task.")
             
