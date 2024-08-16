@@ -940,7 +940,7 @@ try:
             
             elif msg == "False":
                 # Condition to stop the task
-                stop_session()
+                sound_chooser.running = False
                 print("Received stop command. Stopping task.")
 
         # Separate logic for Poketrain task
