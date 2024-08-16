@@ -174,7 +174,7 @@ def poke_detectedR(pin, level, tick):
         print(f"Sending nosepoke_id = {nosepoke_idR}") 
         #poke_socket.send_string(str(nosepoke_idR))
         timestamp = datetime.now()
-        poke_socket.send_string((str(timestamp))
+        poke_socket.send_string(str(timestamp))
         
     except Exception as e:
         print("Error sending nosepoke_id:", e)
