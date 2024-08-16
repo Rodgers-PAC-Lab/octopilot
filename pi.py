@@ -880,6 +880,7 @@ try:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
         socks = dict(poller.poll(100))
+        socks2 = dict(poller.poll(5000))
         
         sound_chooser.append_sound_to_queue_as_needed()
         
@@ -923,7 +924,7 @@ try:
             print("Parameters updated")
 
         # Logic to handle messages from the bonsai socket
-        if bonsai_socket in socks and socks[bonsai_socket] == zmq.POLLIN:
+        if bonsai_socket in socks2 and socks2[bonsai_socket] == zmq.POLLIN:
             # Non-blocking receive: #flags=zmq.NOBLOCK)  
             # Blocking receive
             msg = bonsai_socket.recv_string()  
