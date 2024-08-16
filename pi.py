@@ -924,8 +924,8 @@ try:
 
         # Logic to handle messages from the bonsai socket
         if bonsai_socket in socks2 and socks2[bonsai_socket] == zmq.POLLIN:
-            # Non-blocking receive: #flags=zmq.NOBLOCK)  
-            # Blocking receive
+            
+            # Setting sound to play 
             sound_chooser.set_sound_cycle()
             msg = bonsai_socket.recv_string()  
             
