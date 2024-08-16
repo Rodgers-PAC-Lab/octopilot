@@ -179,6 +179,10 @@ def poke_detectedR(pin, level, tick):
     except Exception as e:
         print("Error sending nosepoke_id:", e)
 
+
+# Raspberry Pi's identity (Interchangeable with pi_name. This implementation is from before I was using the Pis host name)
+pi_identity = params['identity']
+
 ## Creating a DEALER socket for communication regarding poke and poke times
 poke_context = zmq.Context()
 poke_socket = poke_context.socket(zmq.DEALER)
