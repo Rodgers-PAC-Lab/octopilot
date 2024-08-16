@@ -823,9 +823,9 @@ def stop_session():
     pi.write(10, 0)
     pi.write(27, 0)
     pi.write(9, 0)
+    sound_chooser.running = False
     sound_chooser.set_channel('none')
     sound_chooser.empty_queue()
-    sound_chooser.running = False
 
 ## Set up pigpio and callbacks
 # TODO: rename this variable to pig or something; "pi" is ambiguous
@@ -940,7 +940,7 @@ try:
             
             elif msg == "False":
                 # Condition to stop the task
-                sound_chooser.set_channel('none')
+                stop_session()
                 print("Received stop command. Stopping task.")
 
         # Separate logic for Poketrain task
