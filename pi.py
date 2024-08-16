@@ -927,14 +927,13 @@ try:
         if bonsai_socket in socks and socks[bonsai_socket] == zmq.POLLIN:
             # Non-blocking receive: #flags=zmq.NOBLOCK)  
             # Blocking receive
+            sound_chooser.set_sound_cycle()
             msg = bonsai_socket.recv_string()  
             
             # Different messages have different effects
             if msg == "True": 
-                #flash()
                 # Condition to start the task
                 sound_chooser.running = True
-                sound_chooser.set_sound_cycle()
                 sound_chooser.set_channel('right')
                 print("Received start command. Starting task.")
             
