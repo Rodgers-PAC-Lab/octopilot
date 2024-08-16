@@ -236,7 +236,7 @@ try:
             # Non-blocking receive
             msg = poke_socket.recv_string()  
     
-            elif msg.startswith("Latency:"):
+            if msg.startswith("Latency:"):
                 print(msg)
            
             else:
