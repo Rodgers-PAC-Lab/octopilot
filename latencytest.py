@@ -197,3 +197,57 @@ poke_socket.connect(router_ip)
 # Send the identity of the Raspberry Pi to the server
 poke_socket.send_string(f"{pi_identity}") 
 
+## Set up pigpio and callbacks
+# TODO: rename this variable to pig or something; "pi" is ambiguous
+pig = pigpio.pi()
+pig.callback(nosepoke_pinL, pigpio.FALLING_EDGE, poke_inL)
+pig.callback(nosepoke_pinL, pigpio.RISING_EDGE, poke_detectedL)
+pig.callback(nosepoke_pinR, pigpio.FALLING_EDGE, poke_inR)
+pig.callback(nosepoke_pinR, pigpio.RISING_EDGE, poke_detectedR)
+
+## Create a Poller object
+# TODO: document .. What is this?
+poller = zmq.Poller()
+poller.register(poke_socket, zmq.POLLIN)
+poller.register(json_socket, zmq.POLLIN)
+
+## Main loop to keep the program running and exit when it receives an exit command
+try:
+    ## TODO: document these variables and why they are tracked
+    # Initialize reward_pin variable
+    reward_pin = None
+    
+    # Track the currently active LED
+    current_pin = None  
+    
+    # Track prev_port
+    prev_port = None
+    
+    ## Loop forever
+    while True:
+        ## Wait for events on registered sockets
+        # TODO: how long does it wait? # Can be set, currently not sure
+        socks = dict(poller.poll(100))
+        
+        ## Check for incoming messages on poke_socket
+        # TODO: document the types of messages that can be sent on poke_socket 
+        if poke_socket in socks and socks[poke_socket] == zmq.POLLIN:
+            # Blocking receive: #flags=zmq.NOBLOCK)  
+            # Non-blocking receive
+            msg = poke_socket.recv_string()  
+    
+            elif msg.startswith("Latency:"):
+                print(msg)
+           
+            else:
+                print("Unknown message received:", msg)
+
+
+except KeyboardInterrupt:
+    # Stops the pigpio connection
+    pig.stop()
+
+finally:
+    # Close all sockets and contexts
+    poke_socket.close()
+    poke_context.term()
