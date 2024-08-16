@@ -183,7 +183,7 @@ poke_context = zmq.Context()
 poke_socket = poke_context.socket(zmq.DEALER)
 
 # Setting the identity of the socket in bytes
-poke_socket.identity = bytes(f"{pi_identity}", "utf-8"
+poke_socket.identity = bytes(f"{pi_identity}", "utf-8")
 
 # Connecting to IP address (192.168.0.99 for laptop, 192.168.0.207 for seaturtle)
 router_ip = "tcp://" + f"{params['gui_ip']}" + f"{params['poke_port']}" 
