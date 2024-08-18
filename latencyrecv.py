@@ -14,7 +14,7 @@ from datetime import datetime
 from PyQt5.QtCore import QTimer, QTime
 
 # Constructing the full path to the config file
-param_directory = f"gui/configs/{args.json_filename}.json"
+param_directory = f"gui/configs/box1.json"
 
 # Load the parameters from the specified JSON file
 with open(param_directory, "r") as p:
@@ -28,16 +28,15 @@ current_task = None
 current_time = None
 
 # Setting up ZMQ context to send and receive information about poked ports
-self.context = zmq.Context()
-self.socket = self.context.socket(zmq.ROUTER)
-self.socket.bind("tcp://*" + params['worker_port'])  # Change Port number if you want to run multiple instances
+context = zmq.Context()
+socket = context.socket(zmq.ROUTER)
+socket.bind("tcp://*" + params['worker_port'])  # Change Port number if you want to run multiple instances
 
 # Method to handle the update of Pis
-@pyqtSlot()
 def update():
     try:
         # Receive message from the socket
-        message = self.socket.recv_string()
+        message = socket.recv_string()
         recv_time = datetime.now()
         pi_time = datetime.strptime(message)
         latency = recv_time - pi_time
@@ -47,5 +46,6 @@ def update():
         pass
         #print_out("Unknown message:", message_str)
 
-while True:
-    update()
+update()
+#~ while True:
+    #~ update()
