@@ -131,6 +131,23 @@ class Worker(QObject):
         Used to communicate with Pi. GUI is the Router. Pis are Dealers.
     socket : zmq.Context.socket
     initial_time : datetime or None
+        self.start_sequence sets this to now when the session starts
+    ampltiudes, target rates, current_amplitude, etc : stimulus params
+    arena_widget, total_ports, nosepoke_circles, poked_port_numbers :
+        From self.arena_widget
+    last_pi_received
+    prev_choice
+    timer
+    current task
+    ports
+    label2index, index2label, index
+    identities : set of connected pis
+    
+    Methods
+    -------
+    start_sequence: Start a session
+        This is invoked by arena_widget somehow
+        Chooses reward port, tells pis which is rewarded, and starts self.timer
     """
     # Signal emitted when a poke occurs (This is used to communicate with 
     # other classes that strictly handle defining GUI elements)
@@ -187,7 +204,9 @@ class Worker(QObject):
         
         # Used to create a QTimer when the sequence is started
         self.timer = None  
-        self.current_task = None # Used to keep track of the current task (used in naming the CSV file)
+        
+        # Used to keep track of the current task (used in naming the CSV file)
+        self.current_task = None 
         self.ports = None
 
         
@@ -197,12 +216,12 @@ class Worker(QObject):
         self.nosepoke_circles = self.arena_widget.nosepoke_circles
         self.poked_port_numbers = self.arena_widget.poked_port_numbers 
 
-        """
-        Variables used to store the functions to map the labels of ports present 
-        in the params file of a particular to indicies and vice versa
-        It is essentially to make sure that the labels of the ports are at the 
-        right positions on the GUI widget
-        """
+
+        ## Identify each port
+        # Variables used to store the functions to map the labels of ports present 
+        # in the params file of a particular to indicies and vice versa
+        # It is essentially to make sure that the labels of the ports are at the 
+        # right positions on the GUI widget
         # Used to relate a label of a port to the index of that particular port in the GUI
         self.label_to_index = None 
         
@@ -210,14 +229,24 @@ class Worker(QObject):
         self.index_to_label = None 
         self.index = None
         
-        # Variables to keep track of reward related messages 
-        self.identities = set() # Set of identities of all pis connected to that instance of ther GUI 
-        self.last_poke_timestamp = None  # Variable to store the timestamp of the last poke 
-        self.reward_port = None # Keeping track of the current reward port
-        self.last_rewarded_port = None # Keeping track of last rewarded port
+        
+        ## Variables to keep track of reward related messages 
+        # Set of identities of all pis connected to that instance of ther GUI 
+        self.identities = set() 
+        
+        # Variable to store the timestamp of the last poke 
+        self.last_poke_timestamp = None  
+        
+        # Keeping track of the current reward port
+        self.reward_port = None 
+        
+        # Keeping track of last rewarded port
+        self.last_rewarded_port = None 
 
-        # Initializing variables and lists to store trial information 
-        self.trials = 0 # Number of pokes per trial (needs to be renamed) 
+        
+        ## Initializing variables and lists to store trial information 
+        # Number of pokes per trial (needs to be renamed) 
+        self.trials = 0 
         self.timestamps = []
         self.pokes = []
         self.completed_trials = []
@@ -225,10 +254,10 @@ class Worker(QObject):
         self.fc = []
         self.reward_ports = []
         
-        """
-        These variables were used in my calculation for RCP, I don't think I've 
-        implemented it correctly so these might need to be removed or changed
-        """
+        
+        ## For calculating RCP
+        # These variables were used in my calculation for RCP, I don't think I've 
+        # implemented it correctly so these might need to be removed or changed
         # List to store unique ports visited in each trial
         self.unique_ports_visited = []  
         
@@ -238,21 +267,37 @@ class Worker(QObject):
         # Variable to store the average number of unique ports visited
         self.average_unique_ports = 0  
     
-    # Method that contains logic to be executed when a new session is started
     @pyqtSlot()
     def start_sequence(self):
-        """
+        """Start a session
+        
         First we store the initial timestamp where the session was started in a 
         variable. This used with the poketimes sent by the pi to calculate the 
         time at which the pokes occured
+        
+        Sukrith: Why is there both start_message and start_sequence?
+        
+        Flow
+        * Sets self.initial_time to now
+        * Resets self.timestamps and self.reward_ports to empty list
+        * Chooses a reward_port using self.choose
+        * Tell every pi which port is rewarded
+        * Sets self.ports, selef.label_to_index, self.index_to_label
+        * Sets color of nosepoke_circles to green
+        * Starts self.timer and connects it to self.update_Pi
         """
+        
+        ## Set the initial_time to now
         self.initial_time = datetime.now() 
         print(self.initial_time)
         
-        # Resetting sequences when a new session is started 
+        
+        ## Resetting sequences when a new session is started 
         self.timestamps = []
         self.reward_ports = []
         
+        
+        ## Choose and broadcast reward_port
         # Randomly choosing the initial reward port
         self.reward_port = self.choose()
         reward_message = f"Reward Port: {self.reward_port}"
@@ -262,10 +307,10 @@ class Worker(QObject):
         for identity in self.identities:
             self.socket.send_multipart([identity, bytes(reward_message, 'utf-8')])
         
-        """
-        Creating a dictionary that takes the label of each port and matches it to
-        the index on the GUI (used for reordering)
-        """
+        
+        ## Set up port labels and indices
+        # Creating a dictionary that takes the label of each port and matches it to
+        # the index on the GUI (used for reordering)
         self.ports = params['ports']
         
         # Refer to documentation when variables were initialized 
@@ -275,10 +320,12 @@ class Worker(QObject):
         # Setting an index of remapped ports (so that colors can be changed accordign to label)
         self.index = self.label_to_index.get(str(self.reward_port)) 
         
-        # Set the color of the initial reward port to green
+        
+        ## Set the color of the initial reward port to green
         self.nosepoke_circles[self.index].set_color("green")
 
-        # Start the timer loop
+        
+        ## Start the timer loop
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_Pi)
         self.timer.start(10)
