@@ -16,15 +16,18 @@ import multiprocessing as mp
 import pandas as pd
 import scipy.signal
 
+
 ## KILLING PREVIOUS / EXISTING BACKGROUND PROCESSES
 os.system('sudo killall pigpiod')
 os.system('sudo killall jackd')
 
 # Wait long enough to make sure they are killed
+# TODO: try lower values and find the lowest one that reliably works
+# TODO: probe to make sure pigpiod and jackd actually got killed
 time.sleep(1)
 
-## STARTING PIGPIOD AND JACKD BACKGROUND PROCESSES 
 
+## STARTING PIGPIOD AND JACKD BACKGROUND PROCESSES 
 # Start pigpiod
 """ 
 Daemon Parameters:    

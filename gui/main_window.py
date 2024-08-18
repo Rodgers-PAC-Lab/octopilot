@@ -26,6 +26,41 @@ class MainWindow(QtWidgets.QMainWindow):
     Here we make objects of all the different elements of the GUI and arrange 
     the widgets. We also connect the signals defined earlier to slots defined 
     in other classes to make them be able to share information.
+
+    Functions of the signals used in the Main Window:
+    -------------------------------------------------
+    pokedportsignal - Defined in Worker
+    This is a signal that is emitted whenever a poke is 
+    completed. The port id at which the poke occured is sent to be plotted. 
+    This signal is connected to handle_update_signal in the plotting
+    widget. This method takes the id of the port that has been poked and 
+    appends the timestamp at which the message was received to the list used
+    for plotting. The update_plot function is then called to plot an item at
+    the particular port id (y-axis) at the timestamp it was received (x-axis)
+    
+    updateSignal - Defined in ArenaWidget
+    This signal is sent from the arena_widget to plot_widget 
+    the color of the item that needs to be plotted based on the oucome of the poke.
+    This signal contains the port id at which the poke happened and the outcome 
+    of the pokein the form of the color associated with that outcome (red - 
+    any non-reward poke, blue - completed trial, green - rewarded poke).
+    The item will be plotted according to the timestamp and id sent by
+    pokedportsignal
+    
+    startButtonClicked - Defined in ArenaWidget
+    This signal is emitted whenver the start button is 
+    pressed in arena_widget. This connected to config list to display a warning
+    if there is no config selected before starting the session 
+    
+    Methods
+    -------
+    __init__ : Initalizes
+    
+    load_params : Helper function to load the gui config JSON
+    
+    plot_poked_port : Not sure this is being used anymore
+    
+    closeEvent : Called on close, and tells each worker to exit
     """
     def __init__(self, json_filename):
         """Initialize a new MainWindow
@@ -42,13 +77,13 @@ class MainWindow(QtWidgets.QMainWindow):
             * ArenaWidget - in the middle, displays each port as a circle and
             arranges them with respect to each other
             * ConfigurationList - on the left, allows choosing task params
-            * PlotWindow - on the right, shows progress over time
+            * PokePlotWidget - on the right, shows progress over time
         * Add a menu bar with one entry: File > Load Config Directory
             * Connect that entry to self.config_list.load_configurations
         * Create containers for each widget and lay them out
         * Connect signals
-            * arena_widget.worker.pokedportsignal to plot_window.handle_update_signal
-            * widget.updateSignal to plot_window.handle_update_signal
+            * arena_widget.worker.pokedportsignal to poke_plot_widget.handle_update_signal
+            * widget.updateSignal to poke_plot_widget.handle_update_signal
             * arena_widget.startButtonClicked to config_list.on_start_button_clicked
         """
         ## Superclass QMainWindow init
@@ -77,9 +112,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # Instatiate a ConfigurationList to choose the task
         self.config_list = config_dialog.ConfigurationList(self.params)
 
-        # Initializing PlotWindow to show the pokes
+        # Initializing PokePlotWidget to show the pokes
         # Note that it uses information from arena_widget
-        self.plot_window = plotting.PlotWindow(self.arena_widget)
+        self.poke_plot_widget = plotting.PokePlotWidget(self.arena_widget)
 
 
         ## Set up the actions for the menu bar
@@ -127,16 +162,15 @@ class MainWindow(QtWidgets.QMainWindow):
         # Horizontal layout because it will contain three things side by side
         container_layout = QtWidgets.QHBoxLayout(container_widget)
         
-        # Add config_list_container, arena_widget_container, and plot_window
-        # Why is plot_window handled differently
+        # Add config_list_container, arena_widget_container, and poke_plot_widget
         """
-        plot_window is handled separately because we are not creating a container
+        poke_plot_widget is handled separately because we are not creating a container
         for it. This means that its width and height will both change when resizing
         the main window. it does not have a fixed width like the other widgets
         """
         container_layout.addWidget(config_list_container)
         container_layout.addWidget(arena_widget_container)
-        container_layout.addWidget(self.plot_window)
+        container_layout.addWidget(self.poke_plot_widget)
         
         # Set this one as the central widget
         self.setCentralWidget(container_widget)
@@ -155,39 +189,14 @@ class MainWindow(QtWidgets.QMainWindow):
         
         ## Connecting signals to the respective slots/methods 
         # Wait till after the MainWindow is fully initialized
-        # Sukrith: document these signals. What generates them? What happens
-        # as a result?
-        """
-        Functions of the signals used in the Main Window:
-        ----------------------
-        pokedportsignal - This is a signal that is emitted whenever a poke is 
-        completed. The port id at which the poke occured is sent to be plotted. 
-        This signal is connected to handle_update_signal in the plotting
-        widget. This method is takes the id of the port that has been poked and 
-        appends the timestamp at which the message was received to the list used
-        for plotting. The update_plot function is then called to plot an item at
-        the particular port id (y-axis) at the timestamp it was received (x-axis)
-        
-        updateSignal - This signal is sent from the arena_widget to plot_widget 
-        the color of the item that needs to be plotted based on the oucome of the poke.
-        This signal contains the port id at which the poke happened and the outcome 
-        of the pokein the form of the color associated with that outcome (red - 
-        any non-reward poke, blue - completed trial, green - rewarded poke).
-        The item will be plotted according to the timestamp and id sent by
-        pokedportsignal
-        
-        startButtonClicked - This signal is emitted whenver the start button is 
-        pressed in arena_widget. This connected to config list to display a warning
-        if there is no config selected before starting the session 
-        
-        """
+
         # Connect the pokedportsignal to handle_update_signal
         self.arena_widget.worker.pokedportsignal.connect(
-            self.plot_window.handle_update_signal)
+            self.poke_plot_widget.handle_update_signal)
         
         # Connect the arena_widget updateSignal to the handle_update_signal
         self.arena_widget.updateSignal.connect(
-            self.plot_window.handle_update_signal)
+            self.poke_plot_widget.handle_update_signal)
         
         # Connect the startButtonClicked signal to 
         # config_list.on_start_button_clicked
@@ -207,8 +216,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # Sukrith: is this actually used for anything?
     def plot_poked_port(self, poked_port_value):
-        """Function to plot the Pi signals using the PlotWindow class"""
-        self.plot_window.handle_update_signal(poked_port_value)
+        """Function to plot the Pi signals using the PokePlotWidget class"""
+        self.poke_plot_widget.handle_update_signal(poked_port_value)
 
     def closeEvent(self, event):
         """Executes when the window is closed

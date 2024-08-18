@@ -172,7 +172,7 @@ class Worker(QObject):
         # Connecting the Worker Class to ArenaWidget elements 
         self.arena_widget = arena_widget
         self.total_ports = self.arena_widget.total_ports 
-        self.Pi_signals = self.arena_widget.Pi_signals
+        self.nosepoke_circles = self.arena_widget.nosepoke_circles
         self.poked_port_numbers = self.arena_widget.poked_port_numbers 
 
         """
@@ -254,7 +254,7 @@ class Worker(QObject):
         self.index = self.label_to_index.get(str(self.reward_port)) 
         
         # Set the color of the initial reward port to green
-        self.Pi_signals[self.index].set_color("green")
+        self.nosepoke_circles[self.index].set_color("green")
 
         # Start the timer loop
         self.timer = QTimer()
@@ -400,7 +400,7 @@ class Worker(QObject):
                 """                
                 if 1 <= poked_port <= self.total_ports:
                     poked_port_index = self.label_to_index.get(message_str)
-                    poked_port_icon = self.Pi_signals[poked_port_index]
+                    poked_port_icon = self.nosepoke_circles[poked_port_index]
 
                     """
                     Choosing colors to represent the outcome of each poke 
@@ -473,7 +473,7 @@ class Worker(QObject):
                         """When a new trial is started reset color of all 
                         non-reward ports to gray and set new reward port to green
                         """
-                        for index, Pi in enumerate(self.Pi_signals):
+                        for index, Pi in enumerate(self.nosepoke_circles):
                             # This might be a hack that doesnt work for some boxes (needs to be changed)
                             if index + 1 == self.reward_port: 
                                 Pi.set_color("green")
@@ -537,7 +537,7 @@ class Worker(QObject):
     def stop_message(self):        
         for identity in self.identities:
             self.socket.send_multipart([identity, b"stop"])
-        for index, Pi in enumerate(self.Pi_signals):
+        for index, Pi in enumerate(self.nosepoke_circles):
             Pi.set_color("gray")
 
 
@@ -550,74 +550,252 @@ class ArenaWidget(QWidget):
     and details box). This information is then used to calculate performance 
     metrics like fraction correct and RCP. It also has additional logic to 
     stop and start sessions. 
+    
+    Class variables
+    ---------------
+    startButtonClicked - pyqtSignal
+        Emitted when start button is pressed
+    updateSignal - pyqtSignal
+        Emitted when a poke occurs (?)
+    
+    Attributes
+    ----------
+    main_window : MainWindow
+    scene : QGraphicsScene
+        Displays the arena
+    view : QGraphicsView
+        Displays the arena
+    total_ports : int
+    nosepoke_circles : list
+        List of NosepokeCircle, one for each port
+    poked_port_numbers
+    start_button : QPushButton
+        Connected to self.start_sequence
+    stop_button : QPushButton
+        Connected to self.stop_sequence and self.save_results_to_csv
+    timer : QTimer
+        Connected to self.update_time_elapsed
+    start_time : QTime
+    poke_time : QTime
+    red_count, blue_count, green_count: int
+    details_layout : QVBoxLayout
+        Contains metrics about session progress
+    last_poke_timer : QTimer
+        Connects to update_last_poke_time
+    worker : Worker
+        Does something in its own thread
+    thread : QThread
+        Thread for `worker`
+    
+    Methods
+    -------
+    set_up_start_button : Init start button and connect to start_sequence
+    set_up_stop_button : Init stop button and connect to stop_sequence and
+        to save_results_to_csv
+    set_up_main_layout : Arranges all widgets in a layout
+    set_up_session_progress_layout : Creates session progress QLabels
+    emit_update_signal :
+        Connected to self.worker.pokedportsignal
+    reset_last_poke_time :
+        Connected to self.worker.pokedportsignal
+    calc_and_update_avg_unique_ports :
+        Connected to self.worker.pokedportsignal
     """
-
+    ## Define signals as class variables
     # Signals that communicate with the Worker class
-    # Signal that is emitted whenever the start button is pressed (connects to the logic in Worker class)
+    # TODO: update, these no longer communicate only with Worker, I'm not sure
+    # they communicate with Worker at all
+    
+    # Signal that is emitted whenever the start button is pressed 
     startButtonClicked = pyqtSignal() 
+    
     # Signal to emit the id and outcome of the current poke
     updateSignal = pyqtSignal(int, str) 
     
     def __init__(self, main_window, params, *args, **kwargs):
-        # Superclass QWidget init
+        """Initialize an ArenaWidget
+        
+        Arguments
+        ---------
+        main_window : MainWindow
+            This is used to call start_plot and stop_plot for the MainWindow.
+            TODO: The MainWindow should call those functions, not this widget
+        
+        params : sent to NosepokeCircle
+        
+        Flow
+        ----
+        * Create `self.scene` and `self.view` to plot arena
+        * Create `self.worker` to run task
+        * Connect self.worker.pokedportsignal to emit_update_signal,
+          reset_last_poke_time, and calc_and_update_avg_unique_ports
+        * Init 8 NosepokeCircle objects and add to scene
+        * Create start and stop buttons and connect to start_sequence,
+          stop_sequence, and save_results_to_csv
+        * Create `self.timer` and connect to self.update_time_elapsed
+        * Create `self.last_poke_timer` and connect to self.update_last_poke_time
+        * Create session progress layout
+        * Create main layout 
+        """
+        ## Superclass QWidget init
         super(ArenaWidget, self).__init__(*args, **kwargs)
 
-        # Creating the GUI widget to display the Pi signals
+
+        ## Keep track of main_window so we can start and stop its poke plot later
+        # TODO: main_window should handle this itself
         self.main_window = main_window
+        
+
+        ## Creating the GUI widget to display the Pi signals
         self.scene = QGraphicsScene(self)
         self.view = QGraphicsView(self.scene)
 
-        # Adding individual ports to the widget 
-        self.total_ports = 8
-        self.Pi_signals = [NosepokeCircle(i, self.total_ports, params) for i in range(self.total_ports)]
-        [self.scene.addItem(Pi) for Pi in self.Pi_signals]
-        
-        # Setting for bold font
-        font = QFont()
-        font.setBold(True)
-        
-        """
-        Creating buttons to control the session (connects to the stop and start 
-        logic present in the worker class)
-        """
-        self.poked_port_numbers = []
-        self.start_button = QPushButton("Start Session")
-        
-        # Changing the color of the buttons
-        self.start_button.setStyleSheet("background-color : green; color: white;") 
-        #self.start_button.setFont(font)   
-        self.stop_button = QPushButton("Stop Session")
-        self.stop_button.setStyleSheet("background-color : red; color: white;") 
-        #self.stop_button.setFont(font)   
-        
-        # Making it so that the results are saved to a csvv when the session is stopped
-        self.stop_button.clicked.connect(self.save_results_to_csv)  
 
-        # Making a timer to be displayed on the GUI 
+        ## Create Worker
+        # Creating an instance of the Worker Class and a QThread to handle the logic
+        # in a separate thread from the GUI elements
+        self.worker = Worker(self, params)
+        self.thread = QThread()
+        
+        # Move the worker object to the thread
+        self.worker.moveToThread(self.thread)  
+
+
+        ## Connect pokedportsignal to methods in this class
+        # Connect the pokedportsignal from the Worker to slots that call some methods in Pi Widget
+        # Connect the pokedportsignal to the emit_update_signal function
+        self.worker.pokedportsignal.connect(self.emit_update_signal)  
+        self.worker.pokedportsignal.connect(self.reset_last_poke_time)
+        
+        # Used for RCP calculation (needs to be changed)
+        self.worker.pokedportsignal.connect(self.calc_and_update_avg_unique_ports) 
+
+        
+        ## Add individual ports to the widget
+        self.total_ports = 8
+        for i in range(self.total_ports):
+            # Create the nosepoke circle
+            nosepoke_circle = NosepokeCircle(i, self.total_ports, params)
+            
+            # Store it
+            self.nosepoke_circles.append(nosepoke_cirlce)
+            
+            # Add it to the scene
+            self.scene.addItem(nosepoke_circle)
+        
+        # This is used only by Worker
+        # TODO: Move this there
+        self.poked_port_numbers = []
+        
+        
+        ## Create start and stop buttons and add to start_stop_layout
+        # Creating buttons to control the session 
+        # These may rely on logic in Worker class
+        
+        # Create self.start_button and connect it to self.start_sequence
+        self.set_up_start_button()
+        
+        # Create self.start_button and connect it to self.stop_sqeuence
+        # and to self.save_results_to_csv
+        self.set_up_stop_button()
+
+
+        ## Create timers
+        # Create a timer and connect to self.update_time_elapsed
         self.timer = QTimer(self)
         
-        """
-        Method to calculate and update elapsed time (can be replaced with date 
-        time instead of current implementation if needed)
-        """
+        # Method to calculate and update elapsed time (can be replaced with date 
+        # time instead of current implementation if needed)
         self.timer.timeout.connect(self.update_time_elapsed) 
-        
-        # Setting initial time to zero for all labels
-        self.start_time = QTime(0, 0)
-        self.poke_time = QTime(0, 0)
 
-        # Variables to keep track of poke outcomes (can be renamed if needed)
+        # Create timer and connect to update_last_poke_time
+        # Initializing QTimer for tracking time since last poke 
+        # (resets when poke is detected)
+        self.last_poke_timer = QTimer()
+        self.last_poke_timer.timeout.connect(self.update_last_poke_time)
+
+        
+        ## Lay out all elements
+        # Create session progress metrics and labels
+        self.set_up_session_progress_layout()
+        
+        # Put everything in the main layout
+        self.set_up_main_layout()
+
+    def set_up_start_button(self):
+        """Create a start button and connect to self.start_sequence"""
+        # Create button
+        self.start_button = QPushButton("Start Session")
+        
+        # Set style
+        self.start_button.setStyleSheet(
+            "background-color : green; color: white;") 
+
+        # Connect the start button to the start_sequence function 
+        # (includes start logic from the worker class)
+        self.start_button.clicked.connect(self.start_sequence)
+    
+    def set_up_stop_button(self):
+        """Create stop button and connect to stop_sequence and save_results_to_csv"""
+        # Create a stop button
+        self.stop_button = QPushButton("Stop Session")
+        
+        # Set style
+        self.stop_button.setStyleSheet("background-color : red; color: white;") 
+
+        # Connect the stop button to stop_sequence and save_results_to_csv
+        self.stop_button.clicked.connect(self.stop_sequence)  
+        self.stop_button.clicked.connect(self.save_results_to_csv)          
+
+    def set_up_main_layout(self):
+        """Add all elements to main layout.
+        
+        Flow
+        * Arranges self.start_button and self.stop_button in QHBoxLayout
+        * Arranges the above in QVBoxLayout with self.view
+        * Arranges the above in QHBoxLayout with self.details_layout
+        * Calls setLayout on the above
+        """
+        # Creating horizontal layout for start and stop buttons
+        start_stop_layout = QHBoxLayout()
+        start_stop_layout.addWidget(self.start_button)
+        start_stop_layout.addWidget(self.stop_button)
+        
+        # Creating a layout where the port window and buttons are arranged vertically
+        view_buttons_layout = QVBoxLayout()
+        view_buttons_layout.addWidget(self.view)  
+        view_buttons_layout.addLayout(start_stop_layout)  
+
+        # Arranging the previous layout horizontally with the session details
+        main_layout = QHBoxLayout(self)
+        main_layout.addLayout(view_buttons_layout)  
+        main_layout.addLayout(self.details_layout)  
+
+        # Set main_layout as the layout for this widget
+        self.setLayout(main_layout)
+        
+    def set_up_session_progress_layout(self):
+        """Create a Session Progress layout"""
+        # Create QVBoxLayout for session details 
+        self.details_layout = QVBoxLayout()
+
+        # Variables to keep track of poke outcomes
+        # TODO: rename by what it means, not its color
         self.red_count = 0
         self.blue_count = 0
         self.green_count = 0
+        
+        # QTime since session start or last poke
+        # Sukrith: are these actually used anywhere?
+        #~ self.start_time = QTime(0, 0)
+        #~ self.poke_time = QTime(0, 0)
 
-        # Create QVBoxLayout for session details 
-        self.details_layout = QVBoxLayout()
-        
         # Setting title 
+        bold_font = QFont()
+        bold_font.setBold(True)
         self.title_label = QLabel("Session Details:", self)
-        self.title_label.setFont(font)
-        
+        self.title_label.setFont(bold_font)
+
         # Making labels that constantly update according to the session details
         self.time_label = QLabel("Time Elapsed: 00:00", self)
         self.poke_time_label = QLabel("Time since last poke: 00:00", self)
@@ -635,55 +813,11 @@ class ArenaWidget(QWidget):
         self.details_layout.addWidget(self.blue_label)
         self.details_layout.addWidget(self.green_label)
         self.details_layout.addWidget(self.fraction_correct_label)
-        self.details_layout.addWidget(self.rcp_label)
+        self.details_layout.addWidget(self.rcp_label)        
 
-        # Initializing QTimer for tracking time since last poke (resets when poke is detected)
-        self.last_poke_timer = QTimer()
-        self.last_poke_timer.timeout.connect(self.update_last_poke_time)
-
-        # Creating horizontal layout for start and stop buttons
-        start_stop_layout = QHBoxLayout()
-        start_stop_layout.addWidget(self.start_button)
-        start_stop_layout.addWidget(self.stop_button)
-
-        # Creating a layout where the port window and buttons are arranged vertically
-        view_buttons_layout = QVBoxLayout()
-        view_buttons_layout.addWidget(self.view)  
-        view_buttons_layout.addLayout(start_stop_layout)  
-
-        # Arranging the previous layout horizontally with the session details
-        main_layout = QHBoxLayout(self)
-        main_layout.addLayout(view_buttons_layout)  
-        main_layout.addLayout(self.details_layout)  
-
-        # Set main_layout as the layout for this widget
-        self.setLayout(main_layout)
-
-        """
-        Creating an instance of the Worker Class and a QThread to handle the logic
-        in a separate thread from the GUI elements
-        """
-        self.worker = Worker(self, params)
-        self.thread = QThread()
-        self.worker.moveToThread(self.thread)  # Move the worker object to the thread
-        
-        # Connect the start button to the start_sequence function (includes start logic from the worker class)
-        self.start_button.clicked.connect(self.start_sequence)
-
-        # Connect the stop button to the stop_sequence function
-        self.stop_button.clicked.connect(self.stop_sequence)  
-        
-        # Connect the pokedportsignal from the Worker to slots that call some methods in Pi Widget
-        # Connect the pokedportsignal to the emit_update_signal function
-        self.worker.pokedportsignal.connect(self.emit_update_signal)  
-        self.worker.pokedportsignal.connect(self.reset_last_poke_time)
-        
-        # Used for RCP calculation (needs to be changed)
-        self.worker.pokedportsignal.connect(self.calc_and_update_avg_unique_ports) 
-
-    # Function to emit the update signal
     def emit_update_signal(self, poked_port_number, color):
-        """
+        """Function to emit the update signal
+        
         This method is to communicate with the plotting object to plot the 
         different outcomes of each poke. 
         This is also used to update the labels present in Pi Widget based on the
@@ -831,9 +965,8 @@ class ArenaWidget(QWidget):
         toast.show()
 
 
-## PLOTTING 
-
-class PlotWindow(QWidget):
+## Widget to plot pokes
+class PokePlotWidget(QWidget):
     """Widget that plots the pokes as they happen
     
     This class defines a pyqtgraph plot that updates in real-time based on 
@@ -841,11 +974,66 @@ class PlotWindow(QWidget):
     It is connected to ArenaWidget but updates in accordance to updates 
     received by worker since ArenaWidget uses its methods
     It communicates using the signals updateSignal and startbuttonClicked 
+    
+    Attributes
+    ----------
+    is_active - bool
+        True if start button has been pressed and we are running
+    start_time - datetime or None
+        None if not started. Otherwise, the time it was started.
+    timer - QTimer
+        Recurringly calls self.update_plot
+    time_bar_timer - QTimer
+        Recurringly calls self.update_time_bar
+    plot_widget - pg.PlotWidget 
+        A widget for the graph that actually shows pokes
+    layout - QVBoxLayout 
+        Contains self.plot_widget
+    timestamps - list of float
+        Every time an event is received by handle_update_signal, the
+        elapsed time in the session is appended to this list.
+    signal - list of ?
+        Every time an event is received by handle_update_signal, the
+        event is appended to this list.
+    line_of_current_time_color - float
+        This is slowly changed over time to make the timebar dynamic
+    line_of_current_time - plot handle
+    line - plot handle
+    plotted_items - list of plot handles
+        All of these items are removed from the plot when clear_plot is called
+    
+    Methods
+    -------
+    start_plot - Activates the plot
+        Starts `timer` and `time_bar_timer`. Sets `is_active` and `start_time`
+        Called by ArenaWidget.
+    stop_plot - Deactivates the plot
+    clear_plot - Clears all plot items
+    update_time_bar - Updates the time bar. Connected to self.time_bar_timer.
+    handle_update_signal - Stores event and calls update_plot
+    plot_poked_port - Plots a specified symbol at a specified time
+    update_plot - Plots `timestamps` and `signal`. Connected to self.timer.
+    setup_plot_graphics - Sets labels and colors of plot_widget
+    initialize_plot_handles - Plots line and line_of_current_time
     """
     def __init__(self, arena_widget, *args, **kwargs):
-        """Initialize a new PlotWindow
+        """Initialize a new PokePlotWidget
         
+        Arguments
+        ---------
         arena_widget : the corresponding ArenaWidget 
+            Sukrith : Is this only used to connect signals?
+            If so we should remove it here and connect signals in MainWindow
+            only.
+        
+        Flow
+        ----
+        * Initializes self.timer, self.time_bar_timer to update plots.
+        * Initializes self.plot_widget to plots the pokes.
+        * Sets up graphics on self.plot_widget.
+        * Initializes timestamps and signal to store timestamps and pokes.
+        * Initializes self.line_of_current_time and self.line, graphical 
+          elements on self.plot_widget that indicates the time.
         """
         ## Superclass QWidget init
         super().__init__(*args, **kwargs)
@@ -869,133 +1057,184 @@ class PlotWindow(QWidget):
         self.time_bar_timer.timeout.connect(self.update_time_bar) 
 
 
-        ## Entering the plot parameters and titles
+        ## Initialize the plot_widget which actually does the plotting
         # Initializing the pyqtgraph widget
-        self.plot_graph = pg.PlotWidget() 
+        self.plot_widget = pg.PlotWidget() 
         
-        # Initializing the varaible that defines the start time 
-        self.start_time = None  
-        
-        # Set x-axis range to [0, 1600] which is more or less the duration of 
-        # the task in seconds (can be changed) (might be better to display in 
-        # minutes also)
-        self.plot_graph.setXRange(0, 1600)  
-        
-        
-        ## Setting the layout of the plotting widget 
+        # Setting the layout of the plotting widget 
         self.layout = QVBoxLayout(self) 
-        self.layout.addWidget(self.plot_graph)
+        self.layout.addWidget(self.plot_widget)
         
-        # Setting the background of the plot to be black. Use 'w' for white
-        self.plot_graph.setBackground("k") 
+        # Set labels and colors of `plot_widget`
+        self.setup_plot_graphics()
+       
+        # Plots line_of_current_time and line
+        self.initalize_plot_handles()
         
-        # Setting the title of the plot 
-        self.plot_graph.setTitle("Pokes vs Time", color="white", size="12px") 
         
-        # Setting the font/style for the rest of the text used in the plot
-        styles = {"color": "white", "font-size": "11px"} 
-        
-        # Setting label for y axis
-        self.plot_graph.setLabel("left", "Port", **styles) 
-        
-        # Setting label for x axis 
-        self.plot_graph.setLabel("bottom", "Time (s)", **styles) 
-        self.plot_graph.addLegend()
-        
-        # Adding a grid background to make it easier to see where pokes are in time
-        self.plot_graph.showGrid(x=True, y=True) 
-        
-        # Setting the range for the Y axis
-        self.plot_graph.setYRange(1, 9) 
-        
+        ## To store data
         # List to store timestamps
         self.timestamps = []  
         
         # List to store pokes 
         self.signal = []  
-        
-        # Defining the parameters for the sliding timebar 
-        self.line_of_current_time_color = 0.5
-        self.line_of_current_time = self.plot_graph.plot(x=[0, 0], y=[-1, 8], pen=pg.mkPen(self.line_of_current_time_color))
 
-        # Setting up the plot to be able to start plotting
-        self.line = self.plot_graph.plot(
+        # List to keep track of all plotted items so we can clear when needed
+        self.plotted_items = []        
+        
+        
+        ## Connecting to signals from ArenaWidget and Worker 
+        # TODO: Sukrith why are you connecting again here? Connection already
+        # happened in MainWindow
+        arena_widget.updateSignal.connect(self.handle_update_signal)
+        
+        # This one was not done in MainWindow
+        arena_widget.worker.pokedportsignal.connect(self.plot_poked_port)
+
+    def setup_plot_graphics(self):
+        """Sets colors and labels of plot_widget
+        
+        Flow
+        * Sets background to black and font to white
+        * Sets title and axis labels
+        * Adds a grid
+        * Sets y-limits to [1, 9]
+        """
+        # Set x-axis range to [0, 1600] which is more or less the duration of 
+        # the task in seconds (can be changed) (might be better to display in 
+        # minutes also)
+        self.plot_widget.setXRange(0, 1600)  
+        
+        # Setting the background of the plot to be black. Use 'w' for white
+        self.plot_widget.setBackground("k") 
+        
+        # Setting the title of the plot 
+        self.plot_widget.setTitle("Pokes vs Time", color="white", size="12px") 
+        
+        # Setting the font/style for the rest of the text used in the plot
+        styles = {"color": "white", "font-size": "11px"} 
+        
+        # Setting label for y axis
+        self.plot_widget.setLabel("left", "Port", **styles) 
+        
+        # Setting label for x axis 
+        self.plot_widget.setLabel("bottom", "Time (s)", **styles) 
+        self.plot_widget.addLegend()
+        
+        # Adding a grid background to make it easier to see where pokes are in time
+        self.plot_widget.showGrid(x=True, y=True) 
+        
+        # Setting the range for the Y axis
+        self.plot_widget.setYRange(1, 9)         
+
+    def initalize_plot_handles(self):
+        """Plots line_of_current_time and line"""
+        # Plot the sliding timebar
+        self.line_of_current_time_color = 0.5
+        self.line_of_current_time = self.plot_widget.plot(
+            x=[0, 0], y=[-1, 8], pen=pg.mkPen(self.line_of_current_time_color))
+
+        # Included a separate symbol here that shows as a tiny dot under the 
+        # raster to make it easier to distinguish multiple pokes in sequence
+        self.line = self.plot_widget.plot(
             self.timestamps,
             self.signal,
             pen=None,
-            
-            """
-            Included a separate symbol here that shows as a tiny dot under the 
-            raster to make it easier to distinguish multiple pokes in sequence
-            """
-            
             symbol="o", 
             symbolSize=1,
             symbolBrush="r",
         )
 
-        # List to keep track of all plotted items to make it easier to clear the plot
-        self.plotted_items = []
-
-        # Connecting to signals from ArenaWidget and Worker 
-        arena_widget.updateSignal.connect(self.handle_update_signal)
-        arena_widget.worker.pokedportsignal.connect(self.plot_poked_port)
-
     def start_plot(self):
-        # Activating the plot window and starting the plot timer
-        self.is_active = True # Flag to initiate plotting 
+        """Activates plot updates.
+        
+        Activates `timer` and `time_bar_timer` to update plot.
+        Sets `start_time` and `is_active`.
+        """
+        # Flag to initiate plotting 
+        self.is_active = True 
         
         # Setting the initial time at which plotting starts 
         self.start_time = datetime.now()  
-        self.timer.start(10)  # Start the timer to update every 10 ms 
+        
+        # Start the timer to update every 10 ms 
+        self.timer.start(10)  
 
         # Start the timer for updating the time bar when the plot starts
         self.time_bar_timer.start(50)  # Update every 50 ms
 
     def stop_plot(self):
+        """Deactivates plot updates
+
+        Deactivates `timer` and `time_bar_timer` to update plot.
+        Sets `is_active` to False.
+        Clears the plot.
+        """
         # Deactivating the plot window and stopping the timer
         self.is_active = False # Stopping the plot
         self.timer.stop()
         
         # Stop the timer for updating the time bar when the plot stops
         self.time_bar_timer.stop()
-        self.clear_plot() # Using a method to reset the plot to its initial state 
+        
+        # Using a method to reset the plot to its initial state 
+        self.clear_plot() 
 
     def clear_plot(self):
-        """Resets the plot"""
+        """Clears the plot.
+        
+        Clear the lists of pokes `timestamps` and `signal`.
+        Removes the time bar
+        Calls the `removeItem` method on all items in `plotted_items`.
+        """
         # Clear the plot information by clearing lists
         self.timestamps.clear()
         self.signal.clear()
+        
         # Resetting the initial plot location to zero
         self.line.setData(x=[], y=[])
 
         # Clear all items on the plot
         for item in self.plotted_items:
-            self.plot_graph.removeItem(item)
+            self.plot_widget.removeItem(item)
         self.plotted_items.clear()
 
         # Resetting thje timebar to zero 
         self.line_of_current_time.setData(x=[], y=[])
-
     
     def update_time_bar(self):
         """Controls how the timebar moves according to the timer"""
-        # Using current time to approximately update timebar based on total seconds 
+        # Do nothing if there is no start_time
         if self.start_time is not None:
+            # Determine elapsed time
             current_time = datetime.now()
             approx_time_in_session = (
                 current_time - self.start_time).total_seconds()
 
-            # Updating the position of the timebar
+            # Update the color of the time bar to make it slowly change, so
+            # that there is a visual indicator if it stops running
             self.line_of_current_time_color = np.mod(
                 self.line_of_current_time_color + 0.1, 2)
+            
+            # Updating the position of the timebar
             self.line_of_current_time.setData(
                 x=[approx_time_in_session, approx_time_in_session], y=[-1, 9],
                 pen=pg.mkPen(np.abs(self.line_of_current_time_color - 1)),
             )
     
     def handle_update_signal(self, update_value):
-        """Append info from other classes to lists in this class"""
+        """Store information about received event and update the plot
+        
+        Arguments
+        ---------
+        update_value : Sukrith what is this?
+        
+        Flow
+        ----
+        * Appends the current elapsed time to self.timestamps
+        * Appends `update_value` to self.signal
+        * Calls `update_plot`
+        """
         if self.is_active:
             # Append current timestamp and update value to the lists
             self.timestamps.append((datetime.now() - self.start_time).total_seconds())
@@ -1004,36 +1243,62 @@ class PlotWindow(QWidget):
 
     def plot_poked_port(self, poked_port_value, color):
         """Main function used to draw the poke items as rasters on the plot. 
+
+        Sukrith what is this and how is it different from update_plot?
+        What is the difference between the things that are plotted by this
+        function and the things in self.timestamps and self.signal?
+
+        Arguments
+        ---------
+        poked_port_value : numeric
+            This is the y-value of the point that will be added
+        color : str
+            The color of the point that will be added
         
-        It is similar to the previous implementation in autopilot
+        Flow
+        ----
+        * Plot a point with x-value equal to current elapsed time and y-value
+          equal to `poked_port_value`. This will be an arrow_down symbol of
+          size 20 and no connecting line.
+        * Add the plot handle to `self.plotted_items` so it can be cleared
+          at the end of the session.
+        
         It appends the items to a list based on the position of the relative 
         time from the start of the session
-        Currently it does not used the timestamps sent from the pi to plot 
+        
+        
+        TODO: Currently it does not used the timestamps sent from the pi to plot 
         these pokes but this could be changed in the future 
         """
+        # Do nothing unless active
         if self.is_active:
             # Setting item colors to match the logic present in the worker class
+            # TODO: worker should pass colors that are recognized here
             brush_color = "g" if color == "green" else "r" if color == "red" else "b" 
             
             # Converting to seconds to plot according to start time
             relative_time = (datetime.now() - self.start_time).total_seconds()  
             
             # Setting the parameters for the individual items being plotted
-            item = self.plot_graph.plot(
+            # No connecting line between these points 
+            item = self.plot_widget.plot(
                 [relative_time],
                 [poked_port_value],
-                # No connecting line between these points 
-                pen=None, 
-                # "o" for dots # Previous implementation used this to display rasters 
+                pen=None, # no connecting line
                 symbol="arrow_down",  
-                # use 8 or lower if using dots
-                symbolSize=20,  
-                symbolBrush=brush_color, # Setting brush color to change dynamically 
+                symbolSize=20, # use 8 or lower if using dots
+                symbolBrush=brush_color,
                 symbolPen=None,
             )
-            self.plotted_items.append(item) # Appending items to a list of plotted items
+            
+            # Keep track of plotted items so they can be cleared later
+            self.plotted_items.append(item) 
 
     def update_plot(self):
+        """Plot `timestamps` and `signal` as `line`
+        
+        Sukrith what is this?
+        """
         # Update plot with timestamps and signals
         self.line.setData(x=self.timestamps, y=self.signal)
 

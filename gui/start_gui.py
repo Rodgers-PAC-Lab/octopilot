@@ -7,12 +7,6 @@
 # Current boxes:
 #   box1 - Testing on seaturtle computer 
 #   box2-5 - Behavior Boxes 
-#
-# TODO: 
-# Document what each class in this script does.
-# Separate the classes that are for running the GUI from the classes
-# that interact with the Pi and run the task 
-# Put the ones that run the GUI in another script and import them here
 
 
 ## Module imports
@@ -48,12 +42,13 @@ if __name__ == '__main__':
     Right now the settings for all boxes have the same directories but we can use 
     different locations to save session results and tasks for each box. 
     """
+    # I don't see how QApplication can make sense of the stuff we provide in
+    # argv. Seems like that is parsed by argparse and provided to MainWindow
     app = QApplication(sys.argv)
     
     # Instantiate a MainWindow
     this_main_window = main_window.MainWindow(args.json_filename)
     
-    # TODO: Sukrith what does this do?
     """
     '.exec() is used to to enter the main loop and run the different widgets on 
     the GUI until it is closed (which is when sys.exit() is called)
