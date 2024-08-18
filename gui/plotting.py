@@ -103,7 +103,8 @@ class NosepokeCircle(QGraphicsEllipseItem):
 
 ## HANDLING LOGIC FOR OTHER GUI CLASSES (TO LOWER LOAD)
 class Worker(QObject):
-    """
+    """Handles task logic
+    
     The Worker class primarily communicates with the NosepokeCircle and 
     ArenaWidget classes. 
     It handles the logic of starting sessions, stopping sessions, 
@@ -112,35 +113,51 @@ class Worker(QObject):
     for completed trials (needs to be changed).
     The Worker class also handles tracking information regarding each 
     poke / trial and saving them to a csv file.
-    """
-    # Sukrith: Why is this a class variable?
-    """
-    I think all signals are class variables because they need to be shared between
-    classes
+    
+    Arguments
+    ---------
+    arena_widget : ArenaWidget
+        The Worker uses the attributes total_port, nosepoke_circles,
+        and poked_port_numbers from arena_widget.
+        TODO: The Worker should not have to know about those things. It should
+        just emit signals whenever things happen, and the MainWindow should
+        connect those signals to appropriate slots on display elements.
+    params : dict
+        'worker_port': what zmq port to bind
+    
+    Attributes
+    ----------
+    context : zmq.Context
+        Used to communicate with Pi. GUI is the Router. Pis are Dealers.
+    socket : zmq.Context.socket
+    initial_time : datetime or None
     """
     # Signal emitted when a poke occurs (This is used to communicate with 
     # other classes that strictly handle defining GUI elements)
+    # I think all signals are class variables because they need to be shared between
+    # classes
     pokedportsignal = pyqtSignal(int, str)
 
     def __init__(self, arena_widget, params):
+        ## Call the QObject superclass
         super().__init__()
-        self.initial_time = None
         
-        """
-        Setting up a ZMQ socket to send and receive information about poked ports 
-        (the DEALER socket on the Pi initiates the connection and then the ROUTER 
-        manages the message queue from different dealers and sends acknowledgements)
-        """
+        
+        ## Set up ZMQ
+        # Setting up a ZMQ socket to send and receive information about poked ports 
+        # (the DEALER socket on the Pi initiates the connection and then the ROUTER 
+        # manages the message queue from different dealers and sends acknowledgements)
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.ROUTER)
         
         # Making it bind to the port used for sending poke related information
         self.socket.bind("tcp://*" + params['worker_port'])   
         
-        """
-        Making lists to store the trial parameters for each poke.
-        We append the parameters at each poke to these lists so that we can write them to a CSV
-        """
+        
+        ## Store stimulu params
+        # Making lists to store the trial parameters for each poke.
+        # We append the parameters at each poke to these lists so that we 
+        # can write them to a CSV
         self.amplitudes = []
         self.target_rates = []
         self.target_temporal_log_stds = []
@@ -157,19 +174,24 @@ class Worker(QObject):
         self.current_correct_trials = 0
         self.current_fraction_correct = 0
         
-        # Initializing variables to track information used to control the logic of the task
+        
+        ## Initializing variables to track information used to control the task
+        # What is this?
+        self.initial_time = None
         
         # Stores the identity of the pi that sent the most recent message
         self.last_pi_received = None 
+        
         # Used while randomly selecting ports to make sure that the same port is not rewarded twice
         self.prev_choice = None 
+        
         # Used to create a QTimer when the sequence is started
         self.timer = None  
         self.current_task = None # Used to keep track of the current task (used in naming the CSV file)
         self.ports = None
 
         
-        # Connecting the Worker Class to ArenaWidget elements 
+        ## Connecting the Worker Class to ArenaWidget elements 
         self.arena_widget = arena_widget
         self.total_ports = self.arena_widget.total_ports 
         self.nosepoke_circles = self.arena_widget.nosepoke_circles
