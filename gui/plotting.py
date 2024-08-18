@@ -544,19 +544,28 @@ class Worker(QObject):
 ## TRIAL INFORMATION DISPLAY / SESSION CONTROL    
 # ArenaWidget Class that represents all ports
 class ArenaWidget(QWidget):
-    """This class is the main GUI class that displays the ports on the Raspberry 
+    """Displays pokes and also contains logic to start and stop session
+    
+    This class is the main GUI class that displays the ports on the Raspberry 
     Pi and the information related to the trials. The primary use of the widget 
     is to keep track of the pokes in the trial (done through the port icons 
     and details box). This information is then used to calculate performance 
     metrics like fraction correct and RCP. It also has additional logic to 
     stop and start sessions. 
     
+    Most of the work is done by self.worker. 
+    This class is just for plotting.
+    
     Class variables
     ---------------
     startButtonClicked - pyqtSignal
         Emitted when start button is pressed
     updateSignal - pyqtSignal
-        Emitted when a poke occurs (?)
+        This is emitted by self.emit_update_signal, which in turn
+        is connected to self.worker.pokedport.signal
+        This will be emitted whenever a port is poked
+        It is connected to poke_plot_widget.handle_update_signal
+        by MainWindow
     
     Attributes
     ----------
@@ -594,12 +603,33 @@ class ArenaWidget(QWidget):
         to save_results_to_csv
     set_up_main_layout : Arranges all widgets in a layout
     set_up_session_progress_layout : Creates session progress QLabels
-    emit_update_signal :
+    emit_update_signal : Called on poke, updates metrics, emits updateSignal
         Connected to self.worker.pokedportsignal
-    reset_last_poke_time :
+        Emits self.updateSignal
+        Updates number of pokes and trials
+        Updates performance metric labels
+    reset_last_poke_time : Stop and start self.last_poke_timer after each poke
         Connected to self.worker.pokedportsignal
-    calc_and_update_avg_unique_ports :
+    update_last_poke_time : Update the time since last poke
+        Connected to self.last_poke_timer.timeout
+    calc_and_update_avg_unique_ports : Updates displayed rcp
         Connected to self.worker.pokedportsignal
+    start_sequence : Starts the session
+        Connected to self.start_button_clicked
+        Emits startButtonClicked
+        Starts the worker and the plot
+    stop_seqeunce: Stops the session
+        Connected to self.stop_button_clicked
+        Stops the worker and the plot
+    update_time_elapsed : Updates self.time_label with time elapsed
+        Connected to self.timer.timeout
+    save_results_to_csv : Tell worker to save results and sets notification
+    
+    
+    Some methods that are connected to slots are decorated with @pyqtSlot
+    so that they can be invoked with QMetaObject.invokeMethod
+    https://stackoverflow.com/questions/45841843/function-of-pyqtslot
+    
     """
     ## Define signals as class variables
     # Signals that communicate with the Worker class
@@ -816,7 +846,18 @@ class ArenaWidget(QWidget):
         self.details_layout.addWidget(self.rcp_label)        
 
     def emit_update_signal(self, poked_port_number, color):
-        """Function to emit the update signal
+        """Called on poke. Updates metrics and emits updateSignal
+        
+        Arguments
+        ---------
+        poked_port_number - int?
+        color - str
+            If red: it was a non-rewarded poke
+            If blue: it was a rewarded poke, but not a correct trial
+            If green: it was a rewarded poke, and a correct trial
+        
+        TODO: The transmitted signal should be a type of poke, not a color
+        TODO: Why is self.updateSignal used just to repeat the signal?
         
         This method is to communicate with the plotting object to plot the 
         different outcomes of each poke. 
@@ -824,53 +865,94 @@ class ArenaWidget(QWidget):
         information received over the network by the Worker class
         Some of this logic is already present in the worker class for CSV saving
         but that was implemented after I implemented the initial version here
+        
+        Flow
+        ----
+        * Emits updateSignal with poked_port_number and color
+        * Stores self.last_poke_timestamp as datetime.now()
+        * Updates the number of pokes and trials
+        * Updates the performance metric labels
         """
-        # Emit the updateSignal with the received poked_port_number and color (used for plotting)
+        ## Continue the signal
+        # TODO: Why do we need another signal just to repeat the same thing
+        # Emit the updateSignal with the received poked_port_number and color 
+        # (used for plotting)
         self.updateSignal.emit(poked_port_number, color)
         
-        # This timer was present before I changed timing implementation. Did not try to change it 
+        # This timer was present before I changed timing implementation. 
+        # Did not try to change it 
         self.last_poke_timestamp = time.time() 
 
-        # Logic for non-reward pokes
+
+        ## Update the counts
         if color == "red":
             self.red_count += 1
-            # Updating the number of pokes
-            self.red_label.setText(f"Number of Pokes: {(self.red_count + self.green_count + self.blue_count)}") 
-
-        # Logic for completed trials
-        if color == "blue":
+        elif color == "blue":
             self.blue_count += 1
-            self.red_label.setText(f"Number of Pokes: {(self.red_count + self.green_count + self.blue_count)}")
-            
-            # Updating number of completed trials
-            self.blue_label.setText(f"Number of Trials: {(self.blue_count + self.green_count)}") 
-            if self.blue_count != 0:
-                
-                self.fraction_correct = self.green_count / (self.blue_count + self.green_count) 
-                self.fraction_correct_label.setText(f"Fraction Correct (FC): {self.fraction_correct:.3f}")
-
-        # Logic for correct trials
         elif color == "green":
             self.green_count += 1
-            self.red_label.setText(f"Number of Pokes: {(self.red_count + self.green_count + self.blue_count)}")
-            self.blue_label.setText(f"Number of Trials: {(self.blue_count + self.green_count)}")
-            
-            # Updating number of correct trials 
-            self.green_label.setText(f"Number of Correct Trials: {self.green_count}") 
-            if self.blue_count == 0:
-                self.fraction_correct_label.setText(f"Fraction Correct (FC): {(self.green_count/self.green_count):.3f}")    
-            elif self.blue_count != 0:
-                self.fraction_correct = self.green_count / (self.blue_count + self.green_count)
-                self.fraction_correct_label.setText(f"Fraction Correct (FC): {self.fraction_correct:.3f}")
+        else:
+            # TODO: Define if this is actually possible, and what to do 
+            # in this case
+            return
+        
 
-    # Method to start the session using the button on the GUI
+        ## Update the metrics
+        # Updating the number of pokes (red + green + blue)
+        n_pokes = self.red_count + self.green_count + self.blue_count
+        self.red_label.setText(f"Number of Pokes: {(n_pokes)}")
+        
+        # Update the number of trials (green + blue)
+        n_trials = self.blue_count + self.green_count
+        self.blue_label.setText(f"Number of Trials: {n_trials}")            
+
+        # Updating number of correct trials 
+        n_correct_trials = self.green_count
+        self.green_label.setText(
+            f"Number of Correct Trials: {n_correct_trials}") 
+
+        # Update fraction correct
+        if n_trials > 0:
+            self.fraction_correct = n_correct_trials / n_trials
+        else:
+            self.fraction_correct = np.nan
+        
+        # Update fraction correct label
+        if fc is None:
+            self.fraction_correct_label.setText(
+                f"Fraction Correct (FC): NA")    
+        else:
+            self.fraction_correct_label.setText(
+                f"Fraction Correct (FC): {self.fraction_correct:.3f}")
+
     def start_sequence(self):
+        """Starts the session
+        
+        This is connected to self.start_button.clicked
+        
+        Flow
+        ----
+        * Emit the startButtonClicked signal
+        * Calls self.worker.start_message
+        * Starts worker thread
+        * QMetaObject.invokeMethod ???
+        * Tells MainWindow to start the plot
+        * Starts the start_time QTime
+        * Start self.timer
+        """
+        # Emit the startButtonClicked signal
         self.startButtonClicked.emit() 
-        self.worker.start_message() # Initiating start logic on the worker class
+        
+        # Tell the worker to start
+        self.worker.start_message()
         
         # Starting the worker thread when the start button is pressed
         self.thread.start()
+        
+        # Log
         print_out("Experiment Started!")
+        
+        # Sukrith: what does this do? 
         QMetaObject.invokeMethod(self.worker, "start_sequence", Qt.QueuedConnection) 
 
         # Sending a message so that the plotting object can start plotting
@@ -878,21 +960,33 @@ class ArenaWidget(QWidget):
 
         # Start the timer
         self.start_time.start()
-        self.timer.start(10)  # Update every second               
+        
+        # Update every second
+        self.timer.start(10)  
 
-    # Method of what to do when the session is stopped
     def stop_sequence(self):
+        """Stop the session
+        
+        Flow:
+        * QMetaObject.invokeMethod ???
+        * Stops plot in main_window
+        * Updates text on labels
+        * Sets counts to zero
+        * Stops self.timer
+        * Quits self.thread
+        """
+        # Sukrith document this
         QMetaObject.invokeMethod(self.worker, "stop_sequence", Qt.QueuedConnection)
+        
+        # Log
         print_out("Experiment Stopped!")
         
         # Stopping the plot
         self.main_window.plot_window.stop_plot()
         
         # Reset all labels to intial values 
-        """
-        Currently hasan issue with time since last poke updating after session is stopped. 
-        Note: This parameter is not saved on the CSV but is just for display)
-        """
+        # Currently has an issue with time since last poke updating after session is stopped. 
+        # Note: This parameter is not saved on the CSV but is just for display)
         self.time_label.setText("Time Elapsed: 00:00")
         self.poke_time_label.setText("Time since last poke: 00:00")
         self.red_label.setText("Number of Pokes: 0")
@@ -912,49 +1006,84 @@ class ArenaWidget(QWidget):
         # Quitting the thread so a new session can be started
         self.thread.quit()
 
-    # Decorater function used to incorporate methods into slots
+    
     @pyqtSlot() 
     def update_time_elapsed(self):
+        """Updates self.time_label with time elapsed
+        
+        Connected to self.timer.timeout
+        """
         # Timer to display the elapsed time in a particular session 
-        elapsed_time = self.start_time.elapsed() / 1000.0  # Convert milliseconds to seconds
-        minutes, seconds = divmod(elapsed_time, 60)  # Convert seconds to minutes:seconds
+        # Convert milliseconds to seconds
+        elapsed_time = self.start_time.elapsed() / 1000.0  
+        
+        # Convert seconds to minutes:seconds
+        minutes, seconds = divmod(elapsed_time, 60)  
+        
         # Update the QLabel text with the elapsed time in minutes and seconds
-        self.time_label.setText(f"Time elapsed: {str(int(minutes)).zfill(2)}:{str(int(seconds)).zfill(2)}")
-           
-    # Method that stops and then starts the timer everytime a poke is detected 
+        # Sukrith what is zfill?
+        str1 = str(int(minutes)).zfill(2)
+        str2 = str(int(seconds)).zfill(2)
+        self.time_label.setText(f"Time elapsed: {str1}:{str2}")
+    
     @pyqtSlot()
     def reset_last_poke_time(self):
+        """Stop and start last_poke_timer whenever a poke is detected (why?)
+        
+        Connected to self.worker.pokedportsignal
+        Sukrith is this necessary?
+        """
         # Stopping the timer whenever a poke is detected 
         self.last_poke_timer.stop()
 
         # Start the timer again
-        self.last_poke_timer.start(1000)  # Setting update interval to 1s (1000 ms)
+        # Setting update interval to 1s (1000 ms)
+        self.last_poke_timer.start(1000)  
         
-    """ 
-    RCP related function to calculate the number of unique ports visited in a 
-    trial and calculate average (currently incorrect)
-    """
     @pyqtSlot()
     def calc_and_update_avg_unique_ports(self):
+        """Updates displayed RCP
+        
+        Connected to self.worker.pokedportsignal
+        Gets rcp from self.worker and sets text label
+        """
         self.worker.calculate_average_unique_ports()
         average_unique_ports = self.worker.average_unique_ports
         self.rcp_label.setText(f"Rank of Correct Port: {average_unique_ports:.2f}")
     
-    # Method to keep track of the time elapsed between pokes (not sure why I made this a separate method)
     @pyqtSlot()
     def update_last_poke_time(self):
+        """Update the displayed time since last poke
+        
+        Connected to self.last_poke_timer.timeout
+        """
         # Calculate the elapsed time since the last poke
         current_time = time.time()
         elapsed_time = current_time - self.last_poke_timestamp
 
         # Constantly update the QLabel text with the time since the last poke
-        minutes, seconds = divmod(elapsed_time, 60)  # Convert seconds to minutes and seconds
-        self.poke_time_label.setText(f"Time since last poke: {str(int(minutes)).zfill(2)}:{str(int(seconds)).zfill(2)}")
+        # Convert seconds to minutes and seconds
+        minutes, seconds = divmod(elapsed_time, 60)  
+        
+        # Update label
+        str1 = str(int(minutes)).zfill(2)
+        str2 = str(int(seconds)).zfill(2)
+        self.poke_time_label.setText(f"Time since last poke: {str1}:{str2}")
 
-    # Method to save results by calling the worker method 
     def save_results_to_csv(self):
+        """Save results
+        
+        Tells worker to stop
+        Tells worker to save results to csv
+        Sets a toast notification
+        """
+        # Tell worker to stop
         self.worker.stop_message()
-        self.worker.save_results_to_csv()  # Calling worker method to save results
+        
+        # Tell worker to save
+        self.worker.save_results_to_csv()
+        
+        # Send toast notification
         toast = Toast(self) # Initializing a toast message
         toast.setDuration(5000)  # Hide after 5 seconds
         toast.setTitle('Results Saved') # Printing acknowledgement in terminal
@@ -1228,6 +1357,9 @@ class PokePlotWidget(QWidget):
         Arguments
         ---------
         update_value : Sukrith what is this?
+            This seems to come from the line:
+                self.updateSignal.emit(poked_port_number, color)
+            But which one is update_value??
         
         Flow
         ----
