@@ -35,20 +35,25 @@ receiver.bind("tcp://*:5555")  # Change Port number if you want to run multiple 
 poller = zmq.Poller()
 poller.register(receiver, zmq.POLLIN)
 
-# Main loop to keep receiving messages
+# Main loop to receive messages
 try:
     while True:
         # Poll for incoming messages with a timeout of 100ms
         socks = dict(poller.poll(100))
+        recv_time = datetime.now() # Setting time on desktop
 
         if receiver in socks and socks[receiver] == zmq.POLLIN:
-            print("Working")
+            #print("Working")
             msg = receiver.recv_string()
-            print(msg)
-            recv_time = datetime.now()
-            pi_time = datetime.strptime(msg, '%Y-%m-%d %H:%M:%S.%f')
-            latency = recv_time - pi_time
-            print(f"Latency: {latency}")
+            print(msg) # Getting time from Pi
+            
+            if msg.startswith("rpi"):
+                pass
+            
+            else:
+                pi_time = datetime.strptime(msg, '%Y-%m-%d %H:%M:%S.%f')
+                latency = recv_time - pi_time # Finding latency between pi and desktop
+                print(f"Latency: {latency}")
             
 except KeyboardInterrupt:
     print("Receiver script interrupted by user")
