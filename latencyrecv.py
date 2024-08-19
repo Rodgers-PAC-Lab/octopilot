@@ -40,16 +40,17 @@ try:
     while True:
         # Poll for incoming messages with a timeout of 100ms
         socks = dict(poller.poll(100))
-        recv_time = datetime.now() # Setting time on desktop
+        recv_time = datetime.now() # Getting timestamp on desktop
 
         if receiver in socks and socks[receiver] == zmq.POLLIN:
             msg = receiver.recv_string()
-            print(f"Current Time:", msg) # Getting time from Pi
             
             if msg.startswith("rpi"):
                 pass
             
             else:
+                print (f"Desktop Time:", recv_time) 
+                print(f"Pi Time:", msg) # Getting timestamp from Pi
                 pi_time = datetime.strptime(msg, '%Y-%m-%d %H:%M:%S.%f')
                 latency = recv_time - pi_time # Finding latency between pi and desktop
                 print(f"Latency: {latency}")
