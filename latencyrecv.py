@@ -1,4 +1,3 @@
-# Importing necessary libraries
 import sys
 import zmq
 import numpy as np
@@ -32,20 +31,24 @@ context = zmq.Context()
 socket = context.socket(zmq.ROUTER)
 socket.bind("tcp://*" + params['worker_port'])  # Change Port number if you want to run multiple instances
 
+# Create a poller object to handle the socket
+poller = zmq.Poller()
+poller.register(socket, zmq.POLLIN)
+
 # Method to handle the update of Pis
 def update():
-    try:
-        # Receive message from the socket
-        message = socket.recv_string()
-        recv_time = datetime.now()
-        pi_time = datetime.strptime(message)
-        latency = recv_time - pi_time
-        print(f"Latency:", latency)
+    events = dict(poller.poll(1000))  # Polling with a timeout of 1000 ms
+    if socket in events:
+        try:
+            # Receive message from the socket
+            message = socket.recv_string(zmq.DONTWAIT)
+            recv_time = datetime.now()
+            pi_time = datetime.strptime(message, '%Y-%m-%d %H:%M:%S.%f')
+            latency = recv_time - pi_time
+            print(f"Latency: {latency}")
+        except ValueError:
+            print(f"Received an unknown message: {message}")
 
-    except ValueError:
-        pass
-        #print_out("Unknown message:", message_str)
-
-update()
-#~ while True:
-    #~ update()
+# Main loop
+while True:
+    update()

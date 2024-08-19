@@ -77,176 +77,117 @@ Parameters for each pi in the behavior box
         being called back to on the triggers need to be inverted.   
    nosepoke_id (L/R): The number assigned to the left and right ports of each pi 
 """
-# TODO: document everything in params
+
+# Load parameters for this pi
 param_directory = f"pi/configs/pis/{pi_name}.json"
 with open(param_directory, "r") as p:
-    params = json.load(p)    
+    params = json.load(p)
 
-## Pigpio configuration
-# TODO: move these methods into a Nosepoke object. That object should be
-# defined in another script and imported here
+# Pigpio configuration
 a_state = 0
 count = 0
 nosepoke_pinL = 8
 nosepoke_pinR = 15
 nosepokeL_id = params['nosepokeL_id']
-nospokeR_id = params['nosepokeR_id']
+nosepokeR_id = params['nosepokeR_id']
 
-# Global variables for which nospoke was detected
 left_poke_detected = False
 right_poke_detected = False
 current_port_poked = None
 timestamp = None
 
-# Callback function for nosepoke pin (When the nosepoke is completed)
+# Callback function for left nosepoke
 def poke_inL(pin, level, tick):
     global a_state, left_poke_detected
     a_state = 0
     if left_poke_detected:
-        # Write to left pin
         print("Left poke detected!")
         pig.set_mode(17, pigpio.OUTPUT)
-        if params['nosepokeL_type'] == "901":
-            pig.write(17, 1)
-        elif params['nosepokeL_type'] == "903":
-            pig.write(17, 0)
-    # Reset poke detected flags
+        pig.write(17, 1 if params['nosepokeL_type'] == "901" else 0)
     left_poke_detected = False
 
-# Callback function for nosepoke pin (When the nosepoke is completed)
+# Callback function for right nosepoke
 def poke_inR(pin, level, tick):
     global a_state, right_poke_detected
     a_state = 0
     if right_poke_detected:
-        # Write to left pin
         print("Right poke detected!")
         pig.set_mode(10, pigpio.OUTPUT)
-        if params['nosepokeR_type'] == "901":
-            pig.write(10, 1)
-        elif params['nosepokeR_type'] == "903":
-            pig.write(10, 0)
-            
-    # Reset poke detected flags
+        pig.write(10, 1 if params['nosepokeR_type'] == "901" else 0)
     right_poke_detected = False
 
-# Callback functions for nosepoke pin (When the nosepoke is detected)
-def poke_detectedL(pin, level, tick): 
+# Callback function when a left nosepoke is detected
+def poke_detectedL(pin, level, tick):
     global a_state, count, left_poke_detected, current_port_poked
     a_state = 1
     count += 1
     left_poke_detected = True
     print("Poke Completed (Left)")
     print("Poke Count:", count)
-    nosepoke_idL = params['nosepokeL_id']  # Set the left nosepoke_id here according to the pi
-    current_port_poked = nosepoke_idL
+    current_port_poked = nosepokeL_id
     pig.set_mode(17, pigpio.OUTPUT)
-    if params['nosepokeL_type'] == "901":
-        pig.write(17, 0)
-    elif params['nosepokeL_type'] == "903":
-        pig.write(17, 1)
-        
-    # Sending nosepoke_id wirelessly
+    pig.write(17, 0 if params['nosepokeL_type'] == "901" else 1)
     try:
-        print(f"Sending nosepoke_id = {nosepoke_idL}") 
-        #poke_socket.send_string(str(nosepoke_idL))
         timestamp = datetime.now()
+        print(f"Sending nosepoke_id = {nosepokeL_id}")
         poke_socket.send_string(str(timestamp))
     except Exception as e:
         print("Error sending nosepoke_id:", e)
 
-def poke_detectedR(pin, level, tick): 
+# Callback function when a right nosepoke is detected
+def poke_detectedR(pin, level, tick):
     global a_state, count, right_poke_detected, current_port_poked
     a_state = 1
     count += 1
     right_poke_detected = True
     print("Poke Completed (Right)")
     print("Poke Count:", count)
-    nosepoke_idR = params['nosepokeR_id']  # Set the right nosepoke_id here according to the pi
-    current_port_poked = nosepoke_idR
+    current_port_poked = nosepokeR_id
     pig.set_mode(10, pigpio.OUTPUT)
-    if params['nosepokeR_type'] == "901":
-        pig.write(10, 0)
-    elif params['nosepokeR_type'] == "903":
-        pig.write(10, 1)
-
-    # Sending nosepoke_id wirelessly
+    pig.write(10, 0 if params['nosepokeR_type'] == "901" else 1)
     try:
-        print(f"Sending nosepoke_id = {nosepoke_idR}") 
-        #poke_socket.send_string(str(nosepoke_idR))
         timestamp = datetime.now()
+        print(f"Sending nosepoke_id = {nosepokeR_id}")
         poke_socket.send_string(str(timestamp))
-        
     except Exception as e:
         print("Error sending nosepoke_id:", e)
 
-
-# Raspberry Pi's identity (Interchangeable with pi_name. This implementation is from before I was using the Pis host name)
+# Raspberry Pi's identity
 pi_identity = params['identity']
 
-## Creating a DEALER socket for communication regarding poke and poke times
+# Creating a DEALER socket for communication
 poke_context = zmq.Context()
 poke_socket = poke_context.socket(zmq.DEALER)
-
-# Setting the identity of the socket in bytes
 poke_socket.identity = bytes(f"{pi_identity}", "utf-8")
+router_ip = "tcp://" + f"{params['gui_ip']}:{params['poke_port']}"
+poke_socket.connect(router_ip)
+poke_socket.send_string(f"{pi_identity}")
 
-# Connecting to IP address (192.168.0.99 for laptop, 192.168.0.207 for seaturtle)
-router_ip = "tcp://" + f"{params['gui_ip']}" + f"{params['poke_port']}" 
-poke_socket.connect(router_ip) 
-
-# Send the identity of the Raspberry Pi to the server
-poke_socket.send_string(f"{pi_identity}") 
-
-## Set up pigpio and callbacks
-# TODO: rename this variable to pig or something; "pi" is ambiguous
+# Set up pigpio and callbacks
 pig = pigpio.pi()
 pig.callback(nosepoke_pinL, pigpio.FALLING_EDGE, poke_inL)
 pig.callback(nosepoke_pinL, pigpio.RISING_EDGE, poke_detectedL)
 pig.callback(nosepoke_pinR, pigpio.FALLING_EDGE, poke_inR)
 pig.callback(nosepoke_pinR, pigpio.RISING_EDGE, poke_detectedR)
 
-## Create a Poller object
-# TODO: document .. What is this?
+# Create a Poller object
 poller = zmq.Poller()
 poller.register(poke_socket, zmq.POLLIN)
 
-## Main loop to keep the program running and exit when it receives an exit command
+# Main loop to keep the program running and exit when it receives an exit command
 try:
-    ## TODO: document these variables and why they are tracked
-    # Initialize reward_pin variable
-    reward_pin = None
-    
-    # Track the currently active LED
-    current_pin = None  
-    
-    # Track prev_port
-    prev_port = None
-    
-    ## Loop forever
     while True:
-        ## Wait for events on registered sockets
-        # TODO: how long does it wait? # Can be set, currently not sure
         socks = dict(poller.poll(100))
-        
-        ## Check for incoming messages on poke_socket
-        # TODO: document the types of messages that can be sent on poke_socket 
         if poke_socket in socks and socks[poke_socket] == zmq.POLLIN:
-            # Blocking receive: #flags=zmq.NOBLOCK)  
-            # Non-blocking receive
-            msg = poke_socket.recv_string()  
-    
+            msg = poke_socket.recv_string()
             if msg.startswith("Latency:"):
                 print(msg)
-           
             else:
                 print("Unknown message received:", msg)
 
-
 except KeyboardInterrupt:
-    # Stops the pigpio connection
     pig.stop()
 
 finally:
-    # Close all sockets and contexts
     poke_socket.close()
     poke_context.term()
