@@ -10,6 +10,7 @@ These are the main scripts that run the task
 * pi/*.py, pi/pokes, pi/sound - TODO Sukrith what are these files?
 * old/ - TODO remove this
 * logs/ - Experimental logs TODO move these out of the repository
+* pi2/ - chris' version of scripts to run on pi, work in progress
 
 # Installation
 TODO add more detail here
