@@ -29,7 +29,7 @@ current_time = None
 # Setting up ZMQ context to send and receive information about poked ports
 context = zmq.Context()
 socket = context.socket(zmq.ROUTER)
-socket.bind("tcp://*" + params['worker_port'])  # Change Port number if you want to run multiple instances
+socket.bind("tcp://*:5555")  # Change Port number if you want to run multiple instances
 
 # Create a poller object to handle the socket
 poller = zmq.Poller()
