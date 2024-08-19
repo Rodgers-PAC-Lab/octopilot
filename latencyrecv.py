@@ -43,9 +43,8 @@ try:
         recv_time = datetime.now() # Setting time on desktop
 
         if receiver in socks and socks[receiver] == zmq.POLLIN:
-            #print("Working")
             msg = receiver.recv_string()
-            print(msg) # Getting time from Pi
+            print(f"Current Time:", msg) # Getting time from Pi
             
             if msg.startswith("rpi"):
                 pass
