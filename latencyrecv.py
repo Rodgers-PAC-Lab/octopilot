@@ -28,27 +28,30 @@ current_time = None
 
 # Setting up ZMQ context to send and receive information about poked ports
 context = zmq.Context()
-socket = context.socket(zmq.ROUTER)
-socket.bind("tcp://*:5555")  # Change Port number if you want to run multiple instances
+receiver = context.socket(zmq.ROUTER)
+receiver.bind("tcp://*:5555")  # Change Port number if you want to run multiple instances
 
 # Create a poller object to handle the socket
 poller = zmq.Poller()
-poller.register(socket, zmq.POLLIN)
+poller.register(receiver, zmq.POLLIN)
 
-# Method to handle the update of Pis
-def update():
-    events = dict(poller.poll(1000))  # Polling with a timeout of 1000 ms
-    if socket in events:
-        try:
-            # Receive message from the socket
-            message = socket.recv_string(zmq.NOBLOCK)
+# Main loop to keep receiving messages
+try:
+    while True:
+        # Poll for incoming messages with a timeout of 100ms
+        socks = dict(poller.poll(100))
+
+        if receiver in socks and socks[receiver] == zmq.POLLIN:
+            print("Working")
+            msg = receiver.recv_string()
             recv_time = datetime.now()
-            pi_time = datetime.strptime(message, '%Y-%m-%d %H:%M:%S.%f')
+            pi_time = datetime.strptime(msg, '%Y-%m-%d %H:%M:%S.%f')
             latency = recv_time - pi_time
             print(f"Latency: {latency}")
-        except ValueError:
-            print(f"Received an unknown message: {message}")
+            
+except KeyboardInterrupt:
+    print("Receiver script interrupted by user")
 
-# Main loop
-while True:
-    update()
+finally:
+    receiver.close()
+    context.term()

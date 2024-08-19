@@ -7,7 +7,7 @@ context = zmq.Context()
 # Creating a DEALER socket
 dealer_socket = context.socket(zmq.DEALER)
 dealer_socket.identity = b"RPi99" # Setting the identity of the DEALER socket
-dealer_socket.connect("tcp://192.168.1.80:5555")  # Laptop IP address
+dealer_socket.connect("tcp://192.168.0.207:5555")  # Laptop IP address
 
 # Loop to send and receive messages
 try:
