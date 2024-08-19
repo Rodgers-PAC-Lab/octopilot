@@ -9,10 +9,11 @@ This implementation hasn't been done for the terminal information on the pi side
 """
 # Function to print to terminal and store log files as txt
 def print_out(*args, **kwargs):
+    return
     global current_task, current_time
     
     # Naming the txt file according to the current task and time and saving it to a log folder 
-    output_filename = params['save_directory'] + f"/terminal_logs/{current_task}_{current_time}.txt"
+    output_filename = f"/home/mouse/dev/paclab_sukrith/logs/terminal_logs/{current_task}_{current_time}.txt"
     
     # Joining the arguments into a single string
     statement = " ".join(map(str, args))

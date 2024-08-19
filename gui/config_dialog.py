@@ -24,6 +24,7 @@ Their functions are as follows:
 import json
 import os
 import zmq
+from datetime import datetime
 
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import (
@@ -659,7 +660,7 @@ class ConfigurationList(QWidget):
                 toast.setDuration(5000)  # Hide after 5 seconds
                 toast.setTitle('Task Parameters Sent') # Setting title
                 # Setting task
-                toast.setText(f'Parameters for task {current_task} have been sent to {args.json_filename}') 
+                toast.setText(f'Parameters for task {current_task} have been set') 
                 toast.applyPreset(ToastPreset.SUCCESS)  # Apply style preset
                 toast.show()
             else:

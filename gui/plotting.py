@@ -1,6 +1,11 @@
 """Module for the individual plot widgets"""
 
 import math
+from datetime import datetime
+import time
+import csv
+import random
+import numpy as np
 import zmq
 import pyqtgraph as pg
 
@@ -19,7 +24,7 @@ from PyQt5.QtCore import (
     )
 from PyQt5.QtGui import QFont, QColor
 from pyqttoast import Toast, ToastPreset
-
+from .logging import print_out
 
 ## VISUAL REPRESENTATION OF PORTS
 class NosepokeCircle(QGraphicsEllipseItem):
@@ -224,13 +229,14 @@ class Worker(QObject):
         self.current_task = None 
         self.ports = None
 
+        self.params = params
         
         ## Connecting the Worker Class to ArenaWidget elements 
         self.arena_widget = arena_widget
         self.total_ports = self.arena_widget.total_ports 
         self.nosepoke_circles = self.arena_widget.nosepoke_circles
         self.poked_port_numbers = self.arena_widget.poked_port_numbers 
-
+        self.active_nosepokes = self.arena_widget.active_nosepokes 
 
         ## Identify each port
         # Variables used to store the functions to map the labels of ports present 
@@ -326,7 +332,7 @@ class Worker(QObject):
         ## Set up port labels and indices
         # Creating a dictionary that takes the label of each port and matches it to
         # the index on the GUI (used for reordering)
-        self.ports = params['ports']
+        self.ports = self.params['ports']
         
         # Refer to documentation when variables were initialized 
         self.label_to_index = {port['label']: port['index'] for port in self.ports} 
@@ -393,12 +399,11 @@ class Worker(QObject):
             self.average_unique_ports = (
                 sum(self.unique_ports_visited) / len(self.unique_ports_visited)
                 )
-            
     
     def choose(self):
         """Randomly choose next port to reward"""
         # Getting the list of choices to choose from  
-        ports = active_nosepokes 
+        ports = self.active_nosepokes 
         
         # Setting up a new set of possible choices after omitting 
         # the previously rewarded port
@@ -505,12 +510,12 @@ class Worker(QObject):
             
             ## A poke was received
             else:
-                self.handle_poke_message(poked_port)
+                self.handle_poke_message(message_str, identity, elapsed_time)
         
         except ValueError:
             pass
 
-    def handle_poke_message(self, message_str):
+    def handle_poke_message(self, message_str, identity, elapsed_time):
         ## Converting message string to int 
         poked_port = int(message_str) 
 
@@ -544,11 +549,6 @@ class Worker(QObject):
         self.update_unique_ports()
 
         
-        ## Emit signal
-        # Sending information regarding poke and outcome of poke to Pi Widget
-        self.pokedportsignal.emit(poked_port, color)
-        
-
         ## Take different actions depending on the type of poke
         if poked_port == self.reward_port:
             # This was the rewarded port
@@ -614,6 +614,11 @@ class Worker(QObject):
             self.trials += 1
 
 
+        ## Emit signal
+        # Sending information regarding poke and outcome of poke to Pi Widget
+        self.pokedportsignal.emit(poked_port, color)
+
+
         ## Updating number of pokes in the session 
         self.current_poke += 1 
         
@@ -639,13 +644,15 @@ class Worker(QObject):
         global current_task, current_time
         
         # Specifying the directory where you want to save the CSV files
-        save_directory = params['save_directory']
+        save_directory = self.params['save_directory']
         
         # Generating filename based on current_task and current date/time
-        filename = f"{current_task}_{current_time}_saved.csv"
+        #filename = f"{current_task}_{current_time}_saved.csv"
+        filename = 'saved.csv'
         
         # Saving the results to a CSV file
-        with open(f"{save_directory}/{filename}", 'w', newline='') as csvfile:
+        #with open(f"{save_directory}/{filename}", 'w', newline='') as csvfile:
+        with open("filename", 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             
             # Writing the header row for the CSV file with parameters to be saved as the columns
@@ -825,6 +832,7 @@ class ArenaWidget(QWidget):
 
 
         ## Add individual ports to the widget
+        self.active_nosepokes = [int(i) for i in params['active_nosepokes']]
         self.total_ports = 8
         self.nosepoke_circles = []
         for i in range(self.total_ports):
@@ -962,7 +970,7 @@ class ArenaWidget(QWidget):
         
         # QTime since session start or last poke
         # Sukrith: are these actually used anywhere?
-        #~ self.start_time = QTime(0, 0)
+        self.start_time = QTime(0, 0)
         #~ self.poke_time = QTime(0, 0)
 
         # Setting title 
@@ -1063,7 +1071,7 @@ class ArenaWidget(QWidget):
             self.fraction_correct = np.nan
         
         # Update fraction correct label
-        if fc is None:
+        if self.fraction_correct is None:
             self.fraction_correct_label.setText(
                 f"Fraction Correct (FC): NA")    
         else:
@@ -1101,7 +1109,7 @@ class ArenaWidget(QWidget):
         QMetaObject.invokeMethod(self.worker, "start_sequence", Qt.QueuedConnection) 
 
         # Sending a message so that the plotting object can start plotting
-        self.main_window.plot_window.start_plot()
+        self.main_window.poke_plot_widget.start_plot()
 
         # Start the timer
         self.start_time.start()
@@ -1127,7 +1135,7 @@ class ArenaWidget(QWidget):
         print_out("Experiment Stopped!")
         
         # Stopping the plot
-        self.main_window.plot_window.stop_plot()
+        self.main_window.poke_plot_widget.stop_plot()
         
         # Reset all labels to intial values 
         # Currently has an issue with time since last poke updating after session is stopped. 
