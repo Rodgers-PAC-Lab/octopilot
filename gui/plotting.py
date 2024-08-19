@@ -562,7 +562,7 @@ class Worker(QObject):
                 
                 # Updating Fraction Correct
                 self.current_fraction_correct = (
-                    self.current_correct_trials / self.current_completed_trials
+                    self.current_correct_trials / self.current_completed_trials)
 
             else:
                 # This is an incorrect trial
@@ -824,9 +824,28 @@ class ArenaWidget(QWidget):
         self.view = QGraphicsView(self.scene)
 
 
+        ## Add individual ports to the widget
+        self.total_ports = 8
+        self.nosepoke_circles = []
+        for i in range(self.total_ports):
+            # Create the nosepoke circle
+            nosepoke_circle = NosepokeCircle(i, self.total_ports, params)
+            
+            # Store it
+            self.nosepoke_circles.append(nosepoke_circle)
+            
+            # Add it to the scene
+            self.scene.addItem(nosepoke_circle)
+        
+        # This is used only by Worker
+        # TODO: Move this there
+        self.poked_port_numbers = []
+        
+        
         ## Create Worker
         # Creating an instance of the Worker Class and a QThread to handle the logic
         # in a separate thread from the GUI elements
+        # Worker relies on self.total_ports
         self.worker = Worker(self, params)
         self.thread = QThread()
         
@@ -843,23 +862,6 @@ class ArenaWidget(QWidget):
         # Used for RCP calculation (needs to be changed)
         self.worker.pokedportsignal.connect(self.calc_and_update_avg_unique_ports) 
 
-        
-        ## Add individual ports to the widget
-        self.total_ports = 8
-        for i in range(self.total_ports):
-            # Create the nosepoke circle
-            nosepoke_circle = NosepokeCircle(i, self.total_ports, params)
-            
-            # Store it
-            self.nosepoke_circles.append(nosepoke_cirlce)
-            
-            # Add it to the scene
-            self.scene.addItem(nosepoke_circle)
-        
-        # This is used only by Worker
-        # TODO: Move this there
-        self.poked_port_numbers = []
-        
         
         ## Create start and stop buttons and add to start_stop_layout
         # Creating buttons to control the session 
@@ -1329,6 +1331,17 @@ class PokePlotWidget(QWidget):
         self.time_bar_timer.timeout.connect(self.update_time_bar) 
 
 
+        ## To store data
+        # List to store timestamps
+        self.timestamps = []  
+        
+        # List to store pokes 
+        self.signal = []  
+
+        # List to keep track of all plotted items so we can clear when needed
+        self.plotted_items = []        
+        
+        
         ## Initialize the plot_widget which actually does the plotting
         # Initializing the pyqtgraph widget
         self.plot_widget = pg.PlotWidget() 
@@ -1342,17 +1355,6 @@ class PokePlotWidget(QWidget):
        
         # Plots line_of_current_time and line
         self.initalize_plot_handles()
-        
-        
-        ## To store data
-        # List to store timestamps
-        self.timestamps = []  
-        
-        # List to store pokes 
-        self.signal = []  
-
-        # List to keep track of all plotted items so we can clear when needed
-        self.plotted_items = []        
         
         
         ## Connecting to signals from ArenaWidget and Worker 
