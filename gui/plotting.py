@@ -463,6 +463,8 @@ class Worker(QObject):
             message_str = message.decode('utf-8')
             
             
+            print('received message: {}'.format(message_str))
+            
             ## Message from pi side that initiates the connection 
             if "rpi" in message_str:
                 print_out("Connected to Raspberry Pi:", message_str)
