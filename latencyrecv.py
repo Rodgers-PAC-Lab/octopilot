@@ -41,7 +41,7 @@ def update():
     if socket in events:
         try:
             # Receive message from the socket
-            message = socket.recv_string(zmq.DONTWAIT)
+            message = socket.recv_string(zmq.NOBLOCK)
             recv_time = datetime.now()
             pi_time = datetime.strptime(message, '%Y-%m-%d %H:%M:%S.%f')
             latency = recv_time - pi_time
