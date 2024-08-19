@@ -161,7 +161,7 @@ poke_socket = poke_context.socket(zmq.DEALER)
 poke_socket.identity = bytes(f"{pi_identity}", "utf-8")
 router_ip = "tcp://192.168.0.207:5555"
 poke_socket.connect(router_ip)
-poke_socket.send_string(f"{pi_identity}")
+#poke_socket.send_string(f"{pi_identity}")
 
 # Set up pigpio and callbacks
 pig = pigpio.pi()

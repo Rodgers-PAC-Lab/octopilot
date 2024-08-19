@@ -44,6 +44,7 @@ try:
         if receiver in socks and socks[receiver] == zmq.POLLIN:
             print("Working")
             msg = receiver.recv_string()
+            print(msg)
             recv_time = datetime.now()
             pi_time = datetime.strptime(msg, '%Y-%m-%d %H:%M:%S.%f')
             latency = recv_time - pi_time
