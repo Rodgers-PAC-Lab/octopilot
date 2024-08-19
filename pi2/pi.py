@@ -83,7 +83,7 @@ Parameters for each pi in the behavior box
         being called back to on the triggers need to be inverted.   
    nosepoke_id (L/R): The number assigned to the left and right ports of each pi 
 """
-param_directory = f"pi/configs/pis/{pi_name}.json"
+param_directory = f"/home/pi/dev/paclab_sukrith/pi/configs/pis/{pi_name}.json"
 with open(param_directory, "r") as p:
     params = json.load(p)    
 
@@ -91,7 +91,7 @@ with open(param_directory, "r") as p:
 """
 Note: If the code does not work when 'pins' is called then refer to the code from 'main' branch where all values are hardcoded (I had a problem with this. Not sure if fully fixed)
 """
-pin_directory = f"pi/configs/pins.json"
+pin_directory = f"/home/pi/dev/paclab_sukrith/pi/configs/pins.json"
 with open(pin_directory, "r") as n:
     pins = json.load(n)
 
@@ -734,7 +734,7 @@ a_state = 0 # I think a_state used to be active state, which is what I was using
 count = 0 # Count used to display how many pokes have happened on the pi terminal
 
 # Assigning pins to variables 
-nosepoke_pinL = pins['nosepoke_L']
+nosepoke_pinL = pins['nosepoke_l']
 nosepoke_pinR = pins['nosepoke_r']
 led_red_l = pins['led_red_l']
 led_red_r = pins['led_red_r']
