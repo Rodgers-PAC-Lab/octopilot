@@ -142,12 +142,27 @@ class Worker(QObject):
     ports
     label2index, index2label, index
     identities : set of connected pis
+    unique_ports_visited : list
+        update_unique_ports appends the number of unique ports visited
+        on this trial every time it is called
+    
     
     Methods
     -------
     start_sequence: Start a session
-        This is invoked by arena_widget somehow
+        Called by QMetaObject.invokeMethod in arena_widget.start_sequence
         Chooses reward port, tells pis which is rewarded, and starts self.timer
+    stop_sequence: Stop a session
+        Called by QMetaObject.invokeMethod in arena_widget.stop_sequence
+        Stops the update self.timer and clears variables
+    update_unique_ports : 
+        Appends the number of ports visited to unique_ports_visted
+    calculate_average_unique_ports :
+        Sets average_unique ports as the mean of unique_ports_visted
+    choose : chooses a port to reward and returns it
+    save_results_to_csv : save data
+    start_message : Send start message to each Pi
+    stop_mesage : Send stop message to each pi
     """
     # Signal emitted when a poke occurs (This is used to communicate with 
     # other classes that strictly handle defining GUI elements)
@@ -330,16 +345,26 @@ class Worker(QObject):
         self.timer.timeout.connect(self.update_Pi)
         self.timer.start(10)
 
-    # Method that contains logic to be executed when a session is completed
     @pyqtSlot()
     def stop_sequence(self):
+        """Stop the session
+        
+        Called by QMetaObject.invokeMethod in arena_widget.stop_sequence
+        
+        Flow
+        * Stops self.timer and disconnects it from self.update_Pi
+        * Clears recorded data
+        """
+        ## Stop the timer if it exists
         if self.timer is not None:
-            self.timer.stop() # Stops the timer for the session 
+            # Stops the timer for the session 
+            self.timer.stop() 
             
             # Blocking out communication with the Pis till a new session is started 
             self.timer.timeout.disconnect(self.update_Pi) 
         
-        # Clearing recorded data for the completed session and resetting necessary variables
+        
+        ## Clearing recorded data for the completed session and resetting
         self.initial_time = None
         self.timestamps.clear()
         self.reward_ports.clear()
@@ -355,41 +380,55 @@ class Worker(QObject):
         self.trials = 0
         self.average_unique_ports = 0
     
-    # Method to update unique ports visited (used to calculate RCP on GUI)
+    
     def update_unique_ports(self):
+        """Update unique ports visited on this trial"""
         # Calculate unique ports visited in the current trial
         unique_ports = set(self.poked_port_numbers)
         self.unique_ports_visited.append(len(unique_ports))
  
-    # Method to calculate the average number of unique ports visited (used to calculate RCP on GUI)
     def calculate_average_unique_ports(self):
-        # Calculate the average number of unique ports visited per trial
+        """Calculate the average number of unique ports visited per trial"""
         if self.unique_ports_visited:
-            self.average_unique_ports = sum(self.unique_ports_visited) / len(self.unique_ports_visited)
+            self.average_unique_ports = (
+                sum(self.unique_ports_visited) / len(self.unique_ports_visited)
+                )
             
-    # Method to randomly choose next port to reward
+    
     def choose(self):
-        ports = active_nosepokes # Getting the list of choices to choose from  
+        """Randomly choose next port to reward"""
+        # Getting the list of choices to choose from  
+        ports = active_nosepokes 
         
-        # Setting up a new set of possible choices after omitting the previously rewarded port
+        # Setting up a new set of possible choices after omitting 
+        # the previously rewarded port
         poss_choices = [choice for choice in ports if choice != self.prev_choice] 
         
         # Randomly choosing within the new set of possible choices
         new_choice =  random.choice(poss_choices) 
         
-        #Updating the previous choice that was made so the next choice can omit it 
+        # Updating the previous choice that was made so the next choice 
+        # can omit it 
         self.prev_choice = new_choice  
+        
         return new_choice
     
-    """
-    ** This is the main method of this class that controls most of the logic for the GUI **
-    Method to handle the updating Pis (sending and receiving poke related information and executing logic)
-    """
     @pyqtSlot()
     def update_Pi(self):
+        """Main loop of Worker
         
+        Connected to self.timer
+        
+        This is the main method of this class that controls most of the logic 
+        for the GUI.
+        Method to handle the updating Pis (sending and receiving poke related 
+        information and executing logic)
+        """
+        
+        ## Get time information
         # Updating time related information 
-        current_time = datetime.now() # Used to name the file 
+        # Used to name the file 
+        current_time = datetime.now() 
         
         # Used to display elapsed time in the Arena Widget class
         elapsed_time = current_time - self.initial_time 
@@ -408,31 +447,42 @@ class Worker(QObject):
         the values are extracted from a string and then appended to lists to be saved in a csv 
         """
         try:
-            # Waiting to receive messages from the pis
+            ## Waiting to receive messages from the pis
+            # Sukrith: why is an identity added for every message?
+            # Shouldn't it only be when it initalizes?
+            # What happens if there is no message?
             identity, message = self.socket.recv_multipart()
             self.identities.add(identity)
             
             # Converting all messages from bytes to strings
             message_str = message.decode('utf-8')
             
-            # Message from pi side that initiates the connection 
+            
+            ## Message from pi side that initiates the connection 
             if "rpi" in message_str:
                 print_out("Connected to Raspberry Pi:", message_str)
             
-            # Message to stop updates if the session is stopped
+            
+            ## Message to stop updates if the session is stopped
             if message_str.strip().lower() == "stop":
                 print_out("Received 'stop' message, aborting update.")
                 return
             
-            # Sending the initial message to start the loop
-            self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
+            
+            ## Sending the initial message to start the loop
+            self.socket.send_multipart([
+                identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
-            # Starting next session
+            
+            ## Starting next session
             if message_str.strip().lower() == "start":
-                self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
+                self.socket.send_multipart([
+                    identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
     
-            # Keeping track of current parameters for every trial 
+            
+            ## Keeping track of current parameters for every trial 
             if "Current Parameters" in message_str:
+                ## Get the current parameters
                 sound_parameters = message_str
                 print_out("Updated:", message_str) 
                 
@@ -452,129 +502,140 @@ class Worker(QObject):
                 self.current_center_freq = float(params.get("Center Frequency", "0").split()[0])
                 self.current_bandwidth = float(params.get("Bandwidth", "0"))
                 
+            
+            ## A poke was received
             else:
-                """
-                Logic for what to do when a poke is received
-                """
-                poked_port = int(message_str) # Converting message string to int 
-                
-                # Check if the poked port is the same as the last rewarded port
-                if poked_port == self.last_rewarded_port:
-                     # If it is, do nothing and return
-                        return
-
-                """
-                For any label in the list of port labels, correlate it to the 
-                index of the port in the visual arrangement in the widget 
-                """                
-                if 1 <= poked_port <= self.total_ports:
-                    poked_port_index = self.label_to_index.get(message_str)
-                    poked_port_icon = self.nosepoke_circles[poked_port_index]
-
-                    """
-                    Choosing colors to represent the outcome of each poke 
-                    in the context of the trial
-                    green: correct trial
-                    blue: completed trial
-                    red: pokes at all ports that aren't the reward port
-                    """                    
-                    if poked_port == self.reward_port:
-                        color = "green" if self.trials == 0 else "blue"
-                        if self.trials > 0:
-                            self.trials = 0
-                    else:
-                        color = "red" 
-                        self.trials += 1
-                        self.current_poke += 1
-
-                    # Setting the color of the port on the Pi Widget
-                    poked_port_icon.set_color(color)
-                    
-                    # Appending the poked port to a sequence that contains all pokes during a session
-                    self.poked_port_numbers.append(poked_port)
-                    
-                    # Can be commented out to declutter terminal
-                    print_out("Sequence:", self.poked_port_numbers)
-                    self.last_pi_received = identity
-
-                    # Sending information regarding poke and outcome of poke to Pi Widget
-                    self.pokedportsignal.emit(poked_port, color)
-                    
-                    # Appending the current reward port to save to csv 
-                    self.reward_ports.append(self.reward_port)
-                    
-                    # Used to update RCP calculation
-                    self.update_unique_ports()
-                    
-                    # Updating poke / trial related information depending on the outcome of the poke
-                    if color == "green" or color == "blue":
-                        
-                        # Updating number of pokes in the session 
-                        self.current_poke += 1 
-                        
-                        # Updating the number of completed trials in the session 
-                        self.current_completed_trials += 1 
-                        
-                        # Sending an acknowledgement to the Pis when the reward port is poked
-                        for identity in self.identities:
-                            self.socket.send_multipart([identity, bytes(f"Reward Poke Completed: {self.reward_port}", 'utf-8]')])
-                        
-                        # Storing the completed reward port to make sure the next choice is not at the same port
-                        self.last_rewarded_port = self.reward_port 
-                        self.reward_port = self.choose() 
-                        
-                        # Resetting the number of pokes that have happened in the trial
-                        self.trials = 0 
-                        
-                        # Printing reward port
-                        print_out(f"Reward Port: {self.reward_port}")
-                        
-                        # Logic for if a correct trial is completed
-                        if color == "green":
-                            # Updating count for correct trials
-                            self.current_correct_trials += 1 
-                            # Updating Fraction Correct
-                            self.current_fraction_correct = self.current_correct_trials / self.current_completed_trials
-
-                        # Finding the index in the visual representation depending on the 
-                        index = self.index_to_label.get(poked_port_index)
-                        
-                        """When a new trial is started reset color of all 
-                        non-reward ports to gray and set new reward port to green
-                        """
-                        for index, Pi in enumerate(self.nosepoke_circles):
-                            # This might be a hack that doesnt work for some boxes (needs to be changed)
-                            if index + 1 == self.reward_port: 
-                                Pi.set_color("green")
-                            else:
-                                Pi.set_color("gray")
-
-                        # Sending the reward port to all connected Pis after a trial is completed
-                        for identity in self.identities:
-                            self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
-                            
-                    
-                    """
-                    Appending all the information at the time of a particular 
-                    poke to their respective lists
-                    """
-                    self.pokes.append(self.current_poke)
-                    self.timestamps.append(elapsed_time)
-                    self.amplitudes.append(self.current_amplitude)
-                    self.target_rates.append(self.current_target_rate)
-                    self.target_temporal_log_stds.append(self.current_target_temporal_log_std)
-                    self.center_freqs.append(self.current_center_freq)
-                    self.completed_trials.append(self.current_completed_trials)
-                    self.correct_trials.append(self.current_correct_trials)
-                    self.fc.append(self.current_fraction_correct)
+                self.handle_poke_message(poked_port)
         
         except ValueError:
             pass
-            #print_out("Unknown message:", message_str)
+
+    def handle_poke_message(self, message_str):
+        ## Converting message string to int 
+        poked_port = int(message_str) 
+
+
+        ## Check if the poked port is the same as the last rewarded port
+        if poked_port == self.last_rewarded_port:
+            # If it is, do nothing and return
+            return
+        
+        
+        ## Get index and icon
+        # For any label in the list of port labels, correlate it to the 
+        # index of the port in the visual arrangement in the widget 
+        poked_port_index = self.label_to_index.get(message_str)
+        poked_port_icon = self.nosepoke_circles[poked_port_index]
+
+        
+        ## Store results
+        # Appending the poked port to a sequence that contains 
+        # all pokes during a session
+        self.poked_port_numbers.append(poked_port)
+        
+        # Can be commented out to declutter terminal
+        print_out("Sequence:", self.poked_port_numbers)
+        self.last_pi_received = identity
+
+        # Appending the current reward port to save to csv 
+        self.reward_ports.append(self.reward_port)
+        
+        # Used to update RCP calculation
+        self.update_unique_ports()
+
+        
+        ## Emit signal
+        # Sending information regarding poke and outcome of poke to Pi Widget
+        self.pokedportsignal.emit(poked_port, color)
+        
+
+        ## Take different actions depending on the type of poke
+        if poked_port == self.reward_port:
+            # This was the rewarded port
+            # This is a correct trial if pokes == 0, otherwise incorrect
+            if self.trials == 0:
+                # This is a correct trial
+                color = "green"
+
+                # Updating count for correct trials
+                self.current_correct_trials += 1 
+                
+                # Updating Fraction Correct
+                self.current_fraction_correct = (
+                    self.current_correct_trials / self.current_completed_trials
+
+            else:
+                # This is an incorrect trial
+                color = "blue"
+
+            # Updating the number of completed trials in the session 
+            self.current_completed_trials += 1 
             
-    
-   # Method to save results to a CSV file
+            
+            ## Sending an acknowledgement to the Pis when the reward port is poked
+            for identity in self.identities:
+                self.socket.send_multipart([
+                    identity, 
+                    bytes(f"Reward Poke Completed: {self.reward_port}", 
+                    'utf-8]')])
+            
+            # Storing the completed reward port to make sure the next 
+            # choice is not at the same port
+            self.last_rewarded_port = self.reward_port 
+            self.reward_port = self.choose() 
+            
+            # Resetting the number of pokes that have happened in the trial
+            self.trials = 0 
+            
+            # Printing reward port
+            print_out(f"Reward Port: {self.reward_port}")
+            
+            
+            ## Start a new trial
+            # When a new trial is started reset color of all 
+            # non-reward ports to gray and set new reward port to green
+            for index, Pi in enumerate(self.nosepoke_circles):
+                # This might be a hack that doesnt work for some boxes 
+                # (needs to be changed)
+                if index + 1 == self.reward_port: 
+                    Pi.set_color("green")
+                else:
+                    Pi.set_color("gray")
+
+            
+            ## Sending the reward port to all connected Pis after a trial is completed
+            for identity in self.identities:
+                self.socket.send_multipart([
+                identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
+
+        else:
+            # This was an unrewarded poke
+            color = "red" 
+            self.trials += 1
+
+
+        ## Updating number of pokes in the session 
+        self.current_poke += 1 
+        
+        ## Setting the color of the port on the Pi Widget
+        poked_port_icon.set_color(color)
+
+        
+        ## Appending all the information at the time of a particular 
+        # poke to their respective lists
+        self.pokes.append(self.current_poke)
+        self.timestamps.append(elapsed_time)
+        self.amplitudes.append(self.current_amplitude)
+        self.target_rates.append(self.current_target_rate)
+        self.target_temporal_log_stds.append(self.current_target_temporal_log_std)
+        self.center_freqs.append(self.current_center_freq)
+        self.completed_trials.append(self.current_completed_trials)
+        self.correct_trials.append(self.current_correct_trials)
+        self.fc.append(self.current_fraction_correct)
+
     def save_results_to_csv(self):
+        """Writes data to CSV"""
+        # TODO: remove these globals
         global current_task, current_time
         
         # Specifying the directory where you want to save the CSV files
@@ -588,24 +649,37 @@ class Worker(QObject):
             writer = csv.writer(csvfile)
             
             # Writing the header row for the CSV file with parameters to be saved as the columns
-            writer.writerow(["No. of Pokes", "Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "No. of Trials", "No. of Correct Trials", "Fraction Correct", "Amplitude", "Rate", "Irregularity", "Center Frequency"])
+            writer.writerow([
+                "No. of Pokes", "Poke Timestamp (seconds)", "Port Visited", 
+                "Current Reward Port", "No. of Trials", "No. of Correct Trials", 
+                "Fraction Correct", "Amplitude", "Rate", "Irregularity", 
+                "Center Frequency"])
            
-           # Assigning the values at each individual poke to the columns in the CSV file
+            # Assigning the values at each individual poke to the columns in the CSV file
             for poke, timestamp, poked_port, reward_port, completed_trial, correct_trial, fc, amplitude, target_rate, target_temporal_log_std, center_freq in zip(
                 self.pokes, self.timestamps, self.poked_port_numbers, self.reward_ports, self.completed_trials, self.correct_trials, self.fc, self.amplitudes, self.target_rates, self.target_temporal_log_stds, self.center_freqs):
                 writer.writerow([poke, timestamp, poked_port, reward_port, completed_trial, correct_trial, fc, amplitude, target_rate, target_temporal_log_std, center_freq])
 
         print_out(f"Results saved to logs")
     
-    # Method to send start message to the pi
+    
     def start_message(self):
+        """Sends start message to each Pi
+        
+        Called by arena_widget.start_sequence
+        """
+        # Send start to each Pi
         for identity in self.identities:
             self.socket.send_multipart([identity, b"start"])
     
-    # Method to send a stop message to the pi
+    
     def stop_message(self):        
+        """Send a stop message to the pi"""
+        # Send a stop message to each pi
         for identity in self.identities:
             self.socket.send_multipart([identity, b"stop"])
+        
+        # Set each nosepoke circle to gray
         for index, Pi in enumerate(self.nosepoke_circles):
             Pi.set_color("gray")
 
