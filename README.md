@@ -7,8 +7,9 @@ These are the main scripts that run the task
 * gui/configs - Configuration files specifying the parameters of each box
 * pi/configs/pis - Configuration files for each pi
 * pi/configs/tasks - Configuration files for each task
-* pi/*.py, pi/pokes, pi/sound - TODO Sukrith what are these files?
-* old/ - TODO remove this
+* pi/pokes, pi/sound - TODO Sukrith what are these files? - These were old toy example scripts that I left in the wrong directory. I shifted them to the old directory and made a separate branch that will have them in case we need them
+* pi/*.py - Old pi.py copy that I used for doc before making this branch. The one outside the directory in main is more recent. Merged some of the changes I made while docing in main 
+* old/ - TODO remove this (Done)
 * logs/ - Experimental logs TODO move these out of the repository
 * pi2/ - chris' version of scripts to run on pi, work in progress
 
