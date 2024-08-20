@@ -27,12 +27,36 @@ time.sleep(1)
 
 ## Starting pigpiod and jackd background processes
 # Start pigpiod
-# TODO: document these parameters
+""" 
+Daemon Parameters:    
+    -t 0 : use PWM clock (otherwise messes with audio)
+    -l : disable remote socket interface (not sure why)
+    -x : mask the GPIO which can be updated (not sure why; taken from autopilot)
+ Runs in background by default (no need for &)
+ """ 
 os.system('sudo pigpiod -t 0 -l -x 1111110000111111111111110000')
 time.sleep(1)
 
 # Start jackd
-# TODO: document these parameters
+"""
+Daemon Parameters:
+ -P75 : set realtime priority to 75 
+ -p16 : --port-max, this seems unnecessary
+ -t2000 : client timeout limit in milliseconds
+ -dalsa : driver ALSA
+
+ALSA backend options:
+ -dhw:sndrpihifiberry : device to use
+ -P : provide only playback ports (which suppresses a warning otherwise)
+ -r192000 : set sample rate to 192000
+ -n3 : set the number of periods of playback latency to 3
+ -s : softmode, ignore xruns reported by the ALSA driver
+ -p : size of period in frames (e.g., number of samples per chunk)
+      Must be power of 2.
+      Lower values will lower latency but increase probability of xruns.
+ & : run in background
+
+"""
 # TODO: Use subprocess to keep track of these background processes
 os.system(
     'jackd -P75 -p16 -t2000 -dalsa -dhw:sndrpihifiberry -P -r192000 -n3 -s &')
@@ -45,7 +69,17 @@ pi_hostname = sc.gethostname()
 pi_name = str(pi_hostname)
 
 # Load the config parameters for this pi
-# TODO: document everything in params
+"""
+Parameters for each pi in the behavior box
+   identity: The name of the pi (set according to its hostname)
+   gui_ip: The IP address of the computer that runs the GUI 
+   poke_port: The network port dedicated to receiving information about pokes
+   config_port: The network port used to send all the task parameters for any saved mouse
+   nosepoke_type (L/R): This parameter is to specify the type of nosepoke sensor. Nosepoke sensors are of two types 
+        OPB901L55 and OPB903L55 - 903 has an inverted rising edge/falling edge which means that the functions
+        being called back to on the triggers need to be inverted.   
+   nosepoke_id (L/R): The number assigned to the left and right ports of each pi 
+"""
 param_directory = f"pi/configs/pis/{pi_name}.json"
 with open(param_directory, "r") as p:
     params = json.load(p)    
@@ -635,6 +669,16 @@ pi_identity = params['identity']
 # TODO: what information travels over this socket? Clarify: do messages on
 # this socket go out or in?
 
+"""
+In order to communicate with the GUI, we create two sockets: poke_socket and json_socket
+Both these sockets use different ZMQ contexts and are used in different parts of the code, this is why two network ports need to be used 
+    * poke_socket: Used to send and receive poke-related information.
+        - Sends: Poked Port, Poke Times
+        - Receives: Reward Port for each trial, Commands to Start/Stop the session
+    * json_socket: Used to strictly receive task parameters from the GUI (to set audio parameters for each trial)
+"""
+## Creating a DEALER socket for communication regarding poke and poke times
+
 poke_context = zmq.Context()
 poke_socket = poke_context.socket(zmq.DEALER)
 
@@ -642,7 +686,7 @@ poke_socket = poke_context.socket(zmq.DEALER)
 poke_socket.identity = bytes(f"{pi_identity}", "utf-8") 
 
 
-## Creating a ZeroMQ context and socket for receiving JSON files
+## Creating a SUB socket and socket for receiving task parameters (stored in json files)
 # TODO: what information travels over this socket? Clarify: do messages on
 # this socket go out or in?
 #  - This socket only receives messages sent from the GUI regarding the parameters 
@@ -694,11 +738,11 @@ def poke_inL(pin, level, tick):
     if left_poke_detected:
         # Write to left pin
         print("Left poke detected!")
-        pi.set_mode(17, pigpio.OUTPUT)
+        pig.set_mode(17, pigpio.OUTPUT)
         if params['nosepokeL_type'] == "901":
-            pi.write(17, 1)
+            pig.write(17, 1)
         elif params['nosepokeL_type'] == "903":
-            pi.write(17, 0)
+            pig.write(17, 0)
     # Reset poke detected flags
     left_poke_detected = False
 
@@ -709,11 +753,11 @@ def poke_inR(pin, level, tick):
     if right_poke_detected:
         # Write to left pin
         print("Right poke detected!")
-        pi.set_mode(10, pigpio.OUTPUT)
+        pig.set_mode(10, pigpio.OUTPUT)
         if params['nosepokeR_type'] == "901":
-            pi.write(10, 1)
+            pig.write(10, 1)
         elif params['nosepokeR_type'] == "903":
-            pi.write(10, 0)
+            pig.write(10, 0)
             
     # Reset poke detected flags
     right_poke_detected = False
@@ -730,11 +774,11 @@ def poke_detectedL(pin, level, tick):
     print("Poke Count:", count)
     nosepoke_idL = params['nosepokeL_id']  # Set the left nosepoke_id here according to the pi
     current_port_poked = nosepoke_idL
-    pi.set_mode(17, pigpio.OUTPUT)
+    pig.set_mode(17, pigpio.OUTPUT)
     if params['nosepokeL_type'] == "901":
-        pi.write(17, 0)
+        pig.write(17, 0)
     elif params['nosepokeL_type'] == "903":
-        pi.write(17, 1)
+        pig.write(17, 1)
         
     # Get current datetime
     poke_time = datetime.now()
@@ -758,11 +802,11 @@ def poke_detectedR(pin, level, tick):
     print("Poke Count:", count)
     nosepoke_idR = params['nosepokeR_id']  # Set the right nosepoke_id here according to the pi
     current_port_poked = nosepoke_idR
-    pi.set_mode(10, pigpio.OUTPUT)
+    pig.set_mode(10, pigpio.OUTPUT)
     if params['nosepokeR_type'] == "901":
-        pi.write(10, 0)
+        pig.write(10, 0)
     elif params['nosepokeR_type'] == "903":
-        pi.write(10, 1)
+        pig.write(10, 1)
     
     # Get current datetime
     poke_time = datetime.now()
@@ -784,26 +828,26 @@ def open_valve(port):
     """
     reward_value = config_data['reward_value']
     if port == int(params['nosepokeL_id']):
-        pi.set_mode(6, pigpio.OUTPUT)
-        pi.write(6, 1)
+        pig.set_mode(6, pigpio.OUTPUT)
+        pig.write(6, 1)
         time.sleep(reward_value)
-        pi.write(6, 0)
+        pig.write(6, 0)
     
     if port == int(params['nosepokeR_id']):
-        pi.set_mode(26, pigpio.OUTPUT)
-        pi.write(26, 1)
+        pig.set_mode(26, pigpio.OUTPUT)
+        pig.write(26, 1)
         time.sleep(reward_value)
-        pi.write(26, 0)
+        pig.write(26, 0)
 
 # TODO: document this function
 def flash():
-    pi.set_mode(22, pigpio.OUTPUT)
-    pi.write(22, 1)
-    pi.set_mode(11, pigpio.OUTPUT)
-    pi.write(11, 1)
+    pig.set_mode(22, pigpio.OUTPUT)
+    pig.write(22, 1)
+    pig.set_mode(11, pigpio.OUTPUT)
+    pig.write(11, 1)
     time.sleep(0.5)
-    pi.write(22, 0)
-    pi.write(11, 0)  
+    pig.write(22, 0)
+    pig.write(11, 0)  
 
 # Function with logic to stop session
 def stop_session():
@@ -811,21 +855,21 @@ def stop_session():
     flash()
     current_pin = None
     prev_port = None
-    pi.write(17, 0)
-    pi.write(10, 0)
-    pi.write(27, 0)
-    pi.write(9, 0)
+    pig.write(17, 0)
+    pig.write(10, 0)
+    pig.write(27, 0)
+    pig.write(9, 0)
     sound_chooser.set_channel('none')
     sound_chooser.empty_queue()
     sound_chooser.running = False
 
 ## Set up pigpio and callbacks
 # TODO: rename this variable to pig or something; "pi" is ambiguous
-pi = pigpio.pi()
-pi.callback(nosepoke_pinL, pigpio.FALLING_EDGE, poke_inL)
-pi.callback(nosepoke_pinL, pigpio.RISING_EDGE, poke_detectedL)
-pi.callback(nosepoke_pinR, pigpio.FALLING_EDGE, poke_inR)
-pi.callback(nosepoke_pinR, pigpio.RISING_EDGE, poke_detectedR)
+pig = pigpio.pi()
+pig.callback(nosepoke_pinL, pigpio.FALLING_EDGE, poke_inL)
+pig.callback(nosepoke_pinL, pigpio.RISING_EDGE, poke_detectedL)
+pig.callback(nosepoke_pinR, pigpio.FALLING_EDGE, poke_inR)
+pig.callback(nosepoke_pinR, pigpio.RISING_EDGE, poke_detectedR)
 
 ## Create a Poller object
 # TODO: document .. What is this?
@@ -927,7 +971,7 @@ try:
             # Different messages have different effects
             if msg == 'exit': 
                 # Condition to terminate the main loop
-                # TODO: why are these pi.write here? # To turn the LEDs on the Pi off when the GUI is closed
+                # TODO: why are these pig.write here? # To turn the LEDs on the Pi off when the GUI is closed
                 stop_session()
                 print("Received exit command. Terminating program.")
                 
@@ -979,7 +1023,7 @@ try:
                 
                 # Turn off the previously active LED if any
                 if current_pin is not None:
-                    pi.write(current_pin, 0)
+                    pig.write(current_pin, 0)
                 
                 # Manipulate pin values based on the integer value
                 if value == int(params['nosepokeL_id']):
@@ -993,9 +1037,9 @@ try:
                     
                     # TODO: what does this do? Why not just have reward pin
                     # always be set to output? # These are for the LEDs to blink
-                    pi.set_mode(reward_pin, pigpio.OUTPUT)
-                    pi.set_PWM_frequency(reward_pin, pwm_frequency)
-                    pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
+                    pig.set_mode(reward_pin, pigpio.OUTPUT)
+                    pig.set_PWM_frequency(reward_pin, pwm_frequency)
+                    pig.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     
                     # Playing sound from the left speaker
                     sound_chooser.empty_queue()
@@ -1022,9 +1066,9 @@ try:
                     
                     # TODO: what does this do? Why not just have reward pin
                     # always be set to output? # LED blinking
-                    pi.set_mode(reward_pin, pigpio.OUTPUT)
-                    pi.set_PWM_frequency(reward_pin, pwm_frequency)
-                    pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
+                    pig.set_mode(reward_pin, pigpio.OUTPUT)
+                    pig.set_PWM_frequency(reward_pin, pwm_frequency)
+                    pig.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     
                     # Playing sound from the right speaker
                     sound_chooser.empty_queue()
@@ -1075,7 +1119,7 @@ try:
                 
                 # Turn off the currently active LED
                 if current_pin is not None:
-                    pi.write(current_pin, 0)
+                    pig.write(current_pin, 0)
                     print("Turning off currently active LED.")
                     current_pin = None  # Reset the current LED
                 else:
@@ -1087,7 +1131,7 @@ try:
 
 except KeyboardInterrupt:
     # Stops the pigpio connection
-    pi.stop()
+    pig.stop()
 
 finally:
     # Close all sockets and contexts
