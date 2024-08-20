@@ -504,7 +504,7 @@ class PiWidget(QWidget):
             self.red_count += 1
             self.red_label.setText(f"Number of Pokes: {(self.red_count + self.green_count + self.blue_count)}")
 
-        if color == "blue":
+        elif color == "blue":
             self.blue_count += 1
             self.red_label.setText(f"Number of Pokes: {(self.red_count + self.green_count + self.blue_count)}")
             self.blue_label.setText(f"Number of Trials: {(self.blue_count + self.green_count)}")
