@@ -89,14 +89,17 @@ with open(param_directory, "r") as p:
 
 # Loading pin values 
 """
-Note: If the code does not work when 'pins' is called then refer to the code from 'main' branch where all values are hardcoded (I had a problem with this. Not sure if fully fixed)
+Note: If the code does not work when 'pins' is called then refer to the 
+code from 'main' branch where all values are hardcoded (I had a problem 
+with this. Not sure if fully fixed)
 """
 pin_directory = f"/home/pi/dev/paclab_sukrith/pi/configs/pins.json"
 with open(pin_directory, "r") as n:
     pins = json.load(n)
 
 """
-Note: A lot of the comments/documentation of the Noise, SoundQueue and SoundPlayer classes are from the previous autopilot code
+Note: A lot of the comments/documentation of the Noise, SoundQueue 
+and SoundPlayer classes are from the previous autopilot code
 
 """
 ## SETTING UP CLASSES USED TO GENERATE AUDIO
@@ -266,8 +269,10 @@ class Noise:
             for start_sample in start_samples]
 
 class SoundQueue:
-    """This is a class used to continuously generate frames of audio and add them to a queue. 
-    It also handles updating the parameters of the sound to be played. """
+    """Continuously generate frames of audio and add them to a queue. 
+    
+    It also handles updating the parameters of the sound to be played. 
+    """
     def __init__(self):
         
         ## Initialize sounds
@@ -343,7 +348,6 @@ class SoundQueue:
             duration=0.01, amplitude= self.amplitude, channel=1, 
             lowpass=self.target_lowpass, highpass=self.target_highpass
             )  
-
 
     def set_sound_cycle(self):
         """Define self.sound_cycle, to go through sounds
@@ -580,7 +584,21 @@ class SoundQueue:
 # Define a JackClient, which will play sounds in the background
 # Rename to SoundPlayer to avoid confusion with jack.Client
 class SoundPlayer(object):
-    """Object to play sounds"""
+    """Reads frames of audio from a queue and provides them to a jack.Client
+
+    This object must be initialized with a `sound_queue` argument that provides
+    a frame of audio via `sound_queue.get()`. It should also implement
+    `sound_queue.empty()`. The SoundQueue object provides this functionality. 
+    
+    The `process` method of this object may be provided to jack.Client, which
+    will call it every ~5 ms to request new audio. 
+    
+    Attributes
+    ----------
+    name : str
+        This is only passed to jack.Client, which requires it.
+    
+    """
     def __init__(self, name='jack_client'):
         """Initialize a new JackClient
 
