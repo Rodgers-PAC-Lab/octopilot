@@ -44,9 +44,11 @@ try:
             msg = receiver.recv_string()
             
             if msg.startswith("blink"):
+                print("Received 'blink' message")
                 flash()
             
             else:
+                print("Waiting for 'blink' message")
                 pass
 
 except KeyboardInterrupt:
