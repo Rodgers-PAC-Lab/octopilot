@@ -108,3 +108,23 @@ def flash():
     time.sleep(0.5)
     pig.write(led_blue_l, 0) # Turning LED off
     pig.write(led_blue_r, 0)  
+
+
+# This uses functions defined above
+def set_up_pig(pig, pins):
+    """Connect callbacks to pins
+    
+    nosepoke_l falling : poke_inL
+    nosepoke_l rising : poke_detectedL
+    
+    nosepoke_r falling : poke_inR
+    nosepoke_r rising : poke_detectedR
+    """
+    # Excutes when there is a falling edge on the voltage of the pin (when poke is completed)
+    pig.callback(pins['nosepoke_l'], pigpio.FALLING_EDGE, poke_inL) 
+
+    # Executes when there is a rising edge on the voltage of the pin (when poke is detected) 
+    pig.callback(pins['nosepoke_l'], pigpio.RISING_EDGE, poke_detectedL) 
+
+    pig.callback(pins['nosepoke_r'], pigpio.FALLING_EDGE, poke_inR)
+    pig.callback(pins['nosepoke_r'], pigpio.RISING_EDGE, poke_detectedR)

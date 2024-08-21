@@ -174,12 +174,22 @@ class Noise:
             padded_sound[start_sample:start_sample + self.blocksize, :] 
             for start_sample in start_samples]
 
-class SoundQueue:
+class SoundQueuer:
     """Continuously generate frames of audio and add them to a queue. 
     
     It also handles updating the parameters of the sound to be played. 
     """
     def __init__(self):
+        # Initializing queues 
+        self.sound_queue = mp.Queue()
+        self.nonzero_blocks = mp.Queue()
+
+        # Lock for thread-safe set_channel() updates
+        self.qlock = mp.Lock()
+        self.nb_lock = mp.Lock()
+
+
+
         
         ## Initialize sounds
         # Each block/frame is about 5 ms
