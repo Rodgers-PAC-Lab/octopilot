@@ -178,6 +178,17 @@ class SoundQueuer:
     """Continuously generate frames of audio and add them to a queue. 
     
     It also handles updating the parameters of the sound to be played. 
+    
+    Attributes
+    ----------
+    sound_cycle : iter
+        An iterator of frames of stereo sound, each of length blocksize. 
+        This is a cycle, so eventually the frames you get will start to repeat.
+    
+    sound_queue : mp.Queue
+        A queue of frames of audio that is shared with jack.Client
+        Frames are taken from sound_cycle and put into sound_queue as needed,
+        and then they are removed from sound_queue by jack.Client
     """
     def __init__(self):
         # Initializing queues 
@@ -215,13 +226,12 @@ class SoundQueuer:
         self.left_on = False
         self.right_on = False
         
-        # State variable to stop appending frames 
-        self.running = False
-        
         # Fill the queue with empty frames
         # Sounds aren't initialized till the trial starts
         # Using False here should work even without sounds initialized yet
-        self.initialize_sounds(self.blocksize, self.fs, self.amplitude, self.target_highpass,  self.target_lowpass)
+        self.initialize_sounds(
+            self.blocksize, self.fs, self.amplitude, self.target_highpass,  
+            self.target_lowpass)
         self.set_sound_cycle()
 
         # Use this to keep track of generated sounds
@@ -451,7 +461,7 @@ class SoundQueuer:
         qsize = sound_queue.qsize()
 
         # Add frames until target size reached
-        while self.running ==True and qsize < self.target_qsize:
+        while qsize < self.target_qsize:
             with qlock:
                 # Add a frame from the sound cycle
                 frame = next(self.sound_cycle)
@@ -484,7 +494,7 @@ class SoundQueuer:
                 break
         
         qsize = sound_queue.qsize()
-    
+        
     def set_channel(self, mode):
         """Controlling which channel the sound is played from """
         if mode == 'none':
