@@ -3,10 +3,10 @@
 import zmq
 import time
 
-blink_state = None
+blink_state = False
 
 class BlinkTest:
-    def __init__(self, address="tcp://*:5557"):
+    def __init__(self, address="tcp://*:5555"):
         self.blink_state = blink_state
         
         # Making a context to send blink state information to all Pis
