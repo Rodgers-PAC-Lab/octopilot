@@ -81,7 +81,7 @@ with open(pin_directory, "r") as n:
     pins = json.load(n)
 
 
-## Defining a common queue tto be used by SoundPlayer and SoundChooser
+## Defining a common queue to be used by SoundPlayer and SoundChooser
 # Initializing queues 
 sound_queue = mp.Queue()
 nonzero_blocks = mp.Queue()
@@ -94,17 +94,23 @@ nb_lock = mp.Lock()
 sound_chooser = SoundQueue()
 sound_player = SoundPlayer(name='sound_player')
 
-# Raspberry Pi's identity (Interchangeable with pi_name. This implementation is from before I was using the Pis host name)
+# Raspberry Pi's identity (Interchangeable with pi_name. 
+# This implementation is from before I was using the Pis host name)
 pi_identity = params['identity']
+
 
 ## INITIALIZING NETWORK CONNECTION
 """
-In order to communicate with the GUI, we create two sockets: poke_socket and json_socket
-Both these sockets use different ZMQ contexts and are used in different parts of the code, this is why two network ports need to be used 
+In order to communicate with the GUI, we create two sockets: 
+    poke_socket and json_socket
+Both these sockets use different ZMQ contexts and are used in different 
+parts of the code, this is why two network ports need to be used 
     * poke_socket: Used to send and receive poke-related information.
         - Sends: Poked Port, Poke Times 
-        - Receives: Reward Port for each trial, Commands to Start/Stop the session, Exit command to end program
-    * json_socket: Used to strictly receive task parameters from the GUI (so that audio parameters can be set for each trial)
+        - Receives: Reward Port for each trial, Commands to Start/Stop the 
+        session, Exit command to end program
+    * json_socket: Used to strictly receive task parameters from the GUI 
+    (so that audio parameters can be set for each trial)
 """
 # Creating a DEALER socket for communication regarding poke and poke times
 poke_context = zmq.Context()
@@ -113,7 +119,8 @@ poke_socket = poke_context.socket(zmq.DEALER)
 # Setting the identity of the socket in bytes
 poke_socket.identity = bytes(f"{pi_identity}", "utf-8") 
 
-# Creating a SUB socket and socket for receiving task parameters (stored in json files)
+# Creating a SUB socket and socket for receiving task parameters 
+# (stored in json files)
 json_context = zmq.Context()
 json_socket = json_context.socket(zmq.SUB)
 
@@ -138,18 +145,19 @@ json_socket.subscribe(b"")
 # Print acknowledgment
 print(f"Connected to router at {router_ip2}")
 
-# Creating a poller object for both sockets that will be used to continuously check for incoming messages
+# Creating a poller object for both sockets that will be used to 
+# continuously check for incoming messages
 poller = zmq.Poller()
 poller.register(poke_socket, zmq.POLLIN)
 poller.register(json_socket, zmq.POLLIN)
 
-## CONFIGURING PIGPIO AND RELATED FUNCTIONS 
 
+## CONFIGURING PIGPIO AND RELATED FUNCTIONS 
 # TODO: move these methods into a Nosepoke object. That object should be
 # defined in another script and imported here
 
-a_state = 0 # I think a_state used to be active state, which is what I was using to before I had to differentiate left and right pokes (might be safe to remove)
-count = 0 # Count used to display how many pokes have happened on the pi terminal
+# Count used to display how many pokes have happened on the pi terminal
+count = 0 
 
 # Assigning pins to variables 
 nosepoke_pinL = pins['nosepoke_l']
@@ -171,137 +179,25 @@ nospokeR_id = params['nosepokeR_id']
 left_poke_detected = False
 right_poke_detected = False
 
-"""
-Currently, this version still uses messages from the GUI to determine when to reward correct pokes. 
-I included this variable to track the port being poked to make the pi able to reward independent of the GUI. 
-I was working on implementing this in another branch but have not finished it yet. Can work on it if needed
-"""
+# Currently, this version still uses messages from the GUI to determine 
+# when to reward correct pokes. I included this variable to track the port 
+# being poked to make the pi able to reward independent of the GUI. 
+# I was working on implementing this in another branch but 
+# have not finished it yet. Can work on it if needed
 current_port_poked = None
 
-"""
-Setting callback functions to run everytime a rising edge or falling edge is detected 
-"""
-# Callback functions for nosepoke pin (When the nosepoke is detected)
-# Poke at Left Port 
-def poke_detectedL(pin, level, tick): 
-    global a_state, count, left_poke_detected, current_port_poked
-    a_state = 1
-    count += 1
-    left_poke_detected = True
-    print("Poke Completed (Left)")
-    print("Poke Count:", count)
-    nosepoke_idL = nosepoke_pinL  # Set the left nosepoke_id here according to the pi 
-    current_port_poked = nosepoke_idL
-    
-    # Making red LED turn on when a poke is detected for troubleshooting
-    pig.set_mode(led_red_l, pigpio.OUTPUT)
-    if params['nosepokeL_type'] == "901":
-        pig.write(led_red_l, 0)
-    elif params['nosepokeL_type'] == "903":
-        pig.write(led_red_l, 1)
-        
-    # Sending nosepoke_id to the GUI wirelessly
-    try:
-        print(f"Sending nosepoke_id = {nosepoke_idL}") 
-        poke_socket.send_string(str(nosepoke_idL))
-    except Exception as e:
-        print("Error sending nosepoke_id:", e)
-
-# Poke at Right Port
-def poke_detectedR(pin, level, tick): 
-    global a_state, count, right_poke_detected, current_port_poked
-    a_state = 1
-    count += 1
-    right_poke_detected = True
-    print("Poke Completed (Right)")
-    print("Poke Count:", count)
-    nosepoke_idR = nosepoke_pinR  # Set the right nosepoke_id here according to the pi
-    current_port_poked = nosepoke_idR
-    
-    # Making red LED turn on when a poke is detected for troubleshooting
-    pig.set_mode(led_red_r, pigpio.OUTPUT)
-    if params['nosepokeR_type'] == "901":
-        pig.write(led_red_r, 0)
-    elif params['nosepokeR_type'] == "903":
-        pig.write(led_red_r, 1)
-
-    # Sending nosepoke_id to the GUI wirelessly
-    try:
-        print(f"Sending nosepoke_id = {nosepoke_idR}") 
-        poke_socket.send_string(str(nosepoke_idR))
-    except Exception as e:
-        print("Error sending nosepoke_id:", e)
-
-# Callback function for nosepoke pin (When the nosepoke is completed)
-def poke_inL(pin, level, tick):
-    global a_state, left_poke_detected
-    a_state = 0
-    if left_poke_detected:
-        # Write to left pin
-        print("Left poke detected!")
-        pig.set_mode(led_red_l, pigpio.OUTPUT)
-        if params['nosepokeL_type'] == "901":
-            pig.write(led_red_l, 1)
-        elif params['nosepokeL_type'] == "903":
-            pig.write(led_red_l, 0)
-    # Reset poke detected flags
-    left_poke_detected = False
-
-# Callback function for nosepoke pin (When the nosepoke is completed)
-def poke_inR(pin, level, tick):
-    global a_state, right_poke_detected
-    a_state = 0
-    if right_poke_detected:
-        # Write to right pin
-        print("Right poke detected!")
-        pig.set_mode(led_red_r, pigpio.OUTPUT)
-        if params['nosepokeR_type'] == "901":
-            pig.write(led_red_r, 1)
-        elif params['nosepokeR_type'] == "903":
-            pig.write(led_red_r, 0)
-            
-    # Reset poke detected flags
-    right_poke_detected = False
-
-def open_valve(port):
-    """Open the solenoid valve for port to deliver reward
-    *port : port number to be rewarded (1,2,3..etc.)
-    *reward_value: how long the valve should be open (in seconds) [imported from task parameters sent to the pi] 
-    """
-    reward_value = config_data['reward_value']
-    if port == int(nosepoke_pinL):
-        pig.set_mode(valve_l, pigpio.OUTPUT)
-        pig.write(valve_l, 1) # Opening valve
-        time.sleep(reward_value)
-        pig.write(valve_l, 0) # Closing valve
-    
-    if port == int(nosepoke_pinR):
-        pig.set_mode(valve_r, pigpio.OUTPUT)
-        pig.write(valve_r, 1)
-        time.sleep(reward_value)
-        pig.write(valve_r, 0)
-
-# TODO: document this function
-def flash():
-    """
-    Flashing all the LEDs whenever a trial is completed 
-    """
-    pig.set_mode(led_blue_l, pigpio.OUTPUT)
-    pig.write(led_blue_l, 1) # Turning LED on
-    pig.set_mode(led_blue_r, pigpio.OUTPUT)
-    pig.write(led_blue_r, 1) 
-    time.sleep(0.5)
-    pig.write(led_blue_l, 0) # Turning LED off
-    pig.write(led_blue_r, 0)  
-
 def stop_session():
+    """Runs when a session is stopped
+    
+    Flow
+    ----
+    * It turns off all active LEDs, 
+    * resets all the variables used for tracking to None, 
+    * stops playing sound,
+    * and empties the queue.
     """
-    This function contains the logic that needs to be executed whenever a session is stopped.
-    It turns off all active LEDs, resets all the variables used for tracking to None, stops playing sound
-    and empties the queue
-    """
-    global led_pin, current_led_pin, prev_port
-    flash()
+    global current_led_pin, prev_port
+    hardware.flash()
     current_led_pin = None
     prev_port = None
     pig.write(led_red_l, 0)
@@ -314,8 +210,13 @@ def stop_session():
 
 # Initializing pigpio and assigning the defined functions 
 pig = pigpio.pi()
-pig.callback(nosepoke_pinL, pigpio.FALLING_EDGE, poke_inL) # Excutes when there is a falling edge on the voltage of the pin (when poke is completed)
-pig.callback(nosepoke_pinL, pigpio.RISING_EDGE, poke_detectedL) # Executes when there is a rising edge on the voltage of the pin (when poke is detected) 
+
+# Excutes when there is a falling edge on the voltage of the pin (when poke is completed)
+pig.callback(nosepoke_pinL, pigpio.FALLING_EDGE, poke_inL) 
+
+# Executes when there is a rising edge on the voltage of the pin (when poke is detected) 
+pig.callback(nosepoke_pinL, pigpio.RISING_EDGE, poke_detectedL) 
+
 pig.callback(nosepoke_pinR, pigpio.FALLING_EDGE, poke_inR)
 pig.callback(nosepoke_pinR, pigpio.RISING_EDGE, poke_detectedR)
 
@@ -323,7 +224,9 @@ pig.callback(nosepoke_pinR, pigpio.RISING_EDGE, poke_detectedR)
 pwm_frequency = 1
 pwm_duty_cycle = 50
 
-## Initializing variables for the sound parameters (that will be changed when json file is sent to the Pi)
+
+## Initializing variables for the sound parameters 
+# (that will be changed when json file is sent to the Pi)
 # Range of rates at which sound has to be played
 rate_min = 0.0 
 rate_max = 0.0
@@ -336,9 +239,206 @@ irregularity_max = 0.0
 amplitude_min = 0.0
 amplitude_max = 0.0
 
-## MAIN LOOP
 
-# Loop to keep the program running and exit when it receives an exit string
+## MAIN LOOP
+def update_sound_chooser(config_data, sound_chooser, sound_player):
+    """Use config_data to update acoustic parameters on sound_chooser
+    
+    """
+    # Debug print
+    print(config_data)
+
+    # Updating parameters from the JSON data sent by GUI
+    rate_min = config_data['rate_min']
+    rate_max = config_data['rate_max']
+    irregularity_min = config_data['irregularity_min']
+    irregularity_max = config_data['irregularity_max']
+    amplitude_min = config_data['amplitude_min']
+    amplitude_max = config_data['amplitude_max']
+    center_freq_min = config_data['center_freq_min']
+    center_freq_max = config_data['center_freq_max']
+    bandwidth = config_data['bandwidth']
+    
+    # Update the Sound Queue with the new acoustic parameters
+    # TODO: Either update_parameters or pass as kwargs but not both
+    sound_chooser.update_parameters(
+        rate_min, rate_max, irregularity_min, irregularity_max, 
+        amplitude_min, amplitude_max, center_freq_min, center_freq_max, 
+        bandwidth)
+    sound_chooser.initialize_sounds(
+        sound_player.blocksize, sound_player.fs, 
+        sound_chooser.amplitude, sound_chooser.target_highpass, 
+        sound_chooser.target_lowpass)
+    sound_chooser.set_sound_cycle()
+    
+    # Debug print
+    print("Parameters updated")    
+
+
+def start_playing(sound_chooser, channel):
+    sound_chooser.running = True
+    sound_chooser.empty_queue()
+    sound_chooser.set_channel(channel)
+    sound_chooser.set_sound_cycle()
+    sound_chooser.play()    
+
+def start_flashing(pig, led_pin)
+    # Writing to the LED pin such that it blinks acc to the parameters 
+    pig.set_mode(led_pin, pigpio.OUTPUT)
+    pig.set_PWM_frequency(led_pin, pwm_frequency)
+    pig.set_PWM_dutycycle(led_pin, pwm_duty_cycle)
+
+def handle_reward_port_message(msg):
+    ## This specifies which port to reward
+    # Debug print
+    print(msg)
+    
+    # Extract the integer part from the message
+    msg_parts = msg.split()
+    if len(msg_parts) != 3 or not msg_parts[2].isdigit():
+        print("Invalid message format.")
+        continue
+    
+    # Assigning the integer part to a variable
+    value = int(msg_parts[2])  
+    
+    # Turn off the previously active LED if any
+    if current_led_pin is not None:
+        pig.write(current_led_pin, 0)
+    
+    # Depending on value, either start playing left, start playing right,
+    # or 
+    if value == int(params['nosepokeL_id']):
+        # Start playing and flashing
+        start_playing(sound_chooser, 'left')
+        start_flashing(led_green_l)
+
+        # Keep track of which port is rewarded and which pin
+        # is rewarded
+        prev_port = value
+        current_led_pin = led_green_l
+
+    elif value == int(params['nosepokeR_id']):
+        # Start playing and flashing
+        start_playing(sound_chooser, 'right')
+        start_flashing(led_green_r)
+        
+        # Keep track of which port is rewarded and which pin
+        # is rewarded
+        prev_port = value
+        current_led_pin = led_pin
+    
+    else:
+        # In what circumstance would this happen?
+        # Current Reward Port
+        prev_port = value
+        print(f"Current Reward Port: {value}")
+    
+    prev_port = value
+    
+def reward_and_end_trial(sound_chooser, poke_socket):
+    # This seems to occur when the GUI detects that the poked
+    # port was rewarded. This will be too slow. The reward port
+    # should be opened if it knows it is the rewarded pin. 
+    # Tried to implement this logic within the Pi itself. 
+    # Can work on it more if needed
+    
+    # Emptying the queue completely
+    sound_chooser.running = False
+    sound_chooser.set_channel('none')
+    sound_chooser.empty_queue()
+
+    # Flashing all lights and opening Solenoid Valve
+    flash()
+    open_valve(prev_port)
+    
+    # Updating all the parameters that will influence the next trial
+    sound_chooser.update_parameters(
+        rate_min, rate_max, irregularity_min, irregularity_max, 
+        amplitude_min, amplitude_max, center_freq_min, center_freq_max, 
+        bandwidth)
+    poke_socket.send_string(
+        sound_chooser.update_parameters.parameter_message)
+    
+    # Turn off the currently active LED
+    if current_led_pin is not None:
+        pig.write(current_led_pin, 0)
+        print("Turning off currently active LED.")
+        current_led_pin = None  # Reset the current LED
+    else:
+        print("No LED is currently active.")
+
+def handle_message_on_poke_socket(msg, poke_socket, sound_chooser, sound_player):
+    """Handle a message received on poke_socket
+    
+    poke_socket handles messages received from the GUI that are used 
+    to control the main loop. 
+    The functions of the different messages are as follows:
+    'exit' : terminates the program completely whenever received and 
+        closes it on all Pis for a particular box
+    'stop' : stops the current session and sends a message back to the 
+        GUI to stop plotting. The program waits until it can start next session 
+    'start' : used to start a new session after the stop message pauses 
+        the main loop
+    'Reward Port' : this message is sent by the GUI to set the reward port 
+        for a trial.
+    The Pis will receive messages of ports of other Pis being set as the 
+        reward port, however will only continue if the message contains 
+        one of the ports listed in its params file
+    'Reward Poke Completed' : Currently 'hacky' logic used to signify the 
+        end of the trial. If the string sent to the GUI matches the 
+        reward port set there it clears all sound parameters and opens 
+        the solenoid valve for the assigned reward duration. The LEDs 
+        also flash to show a trial was completed 
+    """
+    stop_running = False
+    
+    # Different messages have different effects
+    if msg == 'exit': 
+        # Condition to terminate the main loop
+        stop_session()
+        print("Received exit command. Terminating program.")
+        
+        # Deactivating the Sound Player before closing the program
+        sound_player.client.deactivate()
+        
+        # Exit the loop
+        stop_running = True  
+    
+    elif msg == 'stop':
+        # Receiving message from the GUI to stop the current session 
+        # Stopping all currently active elements and waiting for next session to start
+        stop_session()
+        
+        # Sending stop signal wirelessly to stop update function
+        try:
+            poke_socket.send_string("stop")
+        except Exception as e:
+            print("Error stopping session", e)
+
+        print("Stop command received. Stopping sequence.")
+        continue
+
+    elif msg == 'start':
+        # Communicating with start button to start the next session
+        try:
+            poke_socket.send_string("start")
+        except Exception as e:
+            print("Error stopping session", e)
+    
+    elif msg.startswith("Reward Port:"):    
+        handle_reward_port_message(msg)
+
+    elif msg.startswith("Reward Poke Completed"):
+        reward_and_end_trial(sound_chooser, poke_socket)
+   
+    else:
+        print("Unknown message received:", msg)
+
+    return stop_running
+
+
+## Loop to keep the program running and exit when it receives an exit string
 try:
     ## TODO: document these variables and why they are tracked
     # Initialize led_pin to set what LED to write to
@@ -359,213 +459,35 @@ try:
         sound_chooser.append_sound_to_queue_as_needed()
         
         ## Check for incoming messages on json_socket
-        # If so, use it to update the acoustic parameters
-        """
-        Socket is primarily used to import task parameters sent by the GUI
-        Sound Parameters being updated: rate, irregularity, amplitude, center frequency        
-        """
         if json_socket in socks and socks[json_socket] == zmq.POLLIN:
+            # If so, use it to update the acoustic parameters
             # Setting up json socket to wait to receive messages from the GUI
             json_data = json_socket.recv_json()
-            
+
             # Deserialize JSON data
             config_data = json.loads(json_data)
             
-            # Debug print
-            print(config_data)
+            # Use that data to update parameters in sound_chooser
+            update_sound_chooser(config_data, sound_chooser, sound_player)
 
-            # Updating parameters from the JSON data sent by GUI
-            rate_min = config_data['rate_min']
-            rate_max = config_data['rate_max']
-            irregularity_min = config_data['irregularity_min']
-            irregularity_max = config_data['irregularity_max']
-            amplitude_min = config_data['amplitude_min']
-            amplitude_max = config_data['amplitude_max']
-            center_freq_min = config_data['center_freq_min']
-            center_freq_max = config_data['center_freq_max']
-            bandwidth = config_data['bandwidth']
-            
-            
-            # Update the Sound Queue with the new acoustic parameters
-            sound_chooser.update_parameters(
-                rate_min, rate_max, irregularity_min, irregularity_max, 
-                amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
-            sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
-                sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
-            sound_chooser.set_sound_cycle()
-            
-            # Debug print
-            print("Parameters updated")
             
         ## Check for incoming messages on poke_socket
-        """
-        poke_socket handles messages received from the GUI that are used to control the main loop. 
-        The functions of the different messages are as follows:
-        'exit' : terminates the program completely whenever received and closes it on all Pis for a particular box
-        'stop' : stops the current session and sends a message back to the GUI to stop plotting. The program waits until it can start next session 
-        'start' : used to start a new session after the stop message pauses the main loop
-        'Reward Port' : this message is sent by the GUI to set the reward port for a trial.
-        The Pis will receive messages of ports of other Pis being set as the reward port, however will only continue if the message contains one of the ports listed in its params file
-        'Reward Poke Completed' : Currently 'hacky' logic used to signify the end of the trial. If the string sent to the GUI matches the reward port set there it
-        clears all sound parameters and opens the solenoid valve for the assigned reward duration. The LEDs also flash to show a trial was completed 
-        """        
         if poke_socket in socks and socks[poke_socket] == zmq.POLLIN:
             # Waiting to receive message strings that control the main loop
             msg = poke_socket.recv_string()  
     
-            # Different messages have different effects
-            if msg == 'exit': 
-                # Condition to terminate the main loop
-                stop_session()
-                print("Received exit command. Terminating program.")
-                
-                # Deactivating the Sound Player before closing the program
-                sound_player.client.deactivate()
-                
-                # Exit the loop
-                break  
+            stop_running = handle_message_on_poke_socket(
+                msg, poke_socket, sound_chooser, sound_player)
             
-            # Receiving message from the GUI to stop the current session 
-            if msg == 'stop':
-                # Stopping all currently active elements and waiting for next session to start
-                stop_session()
-                
-                # Sending stop signal wirelessly to stop update function
-                try:
-                    poke_socket.send_string("stop")
-                except Exception as e:
-                    print("Error stopping session", e)
-
-                print("Stop command received. Stopping sequence.")
-                continue
-
-            # Communicating with start button to start the next session
-            if msg == 'start':
-                try:
-                    poke_socket.send_string("start")
-                except Exception as e:
-                    print("Error stopping session", e)
-            
-            elif msg.startswith("Reward Port:"):    
-                ## This specifies which port to reward
-                # Debug print
-                print(msg)
-                
-                # Extract the integer part from the message
-                msg_parts = msg.split()
-                if len(msg_parts) != 3 or not msg_parts[2].isdigit():
-                    print("Invalid message format.")
-                    continue
-                
-                # Assigning the integer part to a variable
-                value = int(msg_parts[2])  
-                
-                # Turn off the previously active LED if any
-                if current_led_pin is not None:
-                    pig.write(current_led_pin, 0)
-                
-                # Manipulate pin values based on the integer value
-                if value == int(params['nosepokeL_id']):
-                    # Starting sound the sound queue
-                    sound_chooser.running = True
-                    
-                    # Setting the left LED to start blinking
-                    led_pin = led_green_l  
-                    
-                    # Writing to the LED pin such that it blinks acc to the parameters 
-                    pig.set_mode(led_pin, pigpio.OUTPUT)
-                    pig.set_PWM_frequency(led_pin, pwm_frequency)
-                    pig.set_PWM_dutycycle(led_pin, pwm_duty_cycle)
-                    
-                    # Playing sound from the left speaker
-                    sound_chooser.empty_queue()
-                    sound_chooser.set_channel('left')
-                    sound_chooser.set_sound_cycle()
-                    sound_chooser.play()
-                    
-                    # Debug message
-                    print(f"Turning port {value} green")
-
-                    # Keep track of which port is rewarded and which pin
-                    # is rewarded
-                    prev_port = value
-                    current_led_pin = led_pin # for LED only 
-
-                elif value == int(params['nosepokeR_id']):
-                    # Starting sound
-                    sound_chooser.running = True
-                    
-                    # Setting right LED pin to start blinking
-                    led_pin = led_green_r
-                    
-                    # Writing to the LED pin such that it blinks acc to the parameters 
-                    pig.set_mode(led_pin, pigpio.OUTPUT)
-                    pig.set_PWM_frequency(led_pin, pwm_frequency)
-                    pig.set_PWM_dutycycle(led_pin, pwm_duty_cycle)
-                    
-                    # Playing sound from the right speaker
-                    sound_chooser.empty_queue()
-                    sound_chooser.set_channel('right')
-                    sound_chooser.set_sound_cycle()
-                    sound_chooser.play()
-
-                    # Debug message
-                    print(f"Turning port {value} green")
-                    
-                    # Keep track of which port is rewarded and which pin
-                    # is rewarded
-                    prev_port = value
-                    current_led_pin = led_pin
-                
-                else:
-                    # TODO: document why this happens
-                    # Current Reward Port
-                    prev_port = value
-                    print(f"Current Reward Port: {value}")
-                
-            elif msg.startswith("Reward Poke Completed"):
-                # This seems to occur when the GUI detects that the poked
-                # port was rewarded. This will be too slow. The reward port
-                # should be opened if it knows it is the rewarded pin. 
-                
-                """
-                Tried to implement this logic within the Pi itself. Can work on it more if needed
-                """
-                
-                # Emptying the queue completely
-                sound_chooser.running = False
-                sound_chooser.set_channel('none')
-                sound_chooser.empty_queue()
-
-                # Flashing all lights and opening Solenoid Valve
-                flash()
-                open_valve(prev_port)
-                
-                # Updating all the parameters that will influence the next trialy
-                sound_chooser.update_parameters(
-                    rate_min, rate_max, irregularity_min, irregularity_max, 
-                    amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
-                poke_socket.send_string(sound_chooser.update_parameters.parameter_message)
-                
-                
-                # Turn off the currently active LED
-                if current_led_pin is not None:
-                    pig.write(current_led_pin, 0)
-                    print("Turning off currently active LED.")
-                    current_led_pin = None  # Reset the current LED
-                else:
-                    print("No LED is currently active.")
-           
-            else:
-                print("Unknown message received:", msg)
+            if stop_running:
+                    break
 
 except KeyboardInterrupt:
     # Stops the pigpio connection
     pig.stop()
 
-## QUITTING ALL NETWORK AND HARDWARE PROCESSES
-
 finally:
+    ## QUITTING ALL NETWORK AND HARDWARE PROCESSES    
     # Close all sockets and contexts
     poke_socket.close()
     poke_context.term()
