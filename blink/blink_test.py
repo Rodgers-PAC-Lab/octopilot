@@ -6,7 +6,7 @@ import time
 blink_state = False
 
 class BlinkTest:
-    def __init__(self, address="tcp://*:5555"):
+    def __init__(self, address="tcp://*:5560"):
         self.blink_state = blink_state
         
         # Making a context to send blink state information to all Pis
@@ -20,6 +20,7 @@ class BlinkTest:
             print(f"Sent 'blink' to Pis")
 
         elif self.blink_state == False or self.blink_state == None:
+            self.blink_socket.sendstring("waiting")
             pass
 
     # def set_blink_state(self, state):

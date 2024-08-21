@@ -25,7 +25,7 @@ def flash():
 # Setting up ZMQ context to send and receive information about poked ports
 context = zmq.Context()
 receiver = context.socket(zmq.SUB)
-receiver.connect("tcp://192.168.0.213:5555")  # Change Port number if you want to run multiple instances
+receiver.connect("tcp://192.168.0.213:5560")  # Change Port number if you want to run multiple instances
 
 # Create a poller object to handle the socket
 poller = zmq.Poller()
@@ -47,7 +47,7 @@ try:
                 print("Received 'blink' message")
                 flash()
             
-            else:
+            elif msg.startswith("waiting"):
                 print("Waiting for 'blink' message")
                 pass
 
