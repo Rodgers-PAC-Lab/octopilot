@@ -39,3 +39,7 @@ if __name__ == "__main__":
 
     except KeyboardInterrupt:
         print("Shutting down.")
+     
+    finally:
+        controller.blink_socket.close()
+        controller.blink_context.term()
