@@ -16,11 +16,11 @@ class BlinkTest:
 
     def send_message(self):
         if self.blink_state == True:
-            self.blink_socket.sendstring("blink")
+            self.blink_socket.send_string("blink")
             print(f"Sent 'blink' to Pis")
 
         elif self.blink_state == False or self.blink_state == None:
-            self.blink_socket.sendstring("waiting")
+            self.blink_socket.send_string("waiting")
             pass
 
     # def set_blink_state(self, state):
