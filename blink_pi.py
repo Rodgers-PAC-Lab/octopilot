@@ -1,6 +1,17 @@
 import zmq
 import pigpio
 import time
+import os
+
+## Killing previous pigpiod and jackd background processes
+os.system('sudo killall pigpiod')
+# Wait long enough to make sure they are killed
+time.sleep(1)
+
+## Starting pigpiod and jackd background processes
+# Start pigpiod
+os.system('sudo pigpiod -t 0 -l -x 1111110000111111111111110000')
+time.sleep(1)
 
 def flash():
     pi.set_mode(22, pigpio.OUTPUT)
