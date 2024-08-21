@@ -24,3 +24,17 @@ PiGPIO: pip install pigpio\
 
 Jack Installation: https://jackclient-python.readthedocs.io/en/0.5.4/installation.html#requirements
 
+## Documentation for config files (pi/configs/pis/BOXNAME.json)
+Parameters for each pi in the behavior box
+* identity: The name of the pi (set according to its hostname)
+* gui_ip: The IP address of the computer that runs the GUI 
+* poke_port: The network port dedicated to receiving information about pokes
+* config_port: The network port used to send all the task parameters for any saved mouse
+  nosepoke_type (L/R): This parameter is to specify the type of nosepoke sensor. 
+  Nosepoke sensors are of two types OPB901L55 and OPB903L55 - 903 has an 
+  inverted rising edge/falling edge which means that the functions being 
+  called back to on the triggers need to be inverted.
+* nosepoke_id (L/R): The number assigned to the left and right ports of each pi 
+
+## Documentation for pins (pi/configs/pins.json)
+* TODO
