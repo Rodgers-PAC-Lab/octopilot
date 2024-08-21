@@ -5,7 +5,7 @@ import time
 
 blink_state = None
 
-class blink_test:
+class BlinkTest:
     def __init__(self, address="tcp://*:5557"):
         self.blink_state = blink_state
         
@@ -28,7 +28,7 @@ class blink_test:
 
 # Entry point for running the module as a script
 if __name__ == "__main__":
-    controller = blink_test()
+    controller = BlinkTest()
     
     # Example usage (replace with your own logic to control the flow)
     try:
