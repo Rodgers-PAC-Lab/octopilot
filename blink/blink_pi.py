@@ -25,7 +25,7 @@ def flash():
 # Setting up ZMQ context to send and receive information about poked ports
 context = zmq.Context()
 receiver = context.socket(zmq.SUB)
-receiver.connect("tcp://192.168.0.213:5561")  # Change Port number if you want to run multiple instances
+receiver.connect("tcp://192.168.0.213:5562")  # Change Port number if you want to run multiple instances
 
 # Create a poller object to handle the socket
 poller = zmq.Poller()

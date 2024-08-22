@@ -14,30 +14,45 @@ class BlinkTest:
         self.blink_socket = self.blink_context.socket(zmq.PUB)
         self.blink_socket.bind(address)
 
-    def send_message(self, msg=None):
+    def send_message(self):
         if self.blink_state == True:
-            msg = "blink"
-            self.blink_socket.send_string(msg)
+            self.blink_socket.send_string("blink")
             print(f"Sent 'blink' to Pis")
 
         elif self.blink_state == False or self.blink_state == None:
-            msg = "waiting"
-            self.blink_socket.send_string(msg)
-            pass
+            self.blink_socket.send_string("waiting")
+            print(f"Sent 'waiting' to Pis")
 
-# Entry point for running the module as a script
-if __name__ == "__main__":
-    controller = BlinkTest()
+    def set_blink_state(self, state = blink_state):
+        self.blink_state = state
+        print(f"Blink state set to {self.blink_state}")
+
+controller = BlinkTest()
+try:
+    while True:
+        controller.set_blink_state(blink_state)
+        controller.send_message()
+        time.sleep(1)
+except KeyboardInterrupt:
+    print("Shutting down.")
+    controller.blink_socket.close()
+    controller.blink_context.term()
+
+
+
+# # Entry point for running the module as a script
+# if __name__ == "__main__":
+#     controller = BlinkTest()
     
-    # Example usage (replace with your own logic to control the flow)
-    try:
-        while True:
-            controller.send_message()
-            time.sleep(1)
+#     # Example usage (replace with your own logic to control the flow)
+#     try:
+#         while True:
+#             controller.send_message()
+#             time.sleep(1)
 
-    except KeyboardInterrupt:
-        print("Shutting down.")
+#     except KeyboardInterrupt:
+#         print("Shutting down.")
      
-    finally:
-        controller.blink_socket.close()
-        controller.blink_context.term()
+#     finally:
+#         controller.blink_socket.close()
+#         controller.blink_context.term()
