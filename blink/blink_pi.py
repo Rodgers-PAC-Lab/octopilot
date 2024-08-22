@@ -24,7 +24,7 @@ def flash():
 
 # Setting up ZMQ context to send and receive information about poked ports
 context = zmq.Context()
-sub = context.socket(zmq.sub)
+sub = context.socket(zmq.SUB)
 sub.connect("tcp://192.168.0.213:5562")  # Change Port number if you want to run multiple instances
 sub.subscribe(b"")  # Subscribe to all topics
 print("Starting...")
