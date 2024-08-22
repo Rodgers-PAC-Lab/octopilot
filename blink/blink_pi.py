@@ -26,7 +26,7 @@ def flash():
 context = zmq.Context()
 dealer = context.socket(zmq.DEALER)
 dealer.connect("tcp://192.168.0.213:5562")  # Change Port number if you want to run multiple instances
-dealer.send_string('start')
+dealer.send_string("start")
 
 # Create a poller object to handle the socket
 poller = zmq.Poller()
@@ -44,11 +44,11 @@ try:
         if dealer in socks and socks[dealer] == zmq.POLLIN:
             msg = dealer.recv_string()
             
-            if msg == "blink":
+            if msg == 'blink':
                 print("Received 'blink' message")
                 flash()
             
-            elif msg == "waiting":
+            elif msg == 'waiting':
                 print("Waiting for 'blink' message")
                 pass
 
