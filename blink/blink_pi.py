@@ -44,13 +44,12 @@ try:
 
         if sub in socks and socks[sub] == zmq.POLLIN:
             msg = sub.recv_string()
-            msg_str = msg.decode('utf-8')
             
-            if msg_str == 'blink':
+            if msg == 'blink':
                 print("Received 'blink' message")
                 flash()
             
-            elif msg_str == 'waiting':
+            elif msg == 'waiting':
                 print("Waiting for 'blink' message")
                 pass
 
