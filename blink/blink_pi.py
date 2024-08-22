@@ -43,11 +43,11 @@ try:
         if receiver in socks and socks[receiver] == zmq.POLLIN:
             msg = receiver.recv_string()
             
-            if msg.startswith("blink"):
+            if msg == "blink":
                 print("Received 'blink' message")
                 flash()
             
-            elif msg.startswith("waiting"):
+            elif msg == "waiting":
                 print("Waiting for 'blink' message")
                 pass
 
