@@ -11,7 +11,7 @@ class BlinkTest:
         
         # Making a context to send blink state information to all Pis
         self.blink_context = zmq.Context()
-        self.blink_socket = self.blink_context.socket(zmq.PUB)
+        self.blink_socket = self.blink_context.socket(zmq.ROUTER)
         self.blink_socket.bind(address)
 
     def send_message(self):
@@ -28,15 +28,17 @@ class BlinkTest:
         print(f"Blink state set to {self.blink_state}")
 
 controller = BlinkTest()
-try:
-    while True:
-        controller.set_blink_state(blink_state)
-        controller.send_message()
-        time.sleep(1)
-except KeyboardInterrupt:
-    print("Shutting down.")
-    controller.blink_socket.close()
-    controller.blink_context.term()
+msg = controller.blink_socket.recv_string()
+if msg == "start":
+    try:
+        while True:
+            controller.set_blink_state(blink_state)
+            controller.send_message()
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Shutting down.")
+        controller.blink_socket.close()
+        controller.blink_context.term()
 
 
 

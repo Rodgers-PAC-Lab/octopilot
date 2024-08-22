@@ -24,12 +24,13 @@ def flash():
 
 # Setting up ZMQ context to send and receive information about poked ports
 context = zmq.Context()
-receiver = context.socket(zmq.SUB)
-receiver.connect("tcp://192.168.0.213:5562")  # Change Port number if you want to run multiple instances
+dealer = context.socket(zmq.DEALER)
+dealer.connect("tcp://192.168.0.213:5562")  # Change Port number if you want to run multiple instances
+dealer.send_string("start")
 
 # Create a poller object to handle the socket
 poller = zmq.Poller()
-poller.register(receiver, zmq.POLLIN)
+poller.register(dealer, zmq.POLLIN)
 
 # Initialize pigpio
 pi = pigpio.pi()
@@ -40,8 +41,8 @@ try:
         # Poll for incoming messages with a timeout of 100ms
         socks = dict(poller.poll(100))
 
-        if receiver in socks and socks[receiver] == zmq.POLLIN:
-            msg = receiver.recv_string()
+        if dealer in socks and socks[dealer] == zmq.POLLIN:
+            msg = dealer.recv_string()
             
             if msg == "blink":
                 print("Received 'blink' message")
@@ -52,8 +53,8 @@ try:
                 pass
 
 except KeyboardInterrupt:
-    print("Receiver script interrupted by user")
+    print("dealer script interrupted by user")
 
 finally:
-    receiver.close()
+    dealer.close()
     context.term()   
