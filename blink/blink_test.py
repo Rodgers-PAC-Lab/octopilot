@@ -29,7 +29,7 @@ class BlinkTest:
 
 controller = BlinkTest()
 msg = controller.blink_socket.recv_string()
-if msg == "start":
+if msg == 'start':
     try:
         while True:
             controller.set_blink_state(blink_state)
