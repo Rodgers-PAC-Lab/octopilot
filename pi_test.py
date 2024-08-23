@@ -275,7 +275,7 @@ class SoundQueue:
             f"Bandwidth: {self.bandwidth}"
             )
 
-        print(parameter_message)
+        #print(parameter_message)
         return parameter_message
 
     """Method to choose which sound to initialize based on the target channel"""
@@ -943,13 +943,14 @@ try:
                 amplitude_max = config_data['amplitude_max']
                 last_msg = msg2
 
+            # Setting sound to play 
+            sound_chooser.update_parameters(
+                rate_min, rate_max, irregularity_min, irregularity_max, 
+                amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
+            sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+                sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
+            
             if msg2 != last_msg:
-                # Setting sound to play 
-                sound_chooser.update_parameters(
-                    rate_min, rate_max, irregularity_min, irregularity_max, 
-                    amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
-                sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
-                    sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
                 sound_chooser.empty_queue()
                 sound_chooser.set_sound_cycle()
                 sound_chooser.play()
