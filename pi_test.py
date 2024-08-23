@@ -950,6 +950,7 @@ try:
             sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
                 sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
             if msg2 != last_msg:
+                sound_chooser.empty_queue()
                 sound_chooser.set_sound_cycle()
                 sound_chooser.play()
 
