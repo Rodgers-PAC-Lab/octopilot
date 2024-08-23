@@ -45,14 +45,14 @@ try:
         if sub in socks and socks[sub] == zmq.POLLIN:
             msg = sub.recv_string()
             
-            if msg == 'blink':
+            if msg == 'True':
                 print("Received 'blink' message")
                 pi.set_mode(22, pigpio.OUTPUT)
                 pi.write(22, 1)
                 pi.set_mode(11, pigpio.OUTPUT)
                 pi.write(11, 1)
                         
-            elif msg == 'waiting':
+            elif msg == 'False':
                 print("Waiting for 'blink' message")
                 pi.write(22, 0)
                 pi.write(11, 0)
