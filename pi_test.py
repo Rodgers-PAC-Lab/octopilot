@@ -926,34 +926,33 @@ try:
         if bonsai_socket in socks and socks[bonsai_socket] == zmq.POLLIN:
             # Non-blocking receive: #flags=zmq.NOBLOCK)  
             # Blocking receive
-            sound_chooser.update_parameters(
-                    rate_min, rate_max, irregularity_min, irregularity_max, 
-                    amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
-            sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
-                sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
-            
-            sound_chooser.set_sound_cycle()
-            msg = bonsai_socket.recv_string()  
+            msg1 = bonsai_socket.recv_string()  
             
             # Different messages have different effects
-            if msg == "True":
+            if msg1 == "True":
                 # Testing amplitude
-                amplitude_min = 0.25
-                amplitude_max = 0.25
+                amplitude_min = 0.25 * config_data['amplitude_min']
+                amplitude_max = 0.25 * config_data['amplitude_max']
 
                 # Condition to start the task
-                sound_chooser.running = True
+                #sound_chooser.running = True
                 #sound_chooser.set_channel('right')
                 print("Received start command. Starting task.")
             
-            elif msg == "False":
+            elif msg1 == "False":
                 # Testing amplitude
                 amplitude_min = config_data['amplitude_min']
                 amplitude_max = config_data['amplitude_max']
 
                 # Condition to stop the task
-                sound_chooser.running = False
+                #sound_chooser.running = False
                 print("Received stop command. Stopping task.")
+
+            sound_chooser.update_parameters(
+                    rate_min, rate_max, irregularity_min, irregularity_max, 
+                    amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
+            
+            sound_chooser.set_sound_cycle()
 
         # Separate logic for Poketrain task
         if task == 'Poketrain':
