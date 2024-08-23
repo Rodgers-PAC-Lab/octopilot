@@ -882,7 +882,7 @@ try:
         sound_chooser.append_sound_to_queue_as_needed()
         socks = dict(poller.poll(100))
         socks2 = dict(poller.poll(100))
-
+        
         ## Check for incoming messages on json_socket
         # If so, use it to update the acoustic parameters
         if json_socket in socks and socks[json_socket] == zmq.POLLIN:
@@ -923,35 +923,25 @@ try:
             print("Parameters updated")
 
         # Logic to handle messages from the bonsai socket
-        if bonsai_socket in socks and socks[bonsai_socket] == zmq.POLLIN:
-            # Non-blocking receive: #flags=zmq.NOBLOCK)  
-            # Blocking receive
-            msg1 = bonsai_socket.recv_string()  
+        if bonsai_socket in socks2 and socks2[bonsai_socket] == zmq.POLLIN:
+            msg2 = bonsai_socket.recv_string()  
             
             # Different messages have different effects
-            if msg1 == "True":
-                # Testing amplitude
+            if msg2 == "True": 
+                # Condition to start the task
                 amplitude_min = 0.25 * config_data['amplitude_min']
                 amplitude_max = 0.25 * config_data['amplitude_max']
-
-                # Condition to start the task
-                #sound_chooser.running = True
-                #sound_chooser.set_channel('right')
-                print("Received start command. Starting task.")
+                print("Decreasing the volume of the sound")
             
-            elif msg1 == "False":
+            elif msg2 == "False":
                 # Testing amplitude
                 amplitude_min = config_data['amplitude_min']
                 amplitude_max = config_data['amplitude_max']
 
-                # Condition to stop the task
-                #sound_chooser.running = False
-                print("Received stop command. Stopping task.")
-
+            # Setting sound to play 
             sound_chooser.update_parameters(
-                    rate_min, rate_max, irregularity_min, irregularity_max, 
-                    amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
-            
+                rate_min, rate_max, irregularity_min, irregularity_max, 
+                amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
             sound_chooser.set_sound_cycle()
 
         # Separate logic for Poketrain task
