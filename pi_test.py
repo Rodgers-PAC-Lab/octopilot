@@ -882,6 +882,8 @@ try:
         sound_chooser.append_sound_to_queue_as_needed()
         socks = dict(poller.poll(100))
         socks2 = dict(poller.poll(100))
+        socks3 = dict(poller.poll(100))
+
         
         ## Check for incoming messages on json_socket
         # If so, use it to update the acoustic parameters
@@ -939,9 +941,9 @@ try:
                 amplitude_max = config_data['amplitude_max']
 
             # Setting sound to play 
-            sound_chooser.update_parameters(
-                rate_min, rate_max, irregularity_min, irregularity_max, 
-                amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
+            # sound_chooser.update_parameters(
+            #     rate_min, rate_max, irregularity_min, irregularity_max, 
+            #     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
             sound_chooser.set_sound_cycle()
 
         # Separate logic for Poketrain task
@@ -951,7 +953,7 @@ try:
         
         ## Check for incoming messages on poke_socket
         # TODO: document the types of messages that can be sent on poke_socket 
-        if poke_socket in socks and socks[poke_socket] == zmq.POLLIN:
+        if poke_socket in socks3 and socks3[poke_socket] == zmq.POLLIN:
             # Blocking receive: #flags=zmq.NOBLOCK)  
             # Non-blocking receive
             msg = poke_socket.recv_string()  
