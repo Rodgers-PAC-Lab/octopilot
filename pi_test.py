@@ -941,10 +941,10 @@ try:
                 amplitude_max = config_data['amplitude_max']
 
             # Setting sound to play 
-            # sound_chooser.update_parameters(
-            #     rate_min, rate_max, irregularity_min, irregularity_max, 
-            #     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
-            sound_chooser.set_sound_cycle()
+            sound_chooser.update_parameters(
+                rate_min, rate_max, irregularity_min, irregularity_max, 
+                amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
+            #sound_chooser.set_sound_cycle()
 
         # Separate logic for Poketrain task
         if task == 'Poketrain':
