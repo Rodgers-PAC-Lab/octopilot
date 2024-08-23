@@ -941,6 +941,7 @@ try:
                 # Testing amplitude
                 amplitude_min = config_data['amplitude_min']
                 amplitude_max = config_data['amplitude_max']
+                print("Returning the volume of the sound to normal")
                 last_msg = msg2
 
             # Setting sound to play 
@@ -952,8 +953,9 @@ try:
             
             if msg2 != last_msg:
                 sound_chooser.running = False
-                sound_chooser.set_channel('none')
                 sound_chooser.empty_queue()
+                sound_chooser.set_channel('none')
+                time.sleep(0.5)
                 sound_chooser.set_sound_cycle()
                 if value == int(params['nosepokeL_id']):
                     sound_chooser.set_channel('left')
