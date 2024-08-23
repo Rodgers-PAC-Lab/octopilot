@@ -935,14 +935,12 @@ try:
                 amplitude_min = 0.25 * config_data['amplitude_min']
                 amplitude_max = 0.25 * config_data['amplitude_max']
                 print("Decreasing the volume of the sound")
-                sound_chooser.running = True
                 last_msg = msg2
             
             elif msg2 == "False":
                 # Testing amplitude
                 amplitude_min = config_data['amplitude_min']
                 amplitude_max = config_data['amplitude_max']
-                sound_chooser.running = True
                 last_msg = msg2
 
             # Setting sound to play 
@@ -954,8 +952,14 @@ try:
             
             if msg2 != last_msg:
                 sound_chooser.running = False
+                sound_chooser.set_channel('none')
                 sound_chooser.empty_queue()
                 sound_chooser.set_sound_cycle()
+                if value == int(params['nosepokeL_id']):
+                    sound_chooser.set_channel('left')
+                elif value == int(params['nosepokeR_id']):
+                    sound_chooser.set_channel('right')
+                sound_chooser.play()
 
         # Separate logic for Poketrain task
         if task == 'Poketrain':
