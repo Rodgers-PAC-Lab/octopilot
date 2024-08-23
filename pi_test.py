@@ -926,6 +926,7 @@ try:
 
         # Logic to handle messages from the bonsai socket
         if bonsai_socket in socks2 and socks2[bonsai_socket] == zmq.POLLIN:
+            last_msg = None
             msg2 = bonsai_socket.recv_string()  
             
             # Different messages have different effects
@@ -934,11 +935,13 @@ try:
                 amplitude_min = 0.25 * config_data['amplitude_min']
                 amplitude_max = 0.25 * config_data['amplitude_max']
                 print("Decreasing the volume of the sound")
+                last_msg = msg2
             
             elif msg2 == "False":
                 # Testing amplitude
                 amplitude_min = config_data['amplitude_min']
                 amplitude_max = config_data['amplitude_max']
+                last_msg = msg2
 
             # Setting sound to play 
             sound_chooser.update_parameters(
@@ -946,7 +949,8 @@ try:
                 amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
             sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
                 sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
-            #sound_chooser.set_sound_cycle()
+            if msg2 != last_msg:
+                sound_chooser.set_sound_cycle()
 
         # Separate logic for Poketrain task
         if task == 'Poketrain':
