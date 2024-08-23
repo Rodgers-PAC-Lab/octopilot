@@ -951,8 +951,10 @@ try:
                 sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
             
             if msg2 != last_msg:
+                sound_chooser.running = False
                 sound_chooser.empty_queue()
                 sound_chooser.set_sound_cycle()
+                sound_chooser.running = True
                 sound_chooser.play()
 
         # Separate logic for Poketrain task
