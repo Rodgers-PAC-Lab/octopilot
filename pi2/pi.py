@@ -28,10 +28,10 @@ daemons.start_jackd(sleep_time=0.1)
 
 
 ## LOADING PARAMETERS FOR THE PI 
-params = load_params.load_params_file(verbose=True)
-pins = load_params.load_pins(verbose=True)
+params = load_params.load_params_file(verbose=False)
+pins = load_params.load_pins(verbose=False)
 
 
 ## Start
 hc = hardware.HardwareController(pins=pins, params=params)
-hc.mainloop()
+hc.main_loop()

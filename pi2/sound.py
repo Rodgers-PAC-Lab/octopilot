@@ -7,7 +7,7 @@ import itertools
 import queue
 import pandas as pd
 import scipy.signal
-
+import multiprocessing as mp
 
 ## SETTING UP CLASSES USED TO GENERATE AUDIO
 class Noise:
@@ -458,21 +458,21 @@ class SoundQueuer:
         # between calls. If it's getting too close to zero, then target_qsize
         # needs to be increased.
         # Get the size of queue now
-        qsize = sound_queue.qsize()
+        qsize = self.sound_queue.qsize()
 
         # Add frames until target size reached
         while qsize < self.target_qsize:
-            with qlock:
+            with self.qlock:
                 # Add a frame from the sound cycle
                 frame = next(self.sound_cycle)
                 #frame = np.random.uniform(-.01, .01, (1024, 2)) 
-                sound_queue.put_nowait(frame)
+                self.sound_queue.put_nowait(frame)
                 
                 # Keep track of how many frames played
                 self.n_frames = self.n_frames + 1
             
             # Update qsize
-            qsize = sound_queue.qsize()
+            qsize = self.sound_queue.qsize()
             
     def empty_queue(self, tosize=0):
         """Empty queue"""
@@ -482,7 +482,7 @@ class SoundQueuer:
             # in case the `process` function needs it to play sounds
             # (though if this does happen, there will be an artefact because
             # we just skipped over a bunch of frames)
-            with qlock:
+            with self.qlock:
                 try:
                     data = sound_queue.get_nowait()
                 except queue.Empty:
@@ -525,7 +525,7 @@ class SoundPlayer(object):
         This is only passed to jack.Client, which requires it.
     
     """
-    def __init__(self, name='jack_client'):
+    def __init__(self, sound_queue, name='jack_client'):
         """Initialize a new JackClient
 
         This object contains a jack.Client object that actually plays audio.
@@ -544,6 +544,11 @@ class SoundPlayer(object):
         ## Store provided parameters
         self.name = name
         
+        
+        ## Store the sound queue
+        self.sound_queue = sound_queue
+        
+        
         ## Create the contained jack.Client
         # Creating a jack client
         self.client = jack.Client(self.name)
@@ -560,13 +565,16 @@ class SoundPlayer(object):
         # Debug message
         print("Received blocksize {} and fs {}".format(self.blocksize, self.fs))
 
+
         ## Set up outchannels
         self.client.outports.register('out_0')
         self.client.outports.register('out_1')
         
+
         ## Set up the process callback
         # This will be called on every block and must provide data
         self.client.set_process_callback(self.process)
+
 
         ## Activate the client
         self.client.activate()
@@ -586,7 +594,7 @@ class SoundPlayer(object):
         Fills frames of sound into the queue and plays stereo output from either the right or left channel
         """
         # Check if the queue is empty
-        if sound_queue.empty():
+        if self.sound_queue.empty():
             # No sound to play, so play silence 
             # Although this shouldn't be happening
             for n_outport, outport in enumerate(self.client.outports):
@@ -595,7 +603,7 @@ class SoundPlayer(object):
             
         else:
             # Queue is not empty, so play data from it
-            data = sound_queue.get()
+            data = self.sound_queue.get()
             if data.shape != (self.blocksize, 2):
                 print(data.shape)
             assert data.shape == (self.blocksize, 2)

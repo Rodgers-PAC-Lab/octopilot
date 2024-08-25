@@ -1,5 +1,6 @@
 import pigpio
-
+from . import sound
+from . import networking
 
 ## TODO: all of these should be in class Nosepoke, and HC should have a nosepoke
 # Callback functions for nosepoke pin (When the nosepoke is detected)
@@ -158,6 +159,9 @@ class HardwareController(object):
             name='sound_player', 
             sound_queue=self.sound_queuer.sound_queue,
             )
+        
+        # Set up networking
+        self.set_up_networking()
     
     def set_up_dio(self):
         """Set up output DIO lines as OUTPUT
@@ -169,14 +173,13 @@ class HardwareController(object):
     
     def set_up_networking(self):
         ## Set up networking
-        self.poke_socket = networking.set_up_poke_socket()
-        self.json_socket = networking.set_up_json_socket()
-
-        # Creating a poller object for both sockets that will be used to 
-        # continuously check for incoming messages
-        self.poller = zmq.Poller()
-        self.poller.register(self.poke_socket, zmq.POLLIN)
-        self.poller.register(self.json_socket, zmq.POLLIN)        
+        self.network_communicator = networking.NetworkCommunicator(
+            identity=self.params['identity'], 
+            pi_identity=self.params['identity'], 
+            gui_ip=self.params['gui_ip'], 
+            poke_port=self.params['poke_port'], 
+            config_port=self.params['config_port'],
+            )
 
     def flash():
         """Flash the blue LEDs whenever a trial is completed"""
@@ -224,11 +227,11 @@ class HardwareController(object):
         # Update the sound cycle
         self.sound_queuer.set_sound_cycle()
 
-    def start_flashing(pig, led_pin, pwm_frequency=1, pwm_duty_cycle=50):
+    def start_flashing(self, led_pin, pwm_frequency=1, pwm_duty_cycle=50):
         # Writing to the LED pin such that it blinks acc to the parameters 
-        pig.set_mode(led_pin, pigpio.OUTPUT)
-        pig.set_PWM_frequency(led_pin, pwm_frequency)
-        pig.set_PWM_dutycycle(led_pin, pwm_duty_cycle)
+        self.pig.set_mode(led_pin, pigpio.OUTPUT)
+        self.pig.set_PWM_frequency(led_pin, pwm_frequency)
+        self.pig.set_PWM_dutycycle(led_pin, pwm_duty_cycle)
 
     def handle_reward_port_message(msg):
         ## This specifies which port to reward
@@ -285,21 +288,21 @@ class HardwareController(object):
         # Can work on it more if needed
         
         # Emptying the queue completely
-        sound_queuer.running = False
-        sound_queuer.set_channel('none')
-        sound_queuer.empty_queue()
+        self.sound_queuer.running = False
+        self.sound_queuer.set_channel('none')
+        self.sound_queuer.empty_queue()
 
         # Flashing all lights and opening Solenoid Valve
-        flash()
-        open_valve(prev_port)
+        self.flash()
+        self.open_valve(prev_port)
         
         # Updating all the parameters that will influence the next trial
-        sound_queuer.update_parameters(
+        self.sound_queuer.update_parameters(
             rate_min, rate_max, irregularity_min, irregularity_max, 
             amplitude_min, amplitude_max, center_freq_min, center_freq_max, 
             bandwidth)
-        poke_socket.send_string(
-            sound_queuer.update_parameters.parameter_message)
+        self.networking_communicator.poke_socket.send_string(
+            self.sound_queuer.update_parameters.parameter_message)
         
         # Turn off the currently active LED
         if current_led_pin is not None:
@@ -341,7 +344,7 @@ class HardwareController(object):
             print("Received exit command. Terminating program.")
             
             # Deactivating the Sound Player before closing the program
-            sound_player.client.deactivate()
+            self.sound_player.client.deactivate()
             
             # Exit the loop
             stop_running = True  
@@ -353,7 +356,7 @@ class HardwareController(object):
             
             # Sending stop signal wirelessly to stop update function
             try:
-                poke_socket.send_string("stop")
+                self.network_communicator.poke_socket.send_string("stop")
             except Exception as e:
                 print("Error stopping session", e)
 
@@ -363,7 +366,7 @@ class HardwareController(object):
         elif msg == 'start':
             # Communicating with start button to start the next session
             try:
-                poke_socket.send_string("start")
+                self.network_communicator.poke_socket.send_string("start")
             except Exception as e:
                 print("Error stopping session", e)
         
@@ -371,7 +374,10 @@ class HardwareController(object):
             handle_reward_port_message(msg)
 
         elif msg.startswith("Reward Poke Completed"):
-            reward_and_end_trial(sound_queuer, poke_socket)
+            reward_and_end_trial(
+                self.sound_queuer, 
+                self.network_communicator.poke_socket,
+                )
        
         else:
             print("Unknown message received:", msg)
@@ -383,22 +389,29 @@ class HardwareController(object):
         if json_socket in socks and socks[json_socket] == zmq.POLLIN:
             # If so, use it to update the acoustic parameters
             # Setting up json socket to wait to receive messages from the GUI
-            json_data = json_socket.recv_json()
+            json_data = self.network_communicator.json_socket.recv_json()
 
             # Deserialize JSON data
             config_data = json.loads(json_data)
             
             # Use that data to update parameters in sound_queuer
-            update_sound_queuer(config_data, sound_queuer, sound_player)        
+            update_sound_queuer(
+                config_data, 
+                self.sound_queuer, 
+                self.sound_player,
+                )
 
     def check_poke_socket(self):
         ## Check for incoming messages on poke_socket
         if poke_socket in socks and socks[poke_socket] == zmq.POLLIN:
             # Waiting to receive message strings that control the main loop
-            msg = poke_socket.recv_string()  
+            msg = self.network_communicator.poke_socket.recv_string()  
     
             self.stop_running = handle_message_on_poke_socket(
-                msg, poke_socket, sound_queuer, sound_player)        
+                msg, 
+                self.network_communicator.poke_socket, 
+                self.sound_queuer, 
+                self.sound_player)        
 
     def main_loop(self):
         """Loop forever until told to stop, then exit
@@ -421,7 +434,7 @@ class HardwareController(object):
             while True:
                 # Wait for events on registered sockets. 
                 # Currently polls every 100ms to check for messages 
-                socks = dict(poller.poll(100))
+                socks = dict(self.network_communicator.poller.poll(100))
                 
                 # Used to continuously add frames of sound to the 
                 # queue until the program stops
@@ -446,7 +459,4 @@ class HardwareController(object):
         finally:
             ## QUITTING ALL NETWORK AND HARDWARE PROCESSES    
             # Close all sockets and contexts
-            poke_socket.close()
-            poke_context.term()
-            json_socket.close()
-            json_context.term()
+            self.network_communicator.close()
