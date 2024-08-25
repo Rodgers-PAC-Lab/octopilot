@@ -10,24 +10,60 @@ start_jackd : start a new jackd
 
 import os
 import time
+import subprocess
 
-def kill_old_daemons(sleep_time=1, verbose=False):
-    """Kill existing pigpiod and jackd"""
+def kill_pigpiod(verbose=True):
+    """Kill existing pigpiod"""
+    # Try to kill
+    took_too_long = False
+    try:
+        proc = subprocess.run(
+            ['sudo', 'killall', 'pigpiod'], capture_output=True, timeout=2)
+    except subprocess.TimeoutExpired:
+        # When this happens, proc will be killed and waited for
+        took_too_long = True
+    
+    # Log what happened
     if verbose:
-        print('killing pigpiod')
-    os.system('sudo killall pigpiod')
-    if verbose:
-        print('killing jackd')
-    os.system('sudo killall jackd')
+        if took_too_long:
+            print('killing pigpiod led to a timeout: ' + str(proc))
+        elif proc.returncode == 0:
+            print('pigpiod successfully killed')
+        elif proc.returncode == 1 and proc.stderr == b'pigpiod: no process found\n':
+            print('no pigpiod to kill')
+        else:
+            print('while killing pigpiod, unexpected result: ' + str(proc))
 
-    # Wait long enough to make sure they are killed
-    # TODO: try lower values and find the lowest one that reliably works
-    # TODO: probe to make sure pigpiod and jackd actually got killed
-    if verbose:
-        print('sleeping for {}'.format(sleep_time))
-    time.sleep(sleep_time)
-    if verbose:
-        print('done sleeping')
+def kill_jackd(sleep_time=1, verbose=True):
+    """Kill existing jackd"""
+    # Try to kill
+    took_too_long = False
+    try:
+        proc = subprocess.run(
+            ['killall', 'jackd'], capture_output=True, timeout=2)
+    except subprocess.TimeoutExpired:
+        # When this happens, proc will be killed and waited for
+        took_too_long = True
+
+    if took_too_long:
+        if verbose:
+            print('killing jackd led to a timeout: ' + str(proc))
+
+    elif proc.returncode == 0:
+        if verbose:
+            print('jackd successfully killed')
+
+        # For whatever reason, sometimes have to wait after killing jackd
+        time.sleep(sleep_time)
+
+    elif proc.returncode == 1 and proc.stderr == b'jackd: no process found\n':
+        if verbose:
+            print('no jackd to kill')
+
+    else:
+        if verbose:
+            print('while killing jackd, unexpected result: ' + str(proc))
+
 
 def start_pigpiod(sleep_time=1, verbose=False):
     """ 
@@ -37,14 +73,23 @@ def start_pigpiod(sleep_time=1, verbose=False):
         -x : mask the GPIO which can be updated (not sure why; taken from autopilot)
     Runs in background by default (no need for &)
     """
-    if verbose:
-        print('starting pigpiod')
-    os.system('sudo pigpiod -t 0 -l -x 1111110000111111111111110000')
-    if verbose:
-        print('sleeping')
-    time.sleep(sleep_time)
-    if verbose:
-        print('done sleeping')
+    took_too_long = False
+    try:
+        proc = subprocess.run(
+            ['sudo', 'pigpiod', '-t', '0', '-l', '-x', 
+            '1111110000111111111111110000'], capture_output=True, timeout=0.5)
+    except subprocess.TimeoutExpired:
+        # When this happens, proc will be killed and waited for
+        took_too_long = True
+
+    # Log what happened
+    if took_too_long:
+        raise IOError('starting pigpiod led to a timeout: ' + str(proc))
+    elif proc.returncode == 0:
+        if verbose:
+            print('successfully started pigpiod')
+    else:
+        raise IOError('failed to start pigpiod: ' + str(proc))
     
 def start_jackd(sleep_time=1, verbose=False):
     """
@@ -65,13 +110,21 @@ def start_jackd(sleep_time=1, verbose=False):
           Lower values will lower latency but increase probability of xruns.
       & : run in background
     """
-    # TODO: Use subprocess to keep track of these background processes
-    if verbose:
-        print('starting jackd')
-    os.system(
-        'jackd -P75 -p16 -t2000 -dalsa -dhw:sndrpihifiberry -P -r192000 -n3 -s &')
-    if verbose:
-        print('sleeping')
+    # Not sure why this doesn't work with subprocess.run
+    proc = subprocess.Popen([
+        'jackd', 
+        '-P75', 
+        '-p16', 
+        '-t2000', 
+        '-dalsa', 
+        '-dhw:sndrpihifiberry', 
+        '-P', 
+        '-r192000', 
+        '-n3', 
+        '-s',
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    
+    # Give jackd enough time to actually start
     time.sleep(sleep_time)
-    if verbose:
-        print('done sleeping')
+    
+    return proc

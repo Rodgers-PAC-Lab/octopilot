@@ -154,11 +154,14 @@ class HardwareController(object):
         if dummy_sound_queuer:
             self.sound_queuer = sound.DummySoundQueuer()
         else:
+            # TODO: tell sound_queuer to start providing silence
             self.sound_queuer = sound.SoundQueuer()
         
         # This object pulls frames of audio from that queue and gives them
         # to a jack.Client that it contains
         # TODO: probably instantiate the jack.Client here and provide it
+        # Note that it will immediately start asking for frames of audio, but
+        # sound_queuer doesn't have anything to play yet
         self.sound_player = sound.SoundPlayer(
             name='sound_player', 
             sound_queue=self.sound_queuer.sound_queue,
