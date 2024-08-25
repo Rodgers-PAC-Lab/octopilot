@@ -154,8 +154,18 @@ class HardwareController(object):
         if dummy_sound_queuer:
             self.sound_queuer = sound.DummySoundQueuer()
         else:
-            # TODO: tell sound_queuer to start providing silence
-            self.sound_queuer = sound.SoundQueuer()
+            # This object generates frames of audio
+            # TODO: figure out whether to init sound_chooser first (in 
+            # which case how to know blocksize?) or init sound_player first
+            # (in which case it needs to be ready to go without sound_chooser)
+            self.sound_chooser = sound.SoundChooser_IntermittentBursts(
+                blocksize=1024,
+                fs=192000,
+                )
+            
+            # This object uses those frames to top up sound_player
+            self.sound_queuer = sound.SoundQueuer(
+                sound_chooser=self.sound_chooser)
         
         # This object pulls frames of audio from that queue and gives them
         # to a jack.Client that it contains
