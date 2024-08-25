@@ -7,7 +7,8 @@ import itertools
 import queue
 import pandas as pd
 import scipy.signal
-import multiprocessing as mp
+import collections
+import datetime
 
 ## SETTING UP CLASSES USED TO GENERATE AUDIO
 class Noise:
@@ -192,12 +193,12 @@ class SoundQueuer:
     """
     def __init__(self):
         # Initializing queues 
-        self.sound_queue = mp.Queue()
-        self.nonzero_blocks = mp.Queue()
+        self.sound_queue = collections.deque() #mp.Queue()
+        #self.nonzero_blocks = mp.Queue()
 
         # Lock for thread-safe set_channel() updates
-        self.qlock = mp.Lock()
-        self.nb_lock = mp.Lock()
+        #self.qlock = mp.Lock()
+        #self.nb_lock = mp.Lock()
 
 
 
@@ -426,26 +427,6 @@ class SoundQueuer:
         ## Cycle so it can repeat forever
         self.sound_cycle = itertools.cycle(self.sound_block)        
 
-    def play(self):
-        """A single stage"""
-        # Don't want to do a "while True" here, because we need to exit
-        # this method eventually, so that it can respond to END
-        # But also don't want to change stage too frequently or the debug
-        # messages are overwhelming
-        for n in range(10):
-            # Add stimulus sounds to queue as needed
-            self.append_sound_to_queue_as_needed()
-
-            # Don't want to iterate too quickly, but rather add chunks
-            # in a controlled fashion every so often
-            #time.sleep(0.1)
-    
-        ## Continue to the next stage (which is this one again)
-        # If it is cleared, then nothing happens until the next message
-        # from the Parent (not sure why)
-        # If we never end this function, then it won't respond to END
-        #self.stage_block.set()
-    
     def append_sound_to_queue_as_needed(self):
         """Dump frames from `self.sound_cycle` into queue
 
@@ -458,21 +439,21 @@ class SoundQueuer:
         # between calls. If it's getting too close to zero, then target_qsize
         # needs to be increased.
         # Get the size of queue now
-        qsize = self.sound_queue.qsize()
+        qsize = len(self.sound_queue)
 
         # Add frames until target size reached
         while qsize < self.target_qsize:
-            with self.qlock:
+            if True: #with self.qlock:
                 # Add a frame from the sound cycle
                 frame = next(self.sound_cycle)
                 #frame = np.random.uniform(-.01, .01, (1024, 2)) 
-                self.sound_queue.put_nowait(frame)
+                self.sound_queue.appendleft(frame)
                 
                 # Keep track of how many frames played
                 self.n_frames = self.n_frames + 1
             
             # Update qsize
-            qsize = self.sound_queue.qsize()
+            qsize = len(self.sound_queue)
             
     def empty_queue(self, tosize=0):
         """Empty queue"""
@@ -482,30 +463,34 @@ class SoundQueuer:
             # in case the `process` function needs it to play sounds
             # (though if this does happen, there will be an artefact because
             # we just skipped over a bunch of frames)
-            with self.qlock:
+            if True: #with self.qlock:
                 try:
-                    data = sound_queue.get_nowait()
-                except queue.Empty:
+                    data = sound_queue.pop()
+                except IndexError:
                     break
             
             # Stop if we're at or below the target size
-            qsize = sound_queue.qsize()
+            qsize = len(sound_queue)
             if qsize < tosize:
                 break
         
-        qsize = sound_queue.qsize()
-        
-    def set_channel(self, mode):
-        """Controlling which channel the sound is played from """
-        if mode == 'none':
-            self.left_on = False
-            self.right_on = False
-        if mode == 'left':
-            self.left_on = True
-            self.right_on = False
-        if mode == 'right':
-            self.left_on = False
-            self.right_on = True
+        qsize = len(sound_queue)
+
+class DummySoundQueue(object):
+    """Dummy sound queue for testing. Always empty"""
+    def __init__(self):
+        pass
+    
+    def empty(self):
+        return True
+
+class DummySoundQueuer(object):
+    """Dummy sound queuer for testing. Always empty"""
+    def __init__(self):
+        self.sound_queue = DummySoundQueue()
+    
+    def append_sound_to_queue_as_needed(self):
+        pass
 
 # Define a JackClient, which will play sounds in the background
 # Rename to SoundPlayer to avoid confusion with jack.Client
@@ -525,90 +510,126 @@ class SoundPlayer(object):
         This is only passed to jack.Client, which requires it.
     
     """
-    def __init__(self, sound_queue, name='jack_client'):
+    def __init__(self, sound_queue, name='jack_client', verbose=True):
         """Initialize a new JackClient
+
+        This object has one job: get frames of audio out of sound_queue
+        and into jack.Client. All logic relating to the frames of audio that
+        go into the sound_queue should be handled by something else, such
+        as SoundQueuer.
 
         This object contains a jack.Client object that actually plays audio.
         It provides methods to send sound to its jack.Client, notably a 
         `process` function which is called every 5 ms or so.
         
+        Arguments
+        ----------
         name : str
             Required by jack.Client
-        # 
-        sound_queue : mp.Queue
-            Should produce a frame of audio on request after filling up to qsize
         
-        This object should focus only on playing sound as precisely as
-        possible.
+        sound_queue : deque-like object
+            Should produce a frame of audio on request
+        
+        Flow
+        ----
+        * Initialize self.client as a jack.Client 
+        * Register outports
+        * Set client's process callback to self.process
+        * Activate client
+        * Hook up outports to target ports
         """
-        ## Store provided parameters
+        ## Store provided arguments
         self.name = name
-        
-        
-        ## Store the sound queue
         self.sound_queue = sound_queue
+        self.verbose = verbose
+        
+        # Keep track of time of last warning
+        self.dt_last_warning = None
         
         
         ## Create the contained jack.Client
         # Creating a jack client
         self.client = jack.Client(self.name)
 
-        # Pull these values from the initialized client
-        # These come from the jackd daemon
-        # `blocksize` is the number of samples to provide on each `process`
-        # call
-        self.blocksize = self.client.blocksize
-        
-        # `fs` is the sampling rate
-        self.fs = self.client.samplerate
-        
         # Debug message
-        print("Received blocksize {} and fs {}".format(self.blocksize, self.fs))
+        if self.verbose:
+            print(
+                "New jack.Client initialized with blocksize " + 
+                "{} and samplerate {}".format(
+                self.client.blocksize, self.client.samplerate))
 
 
-        ## Set up outchannels
+        ## Set up outports and register callbacks and activate client
+        # Set up outchannels
         self.client.outports.register('out_0')
         self.client.outports.register('out_1')
-        
 
-        ## Set up the process callback
+        # Set up the process callback
         # This will be called on every block and must provide data
         self.client.set_process_callback(self.process)
 
-
-        ## Activate the client
+        # Activate the client
+        # Strangely, this must be done before hooking up the outports
         self.client.activate()
 
-        ## Hook up the outports (data sinks) to physical ports
         # Get the actual physical ports that can play sound
         target_ports = self.client.get_ports(
             is_physical=True, is_input=True, is_audio=True)
         assert len(target_ports) == 2
 
-        # Connect virtual outport to physical channel
+        # Hook up the outports (data sinks) to physical ports
         self.client.outports[0].connect(target_ports[0])
         self.client.outports[1].connect(target_ports[1])
     
-    def process(self, frames):
-        """Process callback function (used to play sound)
-        Fills frames of sound into the queue and plays stereo output from either the right or left channel
+    def process(self, frames, verbose=False):
+        """Write a frame of audio from self.sound_queue to self.client.outports
+        
+        This function is called by self.client every 5 ms or whenever new
+        audio is needed.
+        
+        Flow
+        * A frame of audio is popped from self.sound_queue
+        * If sound_queue is empty, a frame of zeros is generated. This should
+          not happen, so a warning is printed, but not more than once per
+          second.
+        * If the frame is not of shape (blocksize, 2), raises ValueError
+        * Frame is converted to float32
+        * Each column of frame is written to the outports
         """
-        # Check if the queue is empty
-        if self.sound_queue.empty():
-            # No sound to play, so play silence 
-            # Although this shouldn't be happening
-            for n_outport, outport in enumerate(self.client.outports):
-                buff = outport.get_array()
-                buff[:] = np.zeros(self.blocksize, dtype='float32')
-            
-        else:
-            # Queue is not empty, so play data from it
-            data = self.sound_queue.get()
-            if data.shape != (self.blocksize, 2):
-                print(data.shape)
-            assert data.shape == (self.blocksize, 2)
-
-            # Write one column to each channel for stereo
-            for n_outport, outport in enumerate(self.client.outports):
-                buff = outport.get_array()
-                buff[:] = data[:, n_outport]
+        # Optional debug message
+        if verbose:
+            print('process called')
+        
+        # Try to get audio data from self.sound_queue
+        queue_is_empty = False
+        try:
+            data = self.sound_queue.pop()
+        except IndexError:
+            # The queue is empty
+            # Play zeros and set the flag
+            queue_is_empty = True
+            data = np.zeros((self.client.blocksize, 2), dtype='float32')
+        
+        # Warn if needed
+        dt_now = datetime.datetime.now()
+        if (self.dt_last_warning is None or 
+                dt_now > self.dt_last_warning + datetime.timedelta(seconds=1)):
+            self.dt_last_warning = dt_now
+            if self.verbose:
+                print(
+                    "warning: sound_queue is empty, playing silence and "
+                    "silencing warnings for 1 s")
+        
+        # Make sure audio data has the correct shape
+        if data.shape != (self.client.blocksize, 2):
+            raise ValueError(
+                "error: process received data of shape {} ".format(data.shape) + 
+                "but it should have been {}".format((self.client.blocksize, 2))
+                )
+        
+        # Ensure it is the correct dtype
+        data = data.astype('float32')
+        
+        # Write one column to each channel
+        self.client.outports[0].get_array()[:] = data[:, 0]
+        self.client.outports[1].get_array()[:] = data[:, 1]

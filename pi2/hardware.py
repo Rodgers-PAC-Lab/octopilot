@@ -1,4 +1,5 @@
 import pigpio
+import time
 from . import sound
 from . import networking
 
@@ -136,7 +137,7 @@ class HardwareController(object):
     SoundQueuer at the beginning of each trial, and to tell SoundQueuer
     when to stop at the end of the trial.
     """
-    def __init__(self, pins, params):
+    def __init__(self, pins, params, start_networking=False, dummy_sound_queuer=False):
         # Store received parameters
         self.pins = pins
         self.params = params
@@ -150,7 +151,10 @@ class HardwareController(object):
         self.set_up_dio()
 
         # This object puts frames of audio into a sound queue
-        self.sound_queuer = sound.SoundQueuer()
+        if dummy_sound_queuer:
+            self.sound_queuer = sound.DummySoundQueuer()
+        else:
+            self.sound_queuer = sound.SoundQueuer()
         
         # This object pulls frames of audio from that queue and gives them
         # to a jack.Client that it contains
@@ -161,7 +165,10 @@ class HardwareController(object):
             )
         
         # Set up networking
-        self.set_up_networking()
+        if start_networking:
+            self.set_up_networking()
+        else:
+            self.network_communicator = None
     
     def set_up_dio(self):
         """Set up output DIO lines as OUTPUT
@@ -181,7 +188,7 @@ class HardwareController(object):
             config_port=self.params['config_port'],
             )
 
-    def flash():
+    def flash(self):
         """Flash the blue LEDs whenever a trial is completed"""
         self.pig.write(self.pins['led_blue_l'], 1) # Turning LED on
         self.pig.write(self.pins['led_blue_r'], 1) 
@@ -189,7 +196,7 @@ class HardwareController(object):
         self.pig.write(self.pins['led_blue_l'], 0) # Turning LED off
         self.pig.write(self.pins['led_blue_r'], 0) 
     
-    def stop_session():
+    def stop_session(self):
         """Runs when a session is stopped
         
         Flow
@@ -215,7 +222,7 @@ class HardwareController(object):
         # Empty the queue of sound
         self.sound_queuer.empty_queue()
 
-    def set_acoustic_parameters(**acoustic_kwargs):
+    def set_acoustic_parameters(self, **acoustic_kwargs):
         """Use config_data to update acoustic parameters on sound_queuer
         
         Sends acoustic_kwargs to self.sound_queuer
@@ -233,7 +240,7 @@ class HardwareController(object):
         self.pig.set_PWM_frequency(led_pin, pwm_frequency)
         self.pig.set_PWM_dutycycle(led_pin, pwm_duty_cycle)
 
-    def handle_reward_port_message(msg):
+    def handle_reward_port_message(self, msg):
         ## This specifies which port to reward
         # Debug print
         print(msg)
@@ -280,7 +287,7 @@ class HardwareController(object):
         
         prev_port = value
         
-    def reward_and_end_trial(sound_queuer, poke_socket):
+    def reward_and_end_trial(self, sound_queuer, poke_socket):
         # This seems to occur when the GUI detects that the poked
         # port was rewarded. This will be too slow. The reward port
         # should be opened if it knows it is the rewarded pin. 
@@ -312,7 +319,7 @@ class HardwareController(object):
         else:
             print("No LED is currently active.")
 
-    def handle_message_on_poke_socket(msg, poke_socket, sound_queuer, sound_player):
+    def handle_message_on_poke_socket(self, msg, poke_socket, sound_queuer, sound_player):
         """Handle a message received on poke_socket
         
         poke_socket handles messages received from the GUI that are used 
@@ -384,9 +391,9 @@ class HardwareController(object):
 
         return stop_running
 
-    def check_json_socket(self):
+    def check_json_socket(self, socks):
         ## Check for incoming messages on json_socket
-        if json_socket in socks and socks[json_socket] == zmq.POLLIN:
+        if self.network_communicator.json_socket in socks and socks[self.network_communicator.json_socket] == zmq.POLLIN:
             # If so, use it to update the acoustic parameters
             # Setting up json socket to wait to receive messages from the GUI
             json_data = self.network_communicator.json_socket.recv_json()
@@ -401,9 +408,9 @@ class HardwareController(object):
                 self.sound_player,
                 )
 
-    def check_poke_socket(self):
+    def check_poke_socket(self, socks):
         ## Check for incoming messages on poke_socket
-        if poke_socket in socks and socks[poke_socket] == zmq.POLLIN:
+        if self.network_communicator.poke_socket in socks and socks[self.network_communicator.poke_socket] == zmq.POLLIN:
             # Waiting to receive message strings that control the main loop
             msg = self.network_communicator.poke_socket.recv_string()  
     
@@ -431,10 +438,14 @@ class HardwareController(object):
             
             
             ## Loop forever
+            self.stop_running = False
+            print('starting mainloop')
+            
             while True:
                 # Wait for events on registered sockets. 
                 # Currently polls every 100ms to check for messages 
-                socks = dict(self.network_communicator.poller.poll(100))
+                if self.network_communicator is not None:
+                    socks = dict(self.network_communicator.poller.poll(100))
                 
                 # Used to continuously add frames of sound to the 
                 # queue until the program stops
@@ -442,21 +453,35 @@ class HardwareController(object):
                 
                 # Check json_socket for incoming messages about acoustic
                 # parameters
-                self.check_json_socket()
+                if self.network_communicator is not None:
+                    self.check_json_socket(socks)
                 
                 # Check poke_socket for incoming messages about exit, stop,
                 # start, reward, etc
-                self.check_poke_socket()
+                if self.network_communicator is not None:
+                    self.check_poke_socket(socks)
                 
                 # Check if stop_runnning was set by check_poke_socket
                 if self.stop_running:
                     break
+                
+                # If there's nothing in the main loop, not even a sleep,
+                # then for some reason this leads to XRun errors
+                # Perhaps the interpreter is optimizing away the mainloop
+                # time.sleep(0) prevents this from happening
+                time.sleep(0)
 
         except KeyboardInterrupt:
-            # Stops the pigpio connection
-            pig.stop()
-
+            print('KeyboardInterrupt received, shutting down')
+            
         finally:
             ## QUITTING ALL NETWORK AND HARDWARE PROCESSES    
+            # Stop jack
+            self.sound_player.client.close()
+            
+            # Stops the pigpio connection
+            self.pig.stop()
+            
             # Close all sockets and contexts
-            self.network_communicator.close()
+            if self.network_communicator is not None:
+                self.network_communicator.close()

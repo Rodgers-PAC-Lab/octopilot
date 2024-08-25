@@ -103,7 +103,10 @@ class NetworkCommunicator(object):
     def close(self):
         """Close all sockets and contexts"""
         self.poke_socket.close()
+        
+        # Sometimes gets stuck here?
         self.poke_context.term()
+        
         self.json_socket.close()
         self.json_context.term()
     

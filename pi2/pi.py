@@ -22,9 +22,9 @@ from . import hardware
 
 
 ## Set up daemons
-daemons.kill_old_daemons(sleep_time=0.1)
-daemons.start_pigpiod(sleep_time=0.1)
-daemons.start_jackd(sleep_time=0.1)
+daemons.kill_old_daemons(sleep_time=1, verbose=True)
+daemons.start_pigpiod(sleep_time=1, verbose=True)
+daemons.start_jackd(sleep_time=1, verbose=True)
 
 
 ## LOADING PARAMETERS FOR THE PI 
