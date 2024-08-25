@@ -1,5 +1,7 @@
 import pigpio
 
+
+## TODO: all of these should be in class Nosepoke, and HC should have a nosepoke
 # Callback functions for nosepoke pin (When the nosepoke is detected)
 # Poke at Left Port 
 def poke_detectedL(pin, level, tick): 
@@ -100,18 +102,19 @@ def open_valve(port):
 def set_up_pig(pig, pins):
     """Connect callbacks to pins
     
-    nosepoke_l falling : poke_inL
-    nosepoke_l rising : poke_detectedL
+    Connects the following events to the following functions
+        nosepoke_l falling : poke_inL
+        nosepoke_l rising : poke_detectedL
+        nosepoke_r falling : poke_inR
+        nosepoke_r rising : poke_detectedR
     
-    nosepoke_r falling : poke_inR
-    nosepoke_r rising : poke_detectedR
+    The poke_detected is called when the poke starts
+    And the poke_in is called when the poke ends
+    
+    TODO: this should be set by type 901 or 903
     """
-    # Excutes when there is a falling edge on the voltage of the pin (when poke is completed)
     pig.callback(pins['nosepoke_l'], pigpio.FALLING_EDGE, poke_inL) 
-
-    # Executes when there is a rising edge on the voltage of the pin (when poke is detected) 
     pig.callback(pins['nosepoke_l'], pigpio.RISING_EDGE, poke_detectedL) 
-
     pig.callback(pins['nosepoke_r'], pigpio.FALLING_EDGE, poke_inR)
     pig.callback(pins['nosepoke_r'], pigpio.RISING_EDGE, poke_detectedR)
 
@@ -142,9 +145,8 @@ class HardwareController(object):
         self.pig = pigpio.pi()
 
         # Connect callbacks to pins
-        set_up_pi(self.pig, self.pins)
-        self.pig.set_mode(led_blue_l, pigpio.OUTPUT)
-        self.pig.set_mode(led_blue_r, pigpio.OUTPUT)
+        set_up_pig(self.pig, self.pins)
+        self.set_up_dio()
 
         # This object puts frames of audio into a sound queue
         self.sound_queuer = sound.SoundQueuer()
@@ -156,6 +158,14 @@ class HardwareController(object):
             name='sound_player', 
             sound_queue=self.sound_queuer.sound_queue,
             )
+    
+    def set_up_dio(self):
+        """Set up output DIO lines as OUTPUT
+        
+        TODO: add all pins not just blue ones
+        """
+        self.pig.set_mode(self.pins['led_blue_l'], pigpio.OUTPUT)
+        self.pig.set_mode(self.pins['led_blue_r'], pigpio.OUTPUT)        
     
     def set_up_networking(self):
         ## Set up networking
@@ -214,7 +224,7 @@ class HardwareController(object):
         # Update the sound cycle
         self.sound_queuer.set_sound_cycle()
 
-    def start_flashing(pig, led_pin, pwm_frequency=1, pwm_duty_cycle=50)
+    def start_flashing(pig, led_pin, pwm_frequency=1, pwm_duty_cycle=50):
         # Writing to the LED pin such that it blinks acc to the parameters 
         pig.set_mode(led_pin, pigpio.OUTPUT)
         pig.set_PWM_frequency(led_pin, pwm_frequency)
@@ -228,8 +238,7 @@ class HardwareController(object):
         # Extract the integer part from the message
         msg_parts = msg.split()
         if len(msg_parts) != 3 or not msg_parts[2].isdigit():
-            print("Invalid message format.")
-            continue
+            raise ValueError("Invalid message format: {}".format(msg))
         
         # Assigning the integer part to a variable
         value = int(msg_parts[2])  
@@ -349,7 +358,7 @@ class HardwareController(object):
                 print("Error stopping session", e)
 
             print("Stop command received. Stopping sequence.")
-            continue
+            stop_running = True
 
         elif msg == 'start':
             # Communicating with start button to start the next session
