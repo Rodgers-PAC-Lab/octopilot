@@ -952,10 +952,11 @@ try:
                     sound_chooser.set_sound_cycle()
                     sound_chooser.running = True
                     sound_chooser.play()
-                else:
-                    pass
+                    last_msg2 = msg2
 
-                last_msg2 = msg2
+                else:
+                    last_msg2 = msg2
+
             
             elif msg2 == "False":
                 # Testing amplitude
@@ -972,9 +973,10 @@ try:
                     sound_chooser.set_sound_cycle()
                     sound_chooser.running = True
                     sound_chooser.play()
+                    last_msg2 = msg2
+
                 else:
-                    pass
-                last_msg2 = msg2
+                    last_msg2 = msg2
 
             # # Setting sound to play 
             # sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
