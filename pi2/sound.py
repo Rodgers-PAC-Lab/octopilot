@@ -388,6 +388,9 @@ class SoundChooser_IntermittentBursts(object):
         Call this method to set the acoustic parameters and timing
         parameters of sounds on the left and right channels.
         
+        TODO: instead of harcoding left_params and right_params, accept
+        a list of params.
+        
         left_params and right_params : dict with keys
             silenced : bool
                 If True, no sound will be played from that channel
