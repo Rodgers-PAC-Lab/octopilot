@@ -883,7 +883,7 @@ try:
         if last_msg2 == None:
             if msg2 == "True":
                 sound_chooser.amplitude = 0.25 * sound_chooser.amplitude
-            elif msg2 == "False":
+            elif msg2 == "False" or None:
                 sound_chooser.amplitude = sound_chooser.amplitude
 
             # Emptying queue and setting sound to play
