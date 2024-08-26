@@ -225,6 +225,9 @@ class Worker(QObject):
         # Used to create a QTimer when the sequence is started
         self.timer = None  
         
+        # Default timeout in ms
+        self.update_pi_timeout = 500
+        
         # Used to keep track of the current task (used in naming the CSV file)
         self.current_task = None 
         self.ports = None
@@ -349,7 +352,7 @@ class Worker(QObject):
         ## Start the timer loop
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_Pi)
-        self.timer.start(10)
+        self.timer.start(self.update_pi_timeout)
 
     @pyqtSlot()
     def stop_sequence(self):
@@ -419,7 +422,7 @@ class Worker(QObject):
         return new_choice
     
     @pyqtSlot()
-    def update_Pi(self):
+    def update_Pi(self, verbose=True):
         """Main loop of Worker
         
         Connected to self.timer
@@ -428,18 +431,7 @@ class Worker(QObject):
         for the GUI.
         Method to handle the updating Pis (sending and receiving poke related 
         information and executing logic)
-        """
-        
-        ## Get time information
-        # Updating time related information 
-        # Used to name the file 
-        current_time = datetime.now() 
-        
-        # Used to display elapsed time in the Arena Widget class
-        elapsed_time = current_time - self.initial_time 
-        
-        
-        """
+
         This is the logic on what to do when the GUI receives messages that aren't pokes
         'rpi': Initial connection to all the pis trying to connect to the GUI 
         (Debug message to see if all Pis are connected)
@@ -450,65 +442,53 @@ class Worker(QObject):
         the values are extracted from a string and then appended to lists to be saved in a csv 
         """
         
-        ## Waiting to receive messages from the pis
-        # Sukrith: why is an identity added for every message?
-        # Shouldn't it only be when it initalizes?
-        # What happens if there is no message?
-        identity, message = self.zmq_socket.recv_multipart()
-        self.identities.add(identity)
+        ## Check for any messages from the Pis
+        no_message_received = False
+        try:
+            # Without NOBLOCK, this will hang until a message is received
+            # TODO: use Poller here?
+            identity, message = self.zmq_socket.recv_multipart(
+                flags=zmq.NOBLOCK)
+        except zmq.error.Again:
+            no_message_received = True
+
+        # If there's no message received, there is nothing to do
+        if no_message_received:
+            return
         
-        # Converting all messages from bytes to strings
+        # Otherwise decode it
+        # TODO: in the future support bytes
+        identity_str = identity.decode('utf-8')
         message_str = message.decode('utf-8')
+
         
-        print('received message: {}'.format(message_str))
-        
-        ## Message from pi side that initiates the connection 
-        if "rpi" in message_str:
-            print_out("Connected to Raspberry Pi:", message_str)
+        ## Debug print identity and message
+        if verbose:
+            print(f'received message {message} from identity {identity}')
         
         
-        ## Message to stop updates if the session is stopped
-        elif message_str.strip().lower() == "stop":
-            print_out("Received 'stop' message, aborting update.")
+        ## If a message was received, then keep track of the identities
+        # TODO: wait to start session till all Pis have connected
+        if identity_str not in self.identies:
+            # This better be a hello message
+            if not message_str.startswith('hello'):
+                print(
+                    f'warning: first message from new identity {identity_str} '
+                    f'was not hello but rather {message_str}'
+                    )
+            else:
+                print(f'first message from new identity {identity_str}')
+            
+            # Either way keep track of it
+            self.identities.add(identity_str)
+            
+            # Either way, return
             return
         
         
-        #~ ## Sending the initial message to start the loop
-        #~ self.zmq_socket.send_multipart([
-            #~ identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
-
-        
-        ## Starting next session
-        elif message_str.strip().lower() == "start":
-            self.zmq_socket.send_multipart([
-                identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
-
-        
-        ## Keeping track of current parameters for every trial 
-        elif "Current Parameters" in message_str:
-            ## Get the current parameters
-            sound_parameters = message_str
-            print_out("Updated:", message_str) 
-            
-            # Remove the "Current Parameters - " part and strip any whitespace
-            param_string = sound_parameters.split("-", 1)[1].strip()
-            
-            # Extracting parameters from message strings
-            params = {}
-            for param in param_string.split(','):
-                key, value = param.split(':')
-                params[key.strip()] = value.strip()
-            
-            # Extract and convert the strings to numeric values
-            self.current_amplitude = float(params.get("Amplitude", 0))
-            self.current_target_rate = float(params.get("Rate", "0").split()[0])
-            self.current_target_temporal_log_std = float(params.get("Irregularity", "0").split()[0])
-            self.current_center_freq = float(params.get("Center Frequency", "0").split()[0])
-            self.current_bandwidth = float(params.get("Bandwidth", "0"))
-            
-        
-        ## A poke was received
-        else:
+        ## Handle whatever message it was
+        if message_str.startswith('poke'):
+            ## A poke was received
             self.handle_poke_message(message_str, identity, elapsed_time)
 
     def handle_poke_message(self, message_str, identity, elapsed_time):
