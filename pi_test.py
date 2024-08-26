@@ -958,7 +958,7 @@ try:
                         sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
                     
                     sound_chooser.set_sound_cycle()
-                    sound_chooser.play()
+                    sound_chooser.append_sound_to_queue_as_needed()
                     last_msg2 = msg2
                 else:
                     last_msg2 = msg2
@@ -975,7 +975,7 @@ try:
                         sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
                     
                     sound_chooser.set_sound_cycle()
-                    sound_chooser.play()
+                    sound_chooser.append_sound_to_queue_as_needed()
                     last_msg2 = msg2
                 else:
                     last_msg2 = msg2
@@ -1127,6 +1127,12 @@ try:
                 # Opening Solenoid Valve
                 flash()
                 open_valve(prev_port)
+
+                # Verifying state from bonsai 
+                if last_msg2 == "True":
+                    sound_chooser.amplitude = 4 * sound_chooser.amplitude
+                elif last_msg2 == "False":
+                    sound_chooser.amplitude = sound_chooser.amplitude
                 
                 # Adding an inter trial interval
                 time.sleep(1)
@@ -1135,11 +1141,10 @@ try:
                 # TODO: fix this; rate_min etc are not necessarily defined
                 # yet, or haven't changed recently
                 # Reset play mode to 'none'
+
                 new_params = sound_chooser.update_parameters(
                     rate_min, rate_max, irregularity_min, irregularity_max, 
                     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
-                sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
-                    sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
                 poke_socket.send_string(new_params)
                 
                 # Turn off the currently active LED
