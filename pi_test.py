@@ -883,18 +883,20 @@ try:
     while True:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
-        sound_chooser.append_sound_to_queue_as_needed()
+        
         ## Check for incoming messages on bonsai_socket
         if msg2 != last_msg:
             sound_chooser.empty_queue()
             sound_chooser.set_sound_cycle()
             sound_chooser.play()
+        
+        # Appending sound to queue 
+        sound_chooser.append_sound_to_queue_as_needed()
 
         socks = dict(poller.poll(100))
         socks2 = dict(poller.poll(100))
         socks3 = dict(poller.poll(100))
 
-        
         ## Check for incoming messages on json_socket
         # If so, use it to update the acoustic parameters
         if json_socket in socks and socks[json_socket] == zmq.POLLIN:
