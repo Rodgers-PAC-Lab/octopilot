@@ -884,11 +884,7 @@ try:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
         
-        ## Check for incoming messages on bonsai_socket
-        if msg2 != last_msg:
-            sound_chooser.empty_queue()
-            sound_chooser.set_sound_cycle()
-            sound_chooser.play()
+
         
         # Appending sound to queue 
         sound_chooser.append_sound_to_queue_as_needed()
@@ -1102,6 +1098,21 @@ try:
                     # Current Reward Port
                     prev_port = value
                     print(f"Current Reward Port: {value}")
+                
+            # Trying to change volume based on the messages on the bonsai socket
+            elif msg2 != last_msg:
+                sound_chooser.running = False
+                sound_chooser.set_channel('none')
+                sound_chooser.empty_queue()
+
+                # Setting sound to play 
+                sound_chooser.update_parameters(
+                    rate_min, rate_max, irregularity_min, irregularity_max, 
+                    amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
+
+                sound_chooser.set_sound_cycle()
+                sound_chooser.running = True
+                sound_chooser.play()
                 
             elif msg.startswith("Reward Poke Completed"):
                 # This seems to occur when the GUI detects that the poked
