@@ -926,14 +926,14 @@ try:
 
         # Logic to handle messages from the bonsai socket
         if bonsai_socket in socks2 and socks2[bonsai_socket] == zmq.POLLIN:
-            last_msg = False
+            last_msg = "False"
             msg2 = bonsai_socket.recv_string()  
             
             # Different messages have different effects
             if msg2 == "True": 
                 # Condition to start the task
-                amplitude_min = 0.25 * config_data['amplitude_min']
-                amplitude_max = 0.25 * config_data['amplitude_max']
+                amplitude_min = 0.25 * amplitude_min
+                amplitude_max = 0.25 * amplitude_min
                 print("Decreasing the volume of the sound")
                 last_msg = msg2
             
@@ -955,7 +955,6 @@ try:
                 sound_chooser.running = False
                 sound_chooser.empty_queue()
                 sound_chooser.set_channel('none')
-                time.sleep(0.5)
                 sound_chooser.set_sound_cycle()
                 if value == int(params['nosepokeL_id']):
                     sound_chooser.set_channel('left')
