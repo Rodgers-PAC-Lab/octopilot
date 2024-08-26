@@ -938,33 +938,47 @@ try:
             # Different messages have different effects
             if msg2 == "True": 
                 if last_msg2 == "False":
+                    print("Decreasing the volume of the sound")
                     # Condition to start the task
                     sound_chooser.amplitude = 0.25 * sound_chooser.amplitude
                     sound_chooser.empty_queue()
+                    time.sleep(0.5)
+
+
+                    # Setting sound to play 
+                    sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+                        sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
+                    
                     sound_chooser.set_sound_cycle()
                     sound_chooser.running = True
                     sound_chooser.play()
                 else:
                     pass
-                print("Decreasing the volume of the sound")
+
                 last_msg2 = msg2
             
             elif msg2 == "False":
                 # Testing amplitude
                 if last_msg2 == "True":
+                    print("Increasing the volume of the sound")
                     sound_chooser.amplitude = 4 * sound_chooser.amplitude
                     sound_chooser.empty_queue()
+                    time.sleep(0.5)
+
+                    # Setting sound to play 
+                    sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+                        sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
+                    
                     sound_chooser.set_sound_cycle()
                     sound_chooser.running = True
                     sound_chooser.play()
                 else:
                     pass
-                print("Increasing the volume of the sound")
                 last_msg2 = msg2
 
-            # Setting sound to play 
-            sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
-                sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
+            # # Setting sound to play 
+            # sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+            #     sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
             
             # if msg2 != last_msg2:
             #     sound_chooser.running = False
