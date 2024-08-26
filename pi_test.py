@@ -884,6 +884,19 @@ try:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
         
+        # Checking state of message from bonsai
+        if msg2 != last_msg2:
+            # Emptying queue and setting sound to play
+            sound_chooser.empty_queue()
+
+            # Setting sound to play 
+            sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+                sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
+            
+            sound_chooser.set_sound_cycle()
+            #sound_chooser.running = True
+            sound_chooser.play()
+
         # Appending sound to queue 
         sound_chooser.append_sound_to_queue_as_needed()
 
@@ -942,15 +955,7 @@ try:
                     print("Decreasing the volume of the sound")
                     # Condition to start the task
                     sound_chooser.amplitude = 0.25 * sound_chooser.amplitude
-                    sound_chooser.empty_queue()
 
-                    # Setting sound to play 
-                    sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
-                        sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
-                    
-                    sound_chooser.set_sound_cycle()
-                    #sound_chooser.running = True
-                    sound_chooser.play()
                     last_msg2 = msg2
 
                 else:
@@ -963,15 +968,6 @@ try:
                 if last_msg2 == "True":
                     print("Increasing the volume of the sound")
                     sound_chooser.amplitude = 4 * sound_chooser.amplitude
-                    sound_chooser.empty_queue()
-
-                    # Setting sound to play 
-                    sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
-                        sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
-                    
-                    sound_chooser.set_sound_cycle()
-                    #sound_chooser.running = True
-                    sound_chooser.play()
                     last_msg2 = msg2
 
                 else:
