@@ -932,7 +932,6 @@ try:
 
         # Logic to handle messages from the bonsai socket
         if bonsai_socket in socks2 and socks2[bonsai_socket] == zmq.POLLIN:
-            last_msg2 = False
             msg2 = bonsai_socket.recv_string()  
             
             # Different messages have different effects
