@@ -416,7 +416,7 @@ class SoundQueuer:
         # This is for counting frames of silence
         self.n_frames = 0
 
-    def append_sound_to_queue_as_needed(self):
+    def append_sound_to_queue_as_needed(self, verbose=False):
         """Dump frames from `self.sound_cycle` into queue
 
         The queue is filled until it reaches `self.target_qsize`
@@ -429,6 +429,7 @@ class SoundQueuer:
         # needs to be increased.
         # Get the size of queue now
         qsize = len(self.sound_queue)
+        start_qsize = qsize
 
         # Add frames until target size reached
         while qsize < self.target_qsize:
@@ -441,6 +442,10 @@ class SoundQueuer:
             
             # Update qsize
             qsize = len(self.sound_queue)
+        
+        if verbose:
+            if start_qsize != qsize:
+                print('topped up qsize: {} to {}'.format(start_qsize, qsize))
             
     def empty_queue(self, tosize=0):
         """Empty queue"""
@@ -461,6 +466,9 @@ class SoundQueuer:
                 break
         
         qsize = len(sound_queue)
+
+    def __next__(self):
+        return self.sound_queue.pop()
 
 class DummySoundQueue(object):
     """Dummy sound queue for testing. Always empty"""
@@ -496,7 +504,7 @@ class SoundPlayer(object):
         This is only passed to jack.Client, which requires it.
     
     """
-    def __init__(self, sound_queue, name='jack_client', verbose=True):
+    def __init__(self, sound_queuer, name='jack_client', verbose=True):
         """Initialize a new JackClient
 
         This object has one job: get frames of audio out of sound_queue
@@ -526,7 +534,7 @@ class SoundPlayer(object):
         """
         ## Store provided arguments
         self.name = name
-        self.sound_queue = sound_queue
+        self.sound_queuer = sound_queuer
         self.verbose = verbose
         
         # Keep track of time of last warning
@@ -589,22 +597,34 @@ class SoundPlayer(object):
         # Try to get audio data from self.sound_queue
         queue_is_empty = False
         try:
-            data = self.sound_queue.pop()
+            data = next(self.sound_queuer)
         except IndexError:
             # The queue is empty
             # Play zeros and set the flag
             queue_is_empty = True
             data = np.zeros((self.client.blocksize, 2), dtype='float32')
         
-        # Warn if needed
-        dt_now = datetime.datetime.now()
-        if (self.dt_last_warning is None or 
-                dt_now > self.dt_last_warning + datetime.timedelta(seconds=1)):
-            self.dt_last_warning = dt_now
-            if self.verbose:
-                print(
-                    "warning: sound_queue is empty, playing silence and "
-                    "silencing warnings for 1 s")
+        # Warn if the queue was empty
+        if queue_is_empty:
+            # Calculate how long it's been since the last warning
+            dt_now = datetime.datetime.now()
+            if self.dt_last_warning is not None:
+                warning_thresh = (self.dt_last_warning + 
+                    datetime.timedelta(seconds=1))
+            
+            # If it's been long enough since the warning, or if warning
+            # has never been issued, warn now
+            if self.dt_last_warning is None or dt_now > warning_thresh:
+                # Set time of last warning
+                self.dt_last_warning = dt_now
+                
+                # Warn
+                # This is the last thing we check, so that verbose can be 
+                # changed and everything will still be up to date
+                if self.verbose:
+                    print(
+                        "warning: sound_queue is empty, playing silence and "
+                        "silencing warnings for 1 s")
         
         # Make sure audio data has the correct shape
         if data.shape != (self.client.blocksize, 2):

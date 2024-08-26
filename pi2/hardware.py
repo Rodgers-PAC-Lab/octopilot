@@ -158,6 +158,8 @@ class HardwareController(object):
             # TODO: figure out whether to init sound_chooser first (in 
             # which case how to know blocksize?) or init sound_player first
             # (in which case it needs to be ready to go without sound_chooser)
+            # I think the best thing to do is store blocksize and fs in
+            # params, and use that also to start jackd
             self.sound_chooser = sound.SoundChooser_IntermittentBursts(
                 blocksize=1024,
                 fs=192000,
@@ -167,6 +169,9 @@ class HardwareController(object):
             self.sound_queuer = sound.SoundQueuer(
                 sound_chooser=self.sound_chooser)
         
+        # Fill the queue before we instantiate sound_player
+        self.sound_queuer.append_sound_to_queue_as_needed()
+        
         # This object pulls frames of audio from that queue and gives them
         # to a jack.Client that it contains
         # TODO: probably instantiate the jack.Client here and provide it
@@ -174,7 +179,7 @@ class HardwareController(object):
         # sound_queuer doesn't have anything to play yet
         self.sound_player = sound.SoundPlayer(
             name='sound_player', 
-            sound_queue=self.sound_queuer.sound_queue,
+            sound_queuer=self.sound_queuer,
             )
         
         # Set up networking
