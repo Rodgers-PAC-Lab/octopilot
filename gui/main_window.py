@@ -226,5 +226,5 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         # Iterate through identities and send 'exit' message
         for identity in self.arena_widget.worker.identities:
-            self.arena_widget.worker.socket.send_multipart([identity, b"exit"])
+            self.arena_widget.worker.zmq_socket.send_multipart([identity, b"exit"])
         event.accept()

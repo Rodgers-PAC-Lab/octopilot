@@ -185,10 +185,10 @@ class Worker(QObject):
         # (the DEALER socket on the Pi initiates the connection and then the ROUTER 
         # manages the message queue from different dealers and sends acknowledgements)
         self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.ROUTER)
+        self.zmq_socket = self.context.socket(zmq.ROUTER)
         
         # Making it bind to the port used for sending poke related information
-        self.socket.bind("tcp://*" + params['worker_port'])   
+        self.zmq_socket.bind("tcp://*" + params['worker_port'])   
         
         
         ## Store stimulu params
@@ -326,7 +326,7 @@ class Worker(QObject):
         
         # Sending the current reward port to all connected pis
         for identity in self.identities:
-            self.socket.send_multipart([identity, bytes(reward_message, 'utf-8')])
+            self.zmq_socket.send_multipart([identity, bytes(reward_message, 'utf-8')])
         
         
         ## Set up port labels and indices
@@ -438,8 +438,6 @@ class Worker(QObject):
         # Used to display elapsed time in the Arena Widget class
         elapsed_time = current_time - self.initial_time 
         
-        # Update the last poke timestamp whenever a poke  occurs
-        self.last_poke_timestamp = current_time 
         
         """
         This is the logic on what to do when the GUI receives messages that aren't pokes
@@ -451,71 +449,67 @@ class Worker(QObject):
         'Current Parameters': Sends all the sound parameters for every trial; 
         the values are extracted from a string and then appended to lists to be saved in a csv 
         """
-        try:
-            ## Waiting to receive messages from the pis
-            # Sukrith: why is an identity added for every message?
-            # Shouldn't it only be when it initalizes?
-            # What happens if there is no message?
-            identity, message = self.socket.recv_multipart()
-            self.identities.add(identity)
-            
-            # Converting all messages from bytes to strings
-            message_str = message.decode('utf-8')
-            
-            
-            print('received message: {}'.format(message_str))
-            
-            ## Message from pi side that initiates the connection 
-            if "rpi" in message_str:
-                print_out("Connected to Raspberry Pi:", message_str)
-            
-            
-            ## Message to stop updates if the session is stopped
-            if message_str.strip().lower() == "stop":
-                print_out("Received 'stop' message, aborting update.")
-                return
-            
-            
-            ## Sending the initial message to start the loop
-            self.socket.send_multipart([
+        
+        ## Waiting to receive messages from the pis
+        # Sukrith: why is an identity added for every message?
+        # Shouldn't it only be when it initalizes?
+        # What happens if there is no message?
+        identity, message = self.zmq_socket.recv_multipart()
+        self.identities.add(identity)
+        
+        # Converting all messages from bytes to strings
+        message_str = message.decode('utf-8')
+        
+        print('received message: {}'.format(message_str))
+        
+        ## Message from pi side that initiates the connection 
+        if "rpi" in message_str:
+            print_out("Connected to Raspberry Pi:", message_str)
+        
+        
+        ## Message to stop updates if the session is stopped
+        elif message_str.strip().lower() == "stop":
+            print_out("Received 'stop' message, aborting update.")
+            return
+        
+        
+        #~ ## Sending the initial message to start the loop
+        #~ self.zmq_socket.send_multipart([
+            #~ identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
+
+        
+        ## Starting next session
+        elif message_str.strip().lower() == "start":
+            self.zmq_socket.send_multipart([
                 identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
-            
-            ## Starting next session
-            if message_str.strip().lower() == "start":
-                self.socket.send_multipart([
-                    identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
-    
-            
-            ## Keeping track of current parameters for every trial 
-            if "Current Parameters" in message_str:
-                ## Get the current parameters
-                sound_parameters = message_str
-                print_out("Updated:", message_str) 
-                
-                # Remove the "Current Parameters - " part and strip any whitespace
-                param_string = sound_parameters.split("-", 1)[1].strip()
-                
-                # Extracting parameters from message strings
-                params = {}
-                for param in param_string.split(','):
-                    key, value = param.split(':')
-                    params[key.strip()] = value.strip()
-                
-                # Extract and convert the strings to numeric values
-                self.current_amplitude = float(params.get("Amplitude", 0))
-                self.current_target_rate = float(params.get("Rate", "0").split()[0])
-                self.current_target_temporal_log_std = float(params.get("Irregularity", "0").split()[0])
-                self.current_center_freq = float(params.get("Center Frequency", "0").split()[0])
-                self.current_bandwidth = float(params.get("Bandwidth", "0"))
-                
-            
-            ## A poke was received
-            else:
-                self.handle_poke_message(message_str, identity, elapsed_time)
         
-        except ValueError:
-            pass
+        ## Keeping track of current parameters for every trial 
+        elif "Current Parameters" in message_str:
+            ## Get the current parameters
+            sound_parameters = message_str
+            print_out("Updated:", message_str) 
+            
+            # Remove the "Current Parameters - " part and strip any whitespace
+            param_string = sound_parameters.split("-", 1)[1].strip()
+            
+            # Extracting parameters from message strings
+            params = {}
+            for param in param_string.split(','):
+                key, value = param.split(':')
+                params[key.strip()] = value.strip()
+            
+            # Extract and convert the strings to numeric values
+            self.current_amplitude = float(params.get("Amplitude", 0))
+            self.current_target_rate = float(params.get("Rate", "0").split()[0])
+            self.current_target_temporal_log_std = float(params.get("Irregularity", "0").split()[0])
+            self.current_center_freq = float(params.get("Center Frequency", "0").split()[0])
+            self.current_bandwidth = float(params.get("Bandwidth", "0"))
+            
+        
+        ## A poke was received
+        else:
+            self.handle_poke_message(message_str, identity, elapsed_time)
 
     def handle_poke_message(self, message_str, identity, elapsed_time):
         ## Converting message string to int 
@@ -576,7 +570,7 @@ class Worker(QObject):
             
             ## Sending an acknowledgement to the Pis when the reward port is poked
             for identity in self.identities:
-                self.socket.send_multipart([
+                self.zmq_socket.send_multipart([
                     identity, 
                     bytes(f"Reward Poke Completed: {self.reward_port}", 
                     'utf-8]')])
@@ -607,7 +601,7 @@ class Worker(QObject):
             
             ## Sending the reward port to all connected Pis after a trial is completed
             for identity in self.identities:
-                self.socket.send_multipart([
+                self.zmq_socket.send_multipart([
                 identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
         else:
@@ -677,16 +671,18 @@ class Worker(QObject):
         
         Called by arena_widget.start_sequence
         """
+        print('sending start message to each pi')
+        
         # Send start to each Pi
         for identity in self.identities:
-            self.socket.send_multipart([identity, b"start"])
+            self.zmq_socket.send_multipart([identity, b"start"])
     
     
     def stop_message(self):        
         """Send a stop message to the pi"""
         # Send a stop message to each pi
         for identity in self.identities:
-            self.socket.send_multipart([identity, b"stop"])
+            self.zmq_socket.send_multipart([identity, b"stop"])
         
         # Set each nosepoke circle to gray
         for index, Pi in enumerate(self.nosepoke_circles):
