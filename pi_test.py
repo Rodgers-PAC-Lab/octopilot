@@ -167,11 +167,6 @@ class Noise:
             # Better solution is to encode this into attenuation profile,
             # or a separate "gain" parameter
             self.table = self.table * np.sqrt(10)
-            
-            # Apply the attenuation to each column
-            for n_column in range(self.table.shape[1]):
-                self.table[:, n_column] = apply_attenuation(
-                    self.table[:, n_column], self.attenuation, self.fs)
         
         # Break the sound table into individual chunks of length blocksize
         self.chunk()
@@ -894,7 +889,6 @@ try:
                 sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
             
             sound_chooser.set_sound_cycle()
-            #sound_chooser.running = True
             sound_chooser.play()
         
         else:
@@ -931,7 +925,6 @@ try:
             center_freq_max = config_data['center_freq_max']
             bandwidth = config_data['bandwidth']
             
-            
             # Update the jack client with the new acoustic parameters
             new_params = sound_chooser.update_parameters(
                 rate_min, rate_max, irregularity_min, irregularity_max, 
@@ -950,7 +943,7 @@ try:
             
             # Different messages have different effects
             if msg2 == "True": 
-                if last_msg2 == "False":
+                if last_msg2 == "False" or last_msg2 == None:
                     print("Decreasing the volume of the sound")
                     # Condition to start the task
                     sound_chooser.amplitude = 0.25 * sound_chooser.amplitude
@@ -973,7 +966,6 @@ try:
                     print("Increasing the volume of the sound")
                     sound_chooser.amplitude = 4 * sound_chooser.amplitude
                     sound_chooser.empty_queue()
-                    time.sleep(0.5)
 
                     # Setting sound to play 
                     sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
@@ -985,17 +977,6 @@ try:
                     last_msg2 = msg2
                 else:
                     last_msg2 = msg2
-
-            # # Setting sound to play 
-            # sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
-            #     sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
-            
-            # if msg2 != last_msg2:
-            #     sound_chooser.running = False
-            #     sound_chooser.empty_queue()
-            #     sound_chooser.set_sound_cycle()
-            #     sound_chooser.running = True
-            #     sound_chooser.play()
 
         # Separate logic for Poketrain task
         if task == 'Poketrain':
@@ -1130,19 +1111,6 @@ try:
                     # Current Reward Port
                     prev_port = value
                     print(f"Current Reward Port: {value}")
-                
-            # # Trying to change volume based on the messages on the bonsai socket
-            # elif msg2 != last_msg2:
-            #     sound_chooser.running = False
-            #     sound_chooser.set_channel('none')
-            #     sound_chooser.empty_queue()
-
-            #     # Setting sound to play 
-            #     sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
-            #         sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
-
-            #     sound_chooser.set_sound_cycle()
-            #     sound_chooser.play()
                 
             elif msg.startswith("Reward Poke Completed"):
                 # This seems to occur when the GUI detects that the poked
