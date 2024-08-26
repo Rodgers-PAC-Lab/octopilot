@@ -1104,9 +1104,10 @@ try:
             # Different messages have different effects
             if msg2 == "True": 
                 # Condition to start the task
-                amplitude_min = 0.25 * amplitude_min
-                amplitude_max = 0.25 * amplitude_min
+                amplitude_min = 0.25 * config_data['amplitude_max']
+                amplitude_max = 0.25 * config_data['amplitude_max']
                 print("Decreasing the volume of the sound")
+                sound_chooser.empty_queue()
                 last_msg = msg2
             
             elif msg2 == "False":
@@ -1114,14 +1115,13 @@ try:
                 amplitude_min = config_data['amplitude_min']
                 amplitude_max = config_data['amplitude_max']
                 print("Returning the volume of the sound to normal")
+                sound_chooser.empty_queue()
                 last_msg = msg2
 
             # Setting sound to play 
             sound_chooser.update_parameters(
                 rate_min, rate_max, irregularity_min, irregularity_max, 
                 amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
-            sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
-                sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
             
             if msg2 != last_msg:
                 sound_chooser.running = False
