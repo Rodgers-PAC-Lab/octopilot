@@ -1111,7 +1111,6 @@ try:
                     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
 
                 sound_chooser.set_sound_cycle()
-                sound_chooser.running = True
                 sound_chooser.play()
                 
             elif msg.startswith("Reward Poke Completed"):
