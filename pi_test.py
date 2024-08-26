@@ -950,10 +950,19 @@ try:
             
             # Different messages have different effects
             if msg2 == "True": 
-                if last_msg2 == "False" or last_msg2 == None:
+                if last_msg2 == "False":
                     print("Decreasing the volume of the sound")
                     # Condition to start the task
                     sound_chooser.amplitude = 0.25 * sound_chooser.amplitude
+                    sound_chooser.empty_queue()
+
+                    # Setting sound to play 
+                    sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+                        sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
+                    
+                    sound_chooser.set_sound_cycle()
+                    sound_chooser.running = True
+                    sound_chooser.play()
                     last_msg2 = msg2
                 else:
                     last_msg2 = msg2
@@ -963,9 +972,30 @@ try:
                 if last_msg2 == "True":
                     print("Increasing the volume of the sound")
                     sound_chooser.amplitude = 4 * sound_chooser.amplitude
+                    sound_chooser.empty_queue()
+                    time.sleep(0.5)
+
+                    # Setting sound to play 
+                    sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+                        sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
+                    
+                    sound_chooser.set_sound_cycle()
+                    sound_chooser.running = True
+                    sound_chooser.play()
                     last_msg2 = msg2
                 else:
                     last_msg2 = msg2
+
+            # # Setting sound to play 
+            # sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+            #     sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
+            
+            # if msg2 != last_msg2:
+            #     sound_chooser.running = False
+            #     sound_chooser.empty_queue()
+            #     sound_chooser.set_sound_cycle()
+            #     sound_chooser.running = True
+            #     sound_chooser.play()
 
         # Separate logic for Poketrain task
         if task == 'Poketrain':
@@ -1100,6 +1130,19 @@ try:
                     # Current Reward Port
                     prev_port = value
                     print(f"Current Reward Port: {value}")
+                
+            # # Trying to change volume based on the messages on the bonsai socket
+            # elif msg2 != last_msg2:
+            #     sound_chooser.running = False
+            #     sound_chooser.set_channel('none')
+            #     sound_chooser.empty_queue()
+
+            #     # Setting sound to play 
+            #     sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+            #         sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
+
+            #     sound_chooser.set_sound_cycle()
+            #     sound_chooser.play()
                 
             elif msg.startswith("Reward Poke Completed"):
                 # This seems to occur when the GUI detects that the poked
