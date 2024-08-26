@@ -1,5 +1,6 @@
-import pigpio
 import time
+import pigpio
+import zmq
 from . import sound
 from . import networking
 
@@ -206,7 +207,15 @@ class HardwareController(object):
         
         # Set up networking
         if start_networking:
-            self.set_up_networking()
+            # Instantiates self.network_communicator
+            # This will also connect to the GUI
+            self.network_communicator = networking.NetworkCommunicator(
+                identity=self.params['identity'], 
+                pi_identity=self.params['identity'], 
+                gui_ip=self.params['gui_ip'], 
+                poke_port=self.params['poke_port'], 
+                config_port=self.params['config_port'],
+                )
         else:
             self.network_communicator = None
     
@@ -218,16 +227,6 @@ class HardwareController(object):
         self.pig.set_mode(self.pins['led_blue_l'], pigpio.OUTPUT)
         self.pig.set_mode(self.pins['led_blue_r'], pigpio.OUTPUT)        
     
-    def set_up_networking(self):
-        ## Set up networking
-        self.network_communicator = networking.NetworkCommunicator(
-            identity=self.params['identity'], 
-            pi_identity=self.params['identity'], 
-            gui_ip=self.params['gui_ip'], 
-            poke_port=self.params['poke_port'], 
-            config_port=self.params['config_port'],
-            )
-
     def flash(self):
         """Flash the blue LEDs whenever a trial is completed"""
         self.pig.write(self.pins['led_blue_l'], 1) # Turning LED on
@@ -254,10 +253,10 @@ class HardwareController(object):
         self.prev_port = None
         
         # Turn off pins
-        self.pig.write(pins['led_red_l'], 0)
-        self.pig.write(pins['led_red_r'], 0)
-        self.pig.write(pins['led_green_l'], 0)
-        self.pig.write(pins['led_green_r'], 0)
+        self.pig.write(self.pins['led_red_l'], 0)
+        self.pig.write(self.pins['led_red_r'], 0)
+        self.pig.write(self.pins['led_green_l'], 0)
+        self.pig.write(self.pins['led_green_r'], 0)
         
         # Empty the queue of sound
         self.sound_queuer.empty_queue()
@@ -392,11 +391,7 @@ class HardwareController(object):
             # Waiting to receive message strings that control the main loop
             msg = self.network_communicator.poke_socket.recv_string()  
     
-            self.stop_running = handle_message_on_poke_socket(
-                msg, 
-                self.network_communicator.poke_socket, 
-                self.sound_queuer, 
-                self.sound_player)        
+            self.stop_running = self.handle_message_on_poke_socket(msg)
 
     def main_loop(self):
         """Loop forever until told to stop, then exit
@@ -417,10 +412,10 @@ class HardwareController(object):
                 # queue until the program stops
                 self.sound_queuer.append_sound_to_queue_as_needed()
                 
-                # Check json_socket for incoming messages about acoustic
-                # parameters
-                if self.network_communicator is not None:
-                    self.check_json_socket(socks)
+                #~ # Check json_socket for incoming messages about acoustic
+                #~ # parameters
+                #~ if self.network_communicator is not None:
+                    #~ self.check_json_socket(socks)
                 
                 # Check poke_socket for incoming messages about exit, stop,
                 # start, reward, etc

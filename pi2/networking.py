@@ -12,13 +12,19 @@ parts of the code, this is why two network ports need to be used
     (so that audio parameters can be set for each trial)
 """
 
-## INITIALIZING NETWORK CONNECTION
 import zmq
 
 
 ## This class is instantiated by HardwareController
 class NetworkCommunicator(object):
-    """Handles communication with GUI"""
+    """Handles communication with GUI
+    
+    Methods
+    -------
+    __init__ : Calls set_up_poke_socket and also creates a Poller and registers
+        sockets with it
+    set_up_poke_socket : Creates sockets and connects to the GUI
+    """
     def __init__(self, identity, pi_identity, gui_ip, poke_port, config_port):
         """Init a new NetworkCommunicator
         
@@ -39,8 +45,8 @@ class NetworkCommunicator(object):
         
         Flow
         ----
-        * Set up self.poke_socket and self.json_socket
-        * Set up self.poller
+        * Set up self.poke_socket. This also sends a message to the GUI.
+        * Set up self.poller and register the scokets.
         """
         # Store required arguments
         self.pi_identity = pi_identity
@@ -51,16 +57,28 @@ class NetworkCommunicator(object):
 
         # Set up sockets
         self.set_up_poke_socket()
-        self.set_up_json_socket()
+        #self.set_up_json_socket()
 
         # Creating a poller object for both sockets that will be used to 
         # continuously check for incoming messages
         self.poller = zmq.Poller()
         self.poller.register(self.poke_socket, zmq.POLLIN)
-        self.poller.register(self.json_socket, zmq.POLLIN)        
+        #self.poller.register(self.json_socket, zmq.POLLIN)        
     
     def set_up_poke_socket(self):
-        """Connect to poke_socket"""
+        """Create `self.poke_socket` and connect to GUI
+        
+        Flow
+        * Create self.poke_context and self.poke_socket (a zmq.DEALER).
+          Identity of self.poke_socket is self.pi_identity
+          TODO: what does 'identity' of a socket do?
+        * Connect to the router IP by combining GUI IP with poke_port
+        * Send our identity to the GUI, which also adds this pi to the GUI's
+          list of known identities.
+        
+        This doesn't appear to be blocking: even if there is nothing running
+        on the GUI computer, this function will successfully complete.
+        """
         ## Create socket
         # Creating a DEALER socket for communication regarding poke and poke times
         self.poke_context = zmq.Context()
@@ -107,6 +125,6 @@ class NetworkCommunicator(object):
         # Sometimes gets stuck here?
         self.poke_context.term()
         
-        self.json_socket.close()
-        self.json_context.term()
+        #~ self.json_socket.close()
+        #~ self.json_context.term()
     

@@ -37,7 +37,7 @@ jackd_proc = daemons.start_jackd(verbose=True)
 
 
 ## Start the main loop
-hc = hardware.HardwareController(pins=pins, params=params)
+hc = hardware.HardwareController(pins=pins, params=params, start_networking=True)
 hc.main_loop()
 
 

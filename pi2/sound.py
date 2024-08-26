@@ -501,7 +501,7 @@ class SoundQueuer:
             causing an xrun.
         """
         # Continue until we're at or below the target size
-        while len(sound_queue) > tosize:
+        while len(self.sound_queue) > tosize:
             try:
                 self.sound_queue.popleft()
             except IndexError:
