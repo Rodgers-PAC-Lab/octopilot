@@ -879,8 +879,13 @@ try:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
         
-        # Checking state of message from bonsai
-        if msg2 != last_msg2:
+        # Initial logic when bonsai is started
+        if last_msg2 == None:
+            if msg2 == "True":
+                sound_chooser.amplitude = 0.25 * sound_chooser.amplitude
+            elif msg2 == "False":
+                sound_chooser.amplitude = sound_chooser.amplitude
+
             # Emptying queue and setting sound to play
             sound_chooser.empty_queue()
 
@@ -954,7 +959,6 @@ try:
                         sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
                     
                     sound_chooser.set_sound_cycle()
-                    sound_chooser.running = True
                     sound_chooser.play()
                     last_msg2 = msg2
                 else:
@@ -972,7 +976,6 @@ try:
                         sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
                     
                     sound_chooser.set_sound_cycle()
-                    sound_chooser.running = True
                     sound_chooser.play()
                     last_msg2 = msg2
                 else:
