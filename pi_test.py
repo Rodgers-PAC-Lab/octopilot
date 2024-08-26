@@ -878,27 +878,26 @@ try:
     while True:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
-        
+
         # Initial logic when bonsai is started
         if last_msg2 == None:
             if msg2 == "True":
+                # Reducing volume of the sound
                 sound_chooser.amplitude = 0.25 * sound_chooser.amplitude
+            
+                # Emptying queue and setting sound to play
+                sound_chooser.empty_queue()
+
+                # Setting sound to play 
+                sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+                    sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
+                sound_chooser.set_sound_cycle()
+                sound_chooser.play()
             elif msg2 == "False" or None:
                 sound_chooser.amplitude = sound_chooser.amplitude
-
-            # Emptying queue and setting sound to play
-            sound_chooser.empty_queue()
-
-            # Setting sound to play 
-            sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
-                sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
-            
-            sound_chooser.set_sound_cycle()
-            sound_chooser.play()
         
-        else:
-            # Appending sound to queue 
-            sound_chooser.append_sound_to_queue_as_needed()
+        # Appending sound to queue 
+        sound_chooser.append_sound_to_queue_as_needed()
 
         socks = dict(poller.poll(100))
         socks2 = dict(poller.poll(100))
