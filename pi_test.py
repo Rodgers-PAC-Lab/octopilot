@@ -896,9 +896,10 @@ try:
             sound_chooser.set_sound_cycle()
             #sound_chooser.running = True
             sound_chooser.play()
-
-        # Appending sound to queue 
-        sound_chooser.append_sound_to_queue_as_needed()
+        
+        else:
+            # Appending sound to queue 
+            sound_chooser.append_sound_to_queue_as_needed()
 
         socks = dict(poller.poll(100))
         socks2 = dict(poller.poll(100))
