@@ -950,27 +950,20 @@ try:
             
             # Different messages have different effects
             if msg2 == "True": 
-                print(f"Current message:", msg2)
-                print(f"Last message:", last_msg2)
                 if last_msg2 == "False" or last_msg2 == None:
                     print("Decreasing the volume of the sound")
                     # Condition to start the task
                     sound_chooser.amplitude = 0.25 * sound_chooser.amplitude
-
                     last_msg2 = msg2
-
                 else:
                     last_msg2 = msg2
 
             elif msg2 == "False":
-                print(f"Current message:", msg2) 
-                print(f"Last message:", last_msg2)
                 # Testing amplitude
                 if last_msg2 == "True":
                     print("Increasing the volume of the sound")
                     sound_chooser.amplitude = 4 * sound_chooser.amplitude
                     last_msg2 = msg2
-
                 else:
                     last_msg2 = msg2
 
