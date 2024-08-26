@@ -924,6 +924,39 @@ try:
             # Debug print
             print("Parameters updated")
 
+        # Logic to handle messages from the bonsai socket
+        if bonsai_socket in socks2 and socks2[bonsai_socket] == zmq.POLLIN:
+            last_msg = False
+            msg2 = bonsai_socket.recv_string()  
+            
+            # Different messages have different effects
+            if msg2 == "True": 
+                # Condition to start the task
+                amplitude_min = 0.25 * config_data['amplitude_min']
+                amplitude_max = 0.25 * config_data['amplitude_max']
+                print("Decreasing the volume of the sound")
+                last_msg = msg2
+            
+            elif msg2 == "False":
+                # Testing amplitude
+                amplitude_min = config_data['amplitude_min']
+                amplitude_max = config_data['amplitude_max']
+                last_msg = msg2
+
+            # Setting sound to play 
+            sound_chooser.update_parameters(
+                rate_min, rate_max, irregularity_min, irregularity_max, 
+                amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
+            sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+                sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
+            
+            if msg2 != last_msg:
+                sound_chooser.running = False
+                sound_chooser.empty_queue()
+                sound_chooser.set_sound_cycle()
+                sound_chooser.running = True
+                sound_chooser.play()
+
         # Separate logic for Poketrain task
         if task == 'Poketrain':
             if left_poke_detected == True or right_poke_detected == True:
@@ -1095,44 +1128,6 @@ try:
            
             else:
                 print("Unknown message received:", msg)
-
-        # Logic to handle messages from the bonsai socket
-        if bonsai_socket in socks3 and socks3[bonsai_socket] == zmq.POLLIN:
-            last_msg = "False"
-            msg2 = bonsai_socket.recv_string()  
-            
-            # Different messages have different effects
-            if msg2 == "True": 
-                # Condition to start the task
-                amplitude_min = 0.25 * config_data['amplitude_max']
-                amplitude_max = 0.25 * config_data['amplitude_max']
-                print("Decreasing the volume of the sound")
-                sound_chooser.empty_queue()
-                last_msg = msg2
-            
-            elif msg2 == "False":
-                # Testing amplitude
-                amplitude_min = config_data['amplitude_min']
-                amplitude_max = config_data['amplitude_max']
-                print("Returning the volume of the sound to normal")
-                sound_chooser.empty_queue()
-                last_msg = msg2
-
-            # Setting sound to play 
-            sound_chooser.update_parameters(
-                rate_min, rate_max, irregularity_min, irregularity_max, 
-                amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
-            
-            if msg2 != last_msg:
-                sound_chooser.running = False
-                sound_chooser.empty_queue()
-                sound_chooser.set_channel('none')
-                sound_chooser.set_sound_cycle()
-                sound_chooser.play()
-                if value == int(params['nosepokeL_id']):
-                    sound_chooser.set_channel('left')
-                elif value == int(params['nosepokeR_id']):
-                    sound_chooser.set_channel('right')
 
 except KeyboardInterrupt:
     # Stops the pigpio connection
