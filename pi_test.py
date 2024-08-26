@@ -877,14 +877,12 @@ try:
 
     # Keeping track of the bonsai parameters to change the volume of the sound
     msg2 = None
-    last_msg = None
+    last_msg2 = None
     
     ## Loop forever
     while True:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
-        
-
         
         # Appending sound to queue 
         sound_chooser.append_sound_to_queue_as_needed()
@@ -934,31 +932,27 @@ try:
 
         # Logic to handle messages from the bonsai socket
         if bonsai_socket in socks2 and socks2[bonsai_socket] == zmq.POLLIN:
-            last_msg = False
+            last_msg2 = False
             msg2 = bonsai_socket.recv_string()  
             
             # Different messages have different effects
             if msg2 == "True": 
                 # Condition to start the task
-                amplitude_min = 0.25 * config_data['amplitude_min']
-                amplitude_max = 0.25 * config_data['amplitude_max']
+                sound_chooser.amplitude = 0.25 * sound_chooser.amplitude
                 print("Decreasing the volume of the sound")
-                last_msg = msg2
+                last_msg2 = msg2
             
             elif msg2 == "False":
                 # Testing amplitude
-                amplitude_min = config_data['amplitude_min']
-                amplitude_max = config_data['amplitude_max']
-                last_msg = msg2
+                sound_chooser.amplitude = 4 * sound_chooser.amplitude
+                print("Increasing the volume of the sound")
+                last_msg2 = msg2
 
             # Setting sound to play 
-            sound_chooser.update_parameters(
-                rate_min, rate_max, irregularity_min, irregularity_max, 
-                amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
             sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
                 sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
             
-            if msg2 != last_msg:
+            if msg2 != last_msg2:
                 sound_chooser.running = False
                 sound_chooser.empty_queue()
                 sound_chooser.set_sound_cycle()
@@ -1100,15 +1094,14 @@ try:
                     print(f"Current Reward Port: {value}")
                 
             # Trying to change volume based on the messages on the bonsai socket
-            elif msg2 != last_msg:
+            elif msg2 != last_msg2:
                 sound_chooser.running = False
                 sound_chooser.set_channel('none')
                 sound_chooser.empty_queue()
 
                 # Setting sound to play 
-                sound_chooser.update_parameters(
-                    rate_min, rate_max, irregularity_min, irregularity_max, 
-                    amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
+                sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+                    sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
 
                 sound_chooser.set_sound_cycle()
                 sound_chooser.play()
