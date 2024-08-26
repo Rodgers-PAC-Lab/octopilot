@@ -262,104 +262,63 @@ class HardwareController(object):
         # Empty the queue of sound
         self.sound_queuer.empty_queue()
 
-    def set_acoustic_parameters(self, **acoustic_kwargs):
-        """Use config_data to update acoustic parameters on sound_queuer
-        
-        Sends acoustic_kwargs to self.sound_queuer
-        Then calls set_sound_cycle
-        """
-        # Update the Sound Queue with the new acoustic parameters
-        self.sound_queuer.set_parameters(**acoustic_kwargs)
-        
-        # Update the sound cycle
-        self.sound_queuer.set_sound_cycle()
-
     def start_flashing(self, led_pin, pwm_frequency=1, pwm_duty_cycle=50):
         # Writing to the LED pin such that it blinks acc to the parameters 
         self.pig.set_mode(led_pin, pigpio.OUTPUT)
         self.pig.set_PWM_frequency(led_pin, pwm_frequency)
         self.pig.set_PWM_dutycycle(led_pin, pwm_duty_cycle)
 
-    def handle_reward_port_message(self, msg):
-        ## This specifies which port to reward
-        # Debug print
-        print(msg)
+    def end_trial(self):
+        # TODO: open valve here
         
-        # Extract the integer part from the message
-        msg_parts = msg.split()
-        if len(msg_parts) != 3 or not msg_parts[2].isdigit():
-            raise ValueError("Invalid message format: {}".format(msg))
+        # Silence sound generation
+        self.sound_chooser.set_audio_parameters(
+            left_params={'silenced': True},
+            right_params={'silenced': True},
+            )
         
-        # Assigning the integer part to a variable
-        value = int(msg_parts[2])  
+        # Empty the queue of already generated sound
+        self.sound_queuer.empty_queue()        
+    
+    def parse_trial_parameters(self, msg):
+        """Parse `msg` into left_params and right_params
         
-        # Turn off the previously active LED if any
-        if current_led_pin is not None:
-            pig.write(current_led_pin, 0)
+        msg : str
+            Should be a list of token separated by semicolons
+            Each token should be KEY=VALUE=DTYPE
+            where KEY is the key, VALUE is the value, and DTYPE is
+            either 'int', 'float', or 'str'
         
-        # Depending on value, either start playing left, start playing right,
-        # or 
-        if value == int(params['nosepokeL_id']):
-            # Start playing and flashing
-            start_playing(sound_queuer, 'left')
-            start_flashing(pins['led_green_l'])
-
-            # Keep track of which port is rewarded and which pin
-            # is rewarded
-            prev_port = value
-            current_led_pin = pins['led_green_l']
-
-        elif value == int(params['nosepokeR_id']):
-            # Start playing and flashing
-            start_playing(sound_queuer, 'right')
-            start_flashing(led_green_r)
+        Returns : left_params, right_params, each a dict
+        """
+        # Parse
+        split = msg.split(';')
+        params = {}
+        for spl in split:
+            key, val, dtyp = spl.strip().split('=')
+            if dtyp == 'int':
+                params[key] = int(val)
+            elif dtyp == 'float':
+                params[key] = float(val)
+            elif dtyp == 'str':
+                params[key] = val
+            else:
+                raise ValueError('unrecognized dtyp: {}'.format(dtyp))
             
-            # Keep track of which port is rewarded and which pin
-            # is rewarded
-            prev_port = value
-            current_led_pin = led_pin
+        # Split into left_params and right_params
+        left_params = {}
+        right_params = {}
+        for key, val in params.items():
+            if key.startswith('left'):
+                left_params[key] = val
+            elif key.startswith('right'):
+                right_params[key] = val
+            else:
+                print('warning: unknown key, val: {}, {}'.format(key, val))
         
-        else:
-            # In what circumstance would this happen?
-            # Current Reward Port
-            prev_port = value
-            print(f"Current Reward Port: {value}")
-        
-        prev_port = value
-        
-    def reward_and_end_trial(self, sound_queuer, poke_socket):
-        # This seems to occur when the GUI detects that the poked
-        # port was rewarded. This will be too slow. The reward port
-        # should be opened if it knows it is the rewarded pin. 
-        # Tried to implement this logic within the Pi itself. 
-        # Can work on it more if needed
-        
-        # Emptying the queue completely
-        self.sound_queuer.running = False
-        self.sound_queuer.set_channel('none')
-        self.sound_queuer.empty_queue()
+        return left_params, right_params
 
-        # Flashing all lights and opening Solenoid Valve
-        self.flash()
-        self.open_valve(prev_port)
-        
-        # Updating all the parameters that will influence the next trial
-        self.sound_queuer.update_parameters(
-            rate_min, rate_max, irregularity_min, irregularity_max, 
-            amplitude_min, amplitude_max, center_freq_min, center_freq_max, 
-            bandwidth)
-        self.networking_communicator.poke_socket.send_string(
-            self.sound_queuer.update_parameters.parameter_message)
-        
-        # Turn off the currently active LED
-        if current_led_pin is not None:
-            pig.write(current_led_pin, 0)
-            print("Turning off currently active LED.")
-            current_led_pin = None  # Reset the current LED
-        else:
-            print("No LED is currently active.")
-
-    def handle_message_on_poke_socket(self, msg, poke_socket, sound_queuer, sound_player):
+    def handle_message_on_poke_socket(self, msg):
         """Handle a message received on poke_socket
         
         poke_socket handles messages received from the GUI that are used 
@@ -383,31 +342,25 @@ class HardwareController(object):
             also flash to show a trial was completed 
         """
         stop_running = False
+        quit_program = False
         
         # Different messages have different effects
         if msg == 'exit': 
             # Condition to terminate the main loop
-            stop_session()
+            self.stop_session()
             print("Received exit command. Terminating program.")
             
-            # Deactivating the Sound Player before closing the program
-            self.sound_player.client.deactivate()
-            
             # Exit the loop
-            stop_running = True  
+            stop_running = True
+            quit_program = True
         
         elif msg == 'stop':
             # Receiving message from the GUI to stop the current session 
-            # Stopping all currently active elements and waiting for next session to start
-            stop_session()
-            
-            # Sending stop signal wirelessly to stop update function
-            try:
-                self.network_communicator.poke_socket.send_string("stop")
-            except Exception as e:
-                print("Error stopping session", e)
-
+            # Stop all currently active elements and wait for next session
+            self.stop_session()
             print("Stop command received. Stopping sequence.")
+            
+            # Stop running
             stop_running = True
 
         elif msg == 'start':
@@ -417,36 +370,21 @@ class HardwareController(object):
             except Exception as e:
                 print("Error stopping session", e)
         
-        elif msg.startswith("Reward Port:"):    
-            handle_reward_port_message(msg)
+        elif msg.startswith("trial_parameters="):    
+            # Parse params
+            left_params, right_params = self.parse_trial_parameters(msg)
+            
+            # Use those params to set the new sounds
+            self.sound_chooser.set_audio_parameters(left_params, right_params)
+            
+            # Empty and refill the queue with new sounds
+            self.sound_queuer.empty_queue()
+            self.sound_queuer.append_sound_to_queue_as_needed()
 
-        elif msg.startswith("Reward Poke Completed"):
-            reward_and_end_trial(
-                self.sound_queuer, 
-                self.network_communicator.poke_socket,
-                )
-       
         else:
             print("Unknown message received:", msg)
 
         return stop_running
-
-    def check_json_socket(self, socks):
-        ## Check for incoming messages on json_socket
-        if self.network_communicator.json_socket in socks and socks[self.network_communicator.json_socket] == zmq.POLLIN:
-            # If so, use it to update the acoustic parameters
-            # Setting up json socket to wait to receive messages from the GUI
-            json_data = self.network_communicator.json_socket.recv_json()
-
-            # Deserialize JSON data
-            config_data = json.loads(json_data)
-            
-            # Use that data to update parameters in sound_queuer
-            update_sound_queuer(
-                config_data, 
-                self.sound_queuer, 
-                self.sound_player,
-                )
 
     def check_poke_socket(self, socks):
         ## Check for incoming messages on poke_socket
@@ -465,18 +403,6 @@ class HardwareController(object):
         
         """
         try:
-            ## TODO: document these variables and why they are tracked
-            # Initialize led_pin to set what LED to write to
-            self.led_pin = None
-            
-            # Variable used to track the pin of the currently blinking LED 
-            self.current_led_pin = None  
-            
-            # Tracking the reward port for each trial; does not update 
-            # until reward is completed 
-            self.prev_port = None
-            
-            
             ## Loop forever
             self.stop_running = False
             print('starting mainloop')
@@ -516,6 +442,9 @@ class HardwareController(object):
             
         finally:
             ## QUITTING ALL NETWORK AND HARDWARE PROCESSES    
+            # Deactivating the Sound Player before closing the program
+            self.sound_player.client.deactivate()
+            
             # Stop jack
             self.sound_player.client.close()
             
