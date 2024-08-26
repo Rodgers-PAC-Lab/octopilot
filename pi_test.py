@@ -874,12 +874,22 @@ try:
     
     # Track prev_port
     prev_port = None
+
+    # Keeping track of the bonsai parameters to change the volume of the sound
+    msg2 = None
+    last_msg = None
     
     ## Loop forever
     while True:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
         sound_chooser.append_sound_to_queue_as_needed()
+        ## Check for incoming messages on bonsai_socket
+        if msg2 != last_msg:
+            sound_chooser.empty_queue()
+            sound_chooser.set_sound_cycle()
+            sound_chooser.play()
+
         socks = dict(poller.poll(100))
         socks2 = dict(poller.poll(100))
         socks3 = dict(poller.poll(100))
@@ -1116,7 +1126,6 @@ try:
                     rate_min, rate_max, irregularity_min, irregularity_max, 
                     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
                 poke_socket.send_string(new_params)
-                
                 
                 # Turn off the currently active LED
                 if current_pin is not None:
