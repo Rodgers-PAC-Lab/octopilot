@@ -13,7 +13,7 @@ import datetime
 ## SETTING UP CLASSES USED TO GENERATE AUDIO
 class Noise:
     """Class to define bandpass filtered white noise."""
-    def __init__(self, blocksize=1024, fs=192000, duration = 0.01, amplitude=0.01, channel=None, 
+    def __init__(self, blocksize=1024, fs=192000, duration=0.01, amplitude=0.01, channel=None, 
         highpass=None, lowpass=None, attenuation_file=None, **kwargs):
         """Initialize a new white noise burst with specified parameters.
         
@@ -175,7 +175,6 @@ class Noise:
             padded_sound[start_sample:start_sample + self.blocksize, :] 
             for start_sample in start_samples]
 
-
 class SoundChooser_IntermittentBursts(object):
     """Determines the sounds to play on this trial and loads a sound_cycle
     
@@ -183,11 +182,22 @@ class SoundChooser_IntermittentBursts(object):
     what center frequencies to play). It shouldn't have to worry about 
     real-time issues like loading sounds into a queue. It just has to set
     up sound_cycle once.
+    
+    Methods
+    -------
+    set_audio_parameters : Use this to specify the acoustic and timing
+        parameters of the sounds to generate.
+    __next__ : Use this to get the next frame of audio.
     """
-    def __init__(self, blocksize, fs):
+    def __init__(self, blocksize, fs, cycle_length_seconds=10):
         # Store jack client parameters
         self.blocksize = blocksize
         self.fs = fs
+        
+        # How long the cycle will be in seconds
+        # TODO: The actual length will always be less than this, which
+        # will become significant for very low sound rates
+        self.cycle_length_seconds = cycle_length_seconds
         
         # Initialize a cycle that always generates silence
         # So that this object can respond to `next` even before it knows
@@ -195,93 +205,110 @@ class SoundChooser_IntermittentBursts(object):
         self.cycle_of_audio_frames = itertools.cycle(
             [np.zeros((self.blocksize, 2))])
     
-    def set_left_sound(self, left_params):
-        # Generate the left sound
-        if left_params['silenced']:
-            self.left_sound = None
+    def _make_sound(self, params):
+        """Used to make a Noise according to params
+        
+        If params['silenced'] is True: returns None
+        Otherwise, returns a Noise with the specified params.
+        
+        Arguments
+        ---------
+        params : dict with the keys
+            silenced : bool
+            duration
+            amplitude
+            center_frequency
+            bandwidth
+        
+        Returns : Noise
+        """
+        # Generate the sound
+        if params['silenced']:
+            sound = None
+        
         else:
-            lowpass = left_params['center_frequency'] - left_params['bandwidth'] / 2
-            highpass = left_params['center_frequency'] + left_params['bandwidth'] / 2
-            self.left_sound = Noise(
+            lowpass = params['center_frequency'] - params['bandwidth'] / 2
+            highpass = params['center_frequency'] + params['bandwidth'] / 2
+            sound = Noise(
                 blocksize=self.blocksize,
                 fs=self.fs,
-                duration=left_params['duration'],
-                amplitude=left_params['amplitude'],
+                duration=params['duration'],
+                amplitude=params['amplitude'],
                 channel=0,
                 lowpass=lowpass,
                 highpass=highpass,
-                )
+                )  
+        
+        return sound
     
-    def set_right_sound(self, right_params):
-        # Generate the right sound
-        if right_params['silenced']:
-            self.right_sound = None
-        else:
-            lowpass = right_params['center_frequency'] - right_params['bandwidth'] / 2
-            highpass = right_params['center_frequency'] + right_params['bandwidth'] / 2
-            self.right_sound = Noise(
-                blocksize=self.blocksize,
-                fs=self.fs,
-                duration=right_params['duration'],
-                amplitude=right_params['amplitude'],
-                channel=0,
-                lowpass=lowpass,
-                highpass=highpass,
-                )       
-
-    def set_left_intervals(self, left_params):
-        """Sets self.left_intervals according to left_params"""
+    def _make_intervals(self, params, n_intervals=100):
+        """Generates sound_intervals according to params
+        
+        If params['silenced'] is True: returns np.array([])
+        Otherwise, returns an array of intervals between sounds. Each
+        entry in the array is drawn from the gamma distribution.
+        
+        Arguments
+        ---------
+        params : dict with the keys
+            silenced : bool
+            rate : float
+                Rate in Hz
+            temporal_std : float
+                Standard deviation of intervals in seconds
+        
+        Returns : np.array of length `n_intervals`        
+        """
         # Intervals for left
-        if left_params['silenced']:
-            self.left_intervals = np.array([])
+        if params['silenced']:
+            intervals = np.array([])
         
         else:
             # Change of basis
-            mean_interval = 1 / left_params['rate']
-            var_interval = left_params['temporal_std'] ** 2
+            mean_interval = 1 / params['rate']
+            var_interval = params['temporal_std'] ** 2
             gamma_shape = (mean_interval ** 2) / var_interval
             gamma_scale = var_interval / mean_interval
 
             # Draw from distribution
-            self.left_intervals = np.random.gamma(
-                gamma_shape, gamma_scale, 100)
-
-    def set_right_intervals(self, right_params):
-        """Sets self.right_intervals according to right_params"""        
-        # Intervals for right
-        if right_params['silenced']:
-            self.right_intervals = np.array([])
+            intervals = np.random.gamma(gamma_shape, gamma_scale, n_intervals)
         
-        else:
-            # Change of basis
-            mean_interval = 1 / right_params['rate']
-            var_interval = right_params['temporal_std'] ** 2
-            gamma_shape = (mean_interval ** 2) / var_interval
-            gamma_scale = var_interval / mean_interval
-
-            # Draw from distribution
-            self.right_intervals = np.random.gamma(
-                gamma_shape, gamma_scale, 100)        
-
-    def set_stereo_audio_times(self):
-        """Set stereo_audio_times by interleaving left and right sounds"""
-        ## Combine left_target_intervals and right_target_intervals
+        return intervals
+    
+    def _set_stereo_audio_times(self):
+        """Set stereo_audio_times by interleaving left and right sounds
+        
+        Takes the cumsum of self.left_intervals and the cumsum of
+        self.right_intervals and sorts them together. Calculates the
+        gap in time between each sound (whether left or right). Keeps 
+        only those sounds that are within self.cycle_length_seconds. 
+        Enforces that there is always at least one chunk of silence between
+        sounds.
+        
+        Sets self.stereo_audio_times, a DataFrame with columns
+            time : time in seconds
+            side : 'left' or 'right'
+            gap : the length of time until the next sound
+            gap_chunks : `gap` converted to an integer number of chunks
+        """
+        ## Combine left_intervals and right_intervals
         # Turn into series
-        left_target_df = pd.DataFrame.from_dict({
-            'time': np.cumsum(left_target_intervals),
-            'side': ['left'] * len(left_target_intervals),
+        left_df = pd.DataFrame.from_dict({
+            'time': np.cumsum(self.left_intervals),
+            'side': ['left'] * len(self.left_intervals),
             })
-        right_target_df = pd.DataFrame.from_dict({
-            'time': np.cumsum(right_target_intervals),
-            'side': ['right'] * len(right_target_intervals),
+        right_df = pd.DataFrame.from_dict({
+            'time': np.cumsum(self.right_intervals),
+            'side': ['right'] * len(self.right_intervals),
             })
 
         # Concatenate them all together and resort by time
         self.stereo_audio_times = pd.concat([
-            left_target_df, right_target_df], axis=0).sort_values('time')
+            left_df, right_df], axis=0).sort_values('time')
 
         # Calculate the gap between sounds
-        self.stereo_audio_times['gap'] = self.stereo_audio_times['time'].diff().shift(-1)
+        self.stereo_audio_times['gap'] = (
+            self.stereo_audio_times['time'].diff().shift(-1))
         
         # Drop the last row which has a null gap
         self.stereo_audio_times = self.stereo_audio_times.loc[
@@ -289,7 +316,8 @@ class SoundChooser_IntermittentBursts(object):
 
         # Keep only those below the sound cycle length
         self.stereo_audio_times = self.stereo_audio_times.loc[
-            self.stereo_audio_times['time'] < 10].copy()
+            self.stereo_audio_times['time'] < self.cycle_length_seconds
+            ].copy()
         
         # Nothing should be null
         assert not self.stereo_audio_times.isnull().any().any() 
@@ -305,15 +333,20 @@ class SoundChooser_IntermittentBursts(object):
         self.stereo_audio_times.loc[
             self.stereo_audio_times['gap_chunks'] < 1, 'gap_chunks'] = 1
 
-    def set_one_cycle_of_audio_frames(self):
-        """Set one_cycle_of_audio_frames from stereo_audio_times"""
+    def _set_one_cycle_of_audio_frames(self):
+        """Set one_cycle_of_audio_frames from stereo_audio_times
+        
+        For each row in self.stereo_audio_time, appends the sound specified
+        in that row (self.left_sound or self.right_sound) followed by a
+        gap of silence specified in that row.
+        """
         # This will contain one complete pass through the audio to play
         # Each entry will be a frame of audio
         self.one_cycle_of_audio_frames = []
 
         # Helper function
         def append_gap(gap_chunk_size=30):
-            """Append `gap_chunk_size` silent chunks to sound_block"""
+            """Append `gap_chunk_size` silent chunks to one_cycle_of_audio_frames"""
             for n_blank_chunks in range(gap_chunk_size):
                 self.one_cycle_of_audio_frames.append(
                     np.zeros((self.blocksize, 2), dtype='float32'))           
@@ -337,8 +370,8 @@ class SoundChooser_IntermittentBursts(object):
 
                 elif bdrow.side == 'right':
                     # Append a right sound
-                    for frame in self.right_target_stim.chunks:
-                        self.sound_block.append(frame)
+                    for frame in self.right_sound.chunks:
+                        self.one_cycle_of_audio_frames.append(frame)
                         assert frame.shape == (1024, 2)                        
                 
                 else:
@@ -349,44 +382,51 @@ class SoundChooser_IntermittentBursts(object):
                 # Append the gap between sounds
                 append_gap(bdrow.gap_chunks)        
 
-    def generate_sound_cycle(self, left_params, right_params):
+    def set_audio_parameters(self, left_params, right_params):
         """Define self.sound_cycle, to go through sounds
         
-        params : dict
-            This comes from a message on the net node.
-            Possible keys:
-                left_on
-                right_on
-                left_mean_interval
-                right_mean_interval
+        Call this method to set the acoustic parameters and timing
+        parameters of sounds on the left and right channels.
+        
+        left_params and right_params : dict with keys
+            silenced : bool
+                If True, no sound will be played from that channel
+            duration : float, duration of noise burst in seconds
+            amplitude : float, amplitude of noise burst
+            center_frequency : float, center frequency in Hz
+            bandwidth : float, bandwidth (not half-bandwidth) in Hz
+            rate : float, rate of sounds in Hz
+            temporal_std : float, standard deviation of inter-sound intervals
         """
         ## Generate the stimuli to use (one per channel)
         # Presently, exactly zero or one kind of Noise can be played from
-        # each speaker
-        # This sets self.left_sound and self.right_sound
-        self.set_left_sound(left_params)
-        self.set_right_sound(right_params)
+        # each speaker. These will be None if params['silenced'] is True
+        self.left_sound = self._make_sound(left_params)
+        self.right_sound = self._make_sound(right_params)
    
-
-        ## Generate the times at which to play each Noise (one per channel)
-        # This sets self.left_intervals and self.right_intervals
-        self.set_left_intervals(left_params)
-        self.set_right_intervals(right_params)
+        # Generate the times at which to play each Noise (one per channel)
+        # These will be empty arrays if params['silenced'] is True
+        self.left_intervals = self._make_intervals(left_params)
+        self.right_intervals = self._make_intervals(right_params)
 
         # Combine the two into self.stereo_audio_times
-        self.set_stereo_audio_times()
+        self._set_stereo_audio_times()
         
         
         ## Set self.cycle_of_audio_frames
         # Generate self.one_cycle_of_audio_frames, which will by cycled over
-        self.set_one_cycle_of_audio_frames()
+        self._set_one_cycle_of_audio_frames()
         
         # Generate a cycle that will repeat one_cycle_of_audio_frames forever
         self.cycle_of_audio_frames = itertools.cycle(
             self.one_cycle_of_audio_frames)           
 
     def __next__(self):
-        """Return the next frame of audio"""
+        """Return the next frame of audio
+        
+        This is the correct/only way to get output from this object.
+        Generally, a SoundQueuer will call this method to get the next frame.
+        """
         return next(self.cycle_of_audio_frames)
 
 class SoundQueuer:
@@ -410,11 +450,10 @@ class SoundQueuer:
         # self.sound_chooser
         self.sound_queue = collections.deque()
         
-        # TODO: pull in the doc for this
-        self.target_qsize = 100
-        
-        # This is for counting frames of silence
-        self.n_frames = 0
+        # Each block/frame is about 5 ms
+        # Longer is more buffer against unexpected delays
+        # Shorter is faster to empty and refill the queue
+        self.target_qsize = 100        
 
     def append_sound_to_queue_as_needed(self, verbose=False):
         """Dump frames from `self.sound_cycle` into queue
@@ -432,13 +471,11 @@ class SoundQueuer:
         start_qsize = qsize
 
         # Add frames until target size reached
+        # TODO: append 10 extra frames, for a bit of stickiness
         while qsize < self.target_qsize:
             # Add a frame from the sound cycle
             frame = next(self.sound_chooser)
             self.sound_queue.appendleft(frame)
-            
-            # Keep track of how many frames played
-            self.n_frames = self.n_frames + 1
             
             # Update qsize
             qsize = len(self.sound_queue)
@@ -447,25 +484,28 @@ class SoundQueuer:
             if start_qsize != qsize:
                 print('topped up qsize: {} to {}'.format(start_qsize, qsize))
             
-    def empty_queue(self, tosize=0):
-        """Empty queue"""
-        while True:
-            # I think it's important to keep the lock for a short period
-            # (ie not throughout the emptying)
-            # in case the `process` function needs it to play sounds
-            # (though if this does happen, there will be an artefact because
-            # we just skipped over a bunch of frames)
-            try:
-                data = sound_queue.pop()
-            except IndexError:
-                break
-            
-            # Stop if we're at or below the target size
-            qsize = len(sound_queue)
-            if qsize < tosize:
-                break
+    def empty_queue(self, tosize=5):
+        """Empty queue
         
-        qsize = len(sound_queue)
+        Pop frames off the left side of sound_queue (that is, the newest
+        frames) until sound_queue has size `tosize`.
+        
+        tosize : int
+            This many frames of audio from before `empty_queue` was called
+            will still be played. 
+            As this gets larger, the sound takes longer to stop.
+            As this gets smaller, we risk running out of frames and
+            causing an xrun.
+        """
+        # Continue until we're at or below the target size
+        while len(sound_queue) > tosize:
+            try:
+                self.sound_queue.popleft()
+            except IndexError:
+                # This shouldn't really happen as long as tosize is 
+                # significantly more than 0
+                print('warning: sound queue was prematurely emptied')
+                break
 
     def __next__(self):
         return self.sound_queue.pop()
@@ -539,6 +579,7 @@ class SoundPlayer(object):
         
         # Keep track of time of last warning
         self.dt_last_warning = None
+        self.frame_rate_warning_already_issued = False
         
         
         ## Create the contained jack.Client

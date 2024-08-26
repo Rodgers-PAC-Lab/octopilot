@@ -165,6 +165,28 @@ class HardwareController(object):
                 fs=192000,
                 )
             
+            # Set
+            self.sound_chooser.set_audio_parameters(
+                left_params={
+                    'silenced': False,
+                    'duration': 10,
+                    'amplitude': 1e-5,
+                    'center_frequency': 5000,
+                    'bandwidth': 3000,
+                    'rate': 10,
+                    'temporal_std': 0.01,
+                    },
+                right_params={
+                    'silenced': False,
+                    'duration': 10,
+                    'amplitude': 1e-5,
+                    'center_frequency': 5000,
+                    'bandwidth': 3000,
+                    'rate': 10,
+                    'temporal_std': 0.01,                    
+                    },
+                )
+            
             # This object uses those frames to top up sound_player
             self.sound_queuer = sound.SoundQueuer(
                 sound_chooser=self.sound_chooser)
