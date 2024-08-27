@@ -291,33 +291,45 @@ class HardwareController(object):
         Returns : left_params, right_params, each a dict
         """
         # Parse
-        split = msg.split(';')
+        split = msg.replace('set_trial_parameters;', '').split(';')
         params = {}
         for spl in split:
-            key, val, dtyp = spl.strip().split('=')
-            if dtyp == 'int':
-                params[key] = int(val)
-            elif dtyp == 'float':
-                params[key] = float(val)
-            elif dtyp == 'str':
-                params[key] = val
-            else:
-                raise ValueError('unrecognized dtyp: {}'.format(dtyp))
+            if spl.strip() == '':
+                continue
+            
+            try:
+                key, val, dtyp = spl.strip().split('=')
+            except ValueError:
+                raise ValueError('unparseable messagse: {}'.format(msg))
+            
+            try:
+                if dtyp == 'int':
+                    params[key] = int(val)
+                elif dtyp == 'float':
+                    params[key] = float(val)
+                elif dtyp == 'str':
+                    params[key] = val
+                elif dtyp == 'bool':
+                    params[key] = bool(val)
+                else:
+                    raise ValueError('unrecognized dtyp: {}'.format(dtyp))
+            except ValueError:
+                raise ValueError(f'cannot parse: {key}, {val}, {dtyp}')
             
         # Split into left_params and right_params
         left_params = {}
         right_params = {}
         for key, val in params.items():
             if key.startswith('left'):
-                left_params[key] = val
+                left_params[key.replace('left_', '')] = val
             elif key.startswith('right'):
-                right_params[key] = val
+                right_params[key.replace('right_', '')] = val
             else:
                 print('warning: unknown key, val: {}, {}'.format(key, val))
         
         return left_params, right_params
 
-    def handle_message_on_poke_socket(self, msg):
+    def handle_message_on_poke_socket(self, msg, verbose=True):
         """Handle a message received on poke_socket
         
         poke_socket handles messages received from the GUI that are used 
@@ -343,6 +355,9 @@ class HardwareController(object):
         stop_running = False
         quit_program = False
         
+        if verbose:
+            print(f'received message: {msg}')
+        
         # Different messages have different effects
         if msg == 'exit': 
             # Condition to terminate the main loop
@@ -362,14 +377,7 @@ class HardwareController(object):
             # Stop running
             stop_running = True
 
-        elif msg == 'start':
-            # Communicating with start button to start the next session
-            try:
-                self.network_communicator.poke_socket.send_string("start")
-            except Exception as e:
-                print("Error stopping session", e)
-        
-        elif msg.startswith("trial_parameters="):    
+        elif msg.startswith("set_trial_parameters;"):    
             # Parse params
             left_params, right_params = self.parse_trial_parameters(msg)
             
@@ -411,11 +419,6 @@ class HardwareController(object):
                 # Used to continuously add frames of sound to the 
                 # queue until the program stops
                 self.sound_queuer.append_sound_to_queue_as_needed()
-                
-                #~ # Check json_socket for incoming messages about acoustic
-                #~ # parameters
-                #~ if self.network_communicator is not None:
-                    #~ self.check_json_socket(socks)
                 
                 # Check poke_socket for incoming messages about exit, stop,
                 # start, reward, etc

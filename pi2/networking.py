@@ -57,13 +57,11 @@ class NetworkCommunicator(object):
 
         # Set up sockets
         self.set_up_poke_socket()
-        #self.set_up_json_socket()
 
         # Creating a poller object for both sockets that will be used to 
         # continuously check for incoming messages
         self.poller = zmq.Poller()
         self.poller.register(self.poke_socket, zmq.POLLIN)
-        #self.poller.register(self.json_socket, zmq.POLLIN)        
     
     def set_up_poke_socket(self):
         """Create `self.poke_socket` and connect to GUI
@@ -99,32 +97,9 @@ class NetworkCommunicator(object):
         # Print acknowledgment
         print(f"Connected to router at {self.router_ip}")  
 
-    def set_up_json_socket(self):
-        """Connect to json_socket"""
-        ## Create socket
-        # Creating a SUB socket and socket for receiving task parameters 
-        # (stored in json files)
-        self.json_context = zmq.Context()
-        self.json_socket = self.json_context.socket(zmq.SUB)
-
-        
-        ## Connect
-        self.router_ip2 = "tcp://" + f"{self.gui_ip}" + f"{self.config_port}"
-        self.json_socket.connect(self.router_ip2) 
-
-        # Subscribe to all incoming messages containing task parameters 
-        self.json_socket.subscribe(b"")
-
-        # Print acknowledgment
-        print(f"Connected to router at {self.router_ip2}")
-
     def close(self):
         """Close all sockets and contexts"""
         self.poke_socket.close()
         
         # Sometimes gets stuck here?
         self.poke_context.term()
-        
-        #~ self.json_socket.close()
-        #~ self.json_context.term()
-    

@@ -222,17 +222,33 @@ class SoundChooser_IntermittentBursts(object):
         
         Returns : Noise
         """
+        # Error check
+        try:
+            params['silenced']
+        except KeyError:
+            raise ValueError(f'received malformed params: {params}')
+        
         # Generate the sound
         if params['silenced']:
             sound = None
         
         else:
-            lowpass = params['center_frequency'] - params['bandwidth'] / 2
-            highpass = params['center_frequency'] + params['bandwidth'] / 2
+            # This one can reasonably be defaulted
+            duration = params.get('duration', .010)
+            bandwidth = params.get('bandwidth', 3000)
+            
+            try:
+                params['center_frequency']
+                params['amplitude']
+            except KeyError:
+                raise ValueError(f'received malformed params: {params}')
+            
+            lowpass = params['center_frequency'] - bandwidth / 2
+            highpass = params['center_frequency'] + bandwidth / 2
             sound = Noise(
                 blocksize=self.blocksize,
                 fs=self.fs,
-                duration=params['duration'],
+                duration=duration,
                 amplitude=params['amplitude'],
                 channel=0,
                 lowpass=lowpass,
