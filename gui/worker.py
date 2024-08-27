@@ -42,6 +42,9 @@ class NetworkCommunicator(object):
             # Infer dtyp
             if hasattr(value, '__len__'):
                 dtyp = 'str'
+            elif isinstance(value, bool):
+                # Note that bool is an instance of int
+                dtyp = 'bool'
             elif isinstance(value, int):
                 # https://stackoverflow.com/a/48940855/1676378
                 dtyp = 'int'
@@ -49,7 +52,7 @@ class NetworkCommunicator(object):
                 dtyp = 'float'
             
             # Append
-            msg += f"{key}={value}={dtyp}"
+            msg += f"{key}={value}={dtyp};"
         
         self.send_message_to_all(msg)
     
@@ -207,7 +210,7 @@ class Worker:
         self.network_communicator.send_trial_parameters(
             rewarded_port=new_choice,
             left_silenced=False,
-            left_amplitude=0.001,
+            left_amplitude=0.0001,
             right_silenced=True,
             )
 
