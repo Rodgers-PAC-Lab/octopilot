@@ -3,6 +3,7 @@ import pigpio
 import zmq
 from . import sound
 from . import networking
+import numpy as np
 
 ## TODO: all of these should be in class Nosepoke, and HC should have a nosepoke
 # Callback functions for nosepoke pin (When the nosepoke is detected)
@@ -428,6 +429,14 @@ class HardwareController(object):
                 # Check if stop_runnning was set by check_poke_socket
                 if self.stop_running:
                     break
+                
+                # Randomly send messages
+                if np.random.random() < 0.1:
+                    self.network_communicator.poke_socket.send_string('poke')
+                    time.sleep(.1)
+                if np.random.random() < 0.1:
+                    self.network_communicator.poke_socket.send_string('reward')
+                    time.sleep(.1)
                 
                 # If there's nothing in the main loop, not even a sleep,
                 # then for some reason this leads to XRun errors
