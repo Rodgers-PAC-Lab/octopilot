@@ -133,12 +133,6 @@ class Worker:
         # Take this from params
         self.ports = [f'rpi{i}' for i in range(8)]
         
-        # Variable to store the timestamp of the last poke 
-        self.last_poke_timestamp = None  
-        
-        # Keeping track of the current reward port
-        self.reward_port = None 
-        
         # Keeping track of last rewarded port
         self.last_rewarded_port = None 
 
@@ -146,14 +140,14 @@ class Worker:
         ## Set up port labels and indices
         # Creating a dictionary that takes the label of each port and matches it to
         # the index on the GUI (used for reordering)
-        self.ports = self.params['ports']
+        #~ self.ports = self.params['ports']
         
         # Refer to documentation when variables were initialized 
-        self.label_to_index = {port['label']: port['index'] for port in self.ports} 
-        self.index_to_label = {port['index']: port['label'] for port in self.ports}
+        #~ self.label_to_index = {port['label']: port['index'] for port in self.ports} 
+        #~ self.index_to_label = {port['index']: port['label'] for port in self.ports}
         
         # Setting an index of remapped ports (so that colors can be changed accordign to label)
-        self.index = self.label_to_index.get(str(self.reward_port)) 
+        #~ self.index = self.label_to_index.get(str(self.reward_port)) 
         
         
         ## Initializing variables and lists to store trial information 
@@ -265,12 +259,13 @@ class Worker:
         
             if message_str.startswith('poke'):
                 # A poke was received
-                self.handle_poke_message(message_str, identity_str, dt_now)
+                #self.handle_poke_message(message_str, identity_str, dt_now)
+                self.poke_timestamps.append(dt_now)
 
             elif message_str.startswith('reward'):
                 # A reward was delivered
                 # Log it
-                self.reward_times.append(dt_now)
+                self.reward_timestamps.append(dt_now)
                 
                 # Start a new trial
                 self.start_trial()
