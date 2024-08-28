@@ -92,7 +92,7 @@ class NetworkCommunicator(object):
         self.poke_socket.connect(self.router_ip) 
 
         # Send the identity of the Raspberry Pi to the server
-        self.poke_socket.send_string(f"{hello;self.identity}") 
+        self.poke_socket.send_string(f"{hello};{self.identity}") 
 
         # Print acknowledgment
         print(f"Connected to router at {self.router_ip}")  
