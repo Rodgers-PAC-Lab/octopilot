@@ -6,44 +6,8 @@ import zmq
 import time
 import random
 import datetime
+from logging_utils.logging_utils import NonRepetitiveLogger
 import logging
-
-class NonRepetitiveLogger(logging.Logger):
-    # https://stackoverflow.com/questions/57472091/how-to-build-a-python-logging-function-that-doesnt-repeat-the-exact-same-messag
-    # define the cache as class attribute if all logger instances of _this_ class
-    # shall share the same cache
-    # _message_cache = []
-
-    def __init__(self, name, level=logging.NOTSET):
-        super().__init__(name=name, level=level)
-        # define the cache as instance variable if you want each logger instance
-        # to use its own cache
-        self._message_cache = {}
-        self.wait_time = datetime.timedelta(seconds=5)
-
-    def _log(self, level, msg, args, exc_info=None, extra=None, stack_info=False):
-        msg_hash = hash(msg) # using hash() builtin; see remark below
-        dt_now = datetime.datetime.now()
-
-        # See if we've already received this one
-        if msg_hash in self._message_cache:
-            # See when the last time was
-            last_time = self._message_cache[msg_hash]
-            
-            # See how long it's been
-            if dt_now < last_time + self.wait_time:
-                # It hasn't been long enough, just return without logging
-                return
-            else:
-                # Update the last warn time to now
-                self._message_cache[msg_hash] = dt_now
-
-        else:
-            # It wasn't in the cache, add it
-            self._message_cache[msg_hash] = dt_now
-
-        # In any other case, do log
-        super()._log(level, msg, args, exc_info, extra, stack_info)
 
 class NetworkCommunicator(object):
     """Handles communication with the Pis"""
@@ -185,7 +149,7 @@ class NetworkCommunicator(object):
                     )
             
             else:
-                print(f'first message from new identity {identity_str}')
+                self.logger.info(f'first message from new identity {identity_str} is {message_str}')
             
             # Check whether it's expected
             if identity_str in self.expected_identities:
@@ -231,23 +195,18 @@ class Worker:
 
 
         ## Set up port labels and indices
+        # Keep track of which are actually active (mostly for debugging)
+        self.expected_identities = ['rpi26', 'rpi27']
+        
         # Creating a dictionary that takes the label of each port and matches 
         # it to the index on the GUI (used for reordering)
         self.ports = self.params['ports']
         
-        # Keep track of which are actually active (mostly for debugging)
-        self.expected_identities = ['rpi26', 'rpi27']
+        # Overwrite this to match expected identities
+        # TODO: gui config should know which ports belong to which pis
+        self.ports = {'rpi26_L', 'rpi26_R', 'rpi27_L', 'rpi27_R'}
         
-        # Converts 'label' to 'index' and vice versa
-        # index is an integer 0-7
-        # label is a string "1" - "8"
-        # I think label might match nosepokeL_id and nosepokeR_id in the pi json
-        self.label_to_index = {port['label']: port['index'] for port in self.ports} 
-        self.index_to_label = {port['index']: port['label'] for port in self.ports}
-        
-        # Setting an index of remapped ports (so that colors can be changed accordign to label)
-        #~ self.index = self.label_to_index.get(str(self.reward_port)) 
-        
+
         ## Initialize network communicator and tell it what pis to expect
         self.network_communicator = NetworkCommunicator(
             params['worker_port'],
@@ -291,7 +250,7 @@ class Worker:
         
         ## Set the initial_time to now
         self.session_start_time = datetime.datetime.now() 
-        print(f'Starting session at {self.session_start_time}')
+        self.logger.info(f'Starting session at {self.session_start_time}')
         
         
         ## Resetting sequences when a new session is started 
@@ -312,7 +271,7 @@ class Worker:
             choice for choice in self.ports if choice != self.prev_choice] 
         
         # Randomly choosing within the new set of possible choices
-        new_choice = 'rpi03' #random.choice(poss_choices) 
+        new_choice = random.choice(poss_choices) 
         
         # Updating the previous choice that was made so the next choice 
         # can omit it 
@@ -336,8 +295,6 @@ class Worker:
             rewarded_port=new_choice,
             **acoustic_params,
             )
-        
-        
 
     def stop_session(self):
         """Stop the session
