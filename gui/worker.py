@@ -6,10 +6,64 @@ import zmq
 import time
 import random
 import datetime
+import logging
+
+class NonRepetitiveLogger(logging.Logger):
+    # https://stackoverflow.com/questions/57472091/how-to-build-a-python-logging-function-that-doesnt-repeat-the-exact-same-messag
+    # define the cache as class attribute if all logger instances of _this_ class
+    # shall share the same cache
+    # _message_cache = []
+
+    def __init__(self, name, level=logging.NOTSET):
+        super().__init__(name=name, level=level)
+        # define the cache as instance variable if you want each logger instance
+        # to use its own cache
+        self._message_cache = {}
+        self.wait_time = datetime.timedelta(seconds=5)
+
+    def _log(self, level, msg, args, exc_info=None, extra=None, stack_info=False):
+        msg_hash = hash(msg) # using hash() builtin; see remark below
+        dt_now = datetime.datetime.now()
+
+        # See if we've already received this one
+        if msg_hash in self._message_cache:
+            # See when the last time was
+            last_time = self._message_cache[msg_hash]
+            
+            # See how long it's been
+            if dt_now < last_time + self.wait_time:
+                # It hasn't been long enough, just return without logging
+                return
+            else:
+                # Update the last warn time to now
+                self._message_cache[msg_hash] = dt_now
+
+        else:
+            # It wasn't in the cache, add it
+            self._message_cache[msg_hash] = dt_now
+
+        # In any other case, do log
+        super()._log(level, msg, args, exc_info, extra, stack_info)
 
 class NetworkCommunicator(object):
     """Handles communication with the Pis"""
-    def __init__(self, worker_port):
+    def __init__(self, worker_port, expected_identities):
+        """Initialize object to communicate with the Pis.
+        
+        Arguments
+        ---------
+        worker_port : str
+            Taken from params['worker_port']
+        expected_identies : list of str
+            Each entry is the identity of a Pi
+            The session can't start until all expected identities connect
+        
+        Flow
+        ----
+        * Create context and socket using zmq.ROUTER
+        * Bind to tcp://*{worker_port}
+        * Initialize empty self.connected_pis
+        """
         ## Set up ZMQ
         # Setting up a ZMQ socket to send and receive information about 
         # poked ports 
@@ -25,9 +79,31 @@ class NetworkCommunicator(object):
 
         # Set of identities of all pis connected to that instance of ther GUI 
         self.connected_pis = set() 
+        
+        # This is who we expect to connect
+        self.expected_identities = expected_identities
+    
+        ## Init logger
+        self.logger = NonRepetitiveLogger("test")
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
+        self.logger.addHandler(sh)
+        self.logger.setLevel(logging.INFO)
+    
+    def check_if_all_pis_connected(self):
+        """"Returns True if all pis in self.expected_identies are connected"""
+        # Iterate over identies
+        # Return False if any is missing
+        all_connected = True
+        for identity in self.expected_identities:
+            if identity not in self.connected_pis:
+                all_connected = False
+                break
+        
+        return all_connected
     
     def send_message_to_all(self, msg):
-        # Sending the current reward port to all connected pis
+        """"Send msg to all identities in self.connected_pis"""
         # Convert to bytes
         msg_bytes = bytes(msg, 'utf-8')
         
@@ -37,6 +113,16 @@ class NetworkCommunicator(object):
             self.zmq_socket.send_multipart([identity_bytes, msg_bytes])
     
     def send_trial_parameters(self, **kwargs):
+        """Encode a set_trial_parameters message and send to all Pis
+        
+        The message will begin with "set_trial_parameters;"
+        Each keyword argument will be converted into "{key}={value}={dtyp}"
+        (dtyp is inferred from value)
+        
+        TODO: do this with json instead
+        
+        Then it is sent to all Pis.
+        """
         msg = "set_trial_parameters;"
         for key, value in kwargs.items():
             # Infer dtyp
@@ -54,6 +140,8 @@ class NetworkCommunicator(object):
             # Append
             msg += f"{key}={value}={dtyp};"
         
+        self.logger.info(msg)
+        
         self.send_message_to_all(msg)
     
     def check_for_messages(self, verbose=True):
@@ -61,8 +149,8 @@ class NetworkCommunicator(object):
         
         If a message is available: return identity, messages
         Otherwise: return None
-        
         """
+        ## Check for messages
         no_message_received = False
         try:
             # Without NOBLOCK, this will hang until a message is received
@@ -78,32 +166,40 @@ class NetworkCommunicator(object):
         
         # Debug print identity and message
         if verbose:
-            print(f'received message {message} from identity {identity}')
+            self.logger.debug(f'received message {message} from identity {identity}')
 
-        # Otherwise decode it
+        
+        ## Decode the message
         # TODO: in the future support bytes
         identity_str = identity.decode('utf-8')
         message_str = message.decode('utf-8')
 
     
         ## If a message was received, then keep track of the identities
-        # TODO: wait to start session till all Pis have connected
         if identity_str not in self.connected_pis:
             # This better be a hello message
             if not message_str.startswith('hello'):
-                print(
+                self.logger.warn(
                     f'warning: first message from new identity {identity_str} '
                     f'was not hello but rather {message_str}'
                     )
+            
             else:
                 print(f'first message from new identity {identity_str}')
             
-            # Either way keep track of it
-            self.connected_pis.add(identity_str)
+            # Check whether it's expected
+            if identity_str in self.expected_identities:
+                # Keep track of it
+                self.connected_pis.add(identity_str)
             
-            # Either way, return
-            return            
+            else:
+                self.logger.warn(
+                    f'warning: {identity_str} is not in expected_identities '
+                    'but it attempted to connect'
+                    )
+
         
+        ## Return identity and message
         return identity_str, message_str
 
 class Worker:
@@ -126,33 +222,55 @@ class Worker:
     """
 
     def __init__(self, params):
-        self.network_communicator = NetworkCommunicator(params['worker_port'])
+        
         self.params = params
         
         ## Variables to keep track of reward related messages 
-        # Take this from params
-        self.ports = [f'rpi{i}' for i in range(8)]
-        
         # Keeping track of last rewarded port
         self.last_rewarded_port = None 
 
 
         ## Set up port labels and indices
-        # Creating a dictionary that takes the label of each port and matches it to
-        # the index on the GUI (used for reordering)
-        #~ self.ports = self.params['ports']
+        # Creating a dictionary that takes the label of each port and matches 
+        # it to the index on the GUI (used for reordering)
+        self.ports = self.params['ports']
         
-        # Refer to documentation when variables were initialized 
-        #~ self.label_to_index = {port['label']: port['index'] for port in self.ports} 
-        #~ self.index_to_label = {port['index']: port['label'] for port in self.ports}
+        # Keep track of which are actually active (mostly for debugging)
+        self.expected_identities = ['rpi26', 'rpi27']
+        
+        # Converts 'label' to 'index' and vice versa
+        # index is an integer 0-7
+        # label is a string "1" - "8"
+        # I think label might match nosepokeL_id and nosepokeR_id in the pi json
+        self.label_to_index = {port['label']: port['index'] for port in self.ports} 
+        self.index_to_label = {port['index']: port['label'] for port in self.ports}
         
         # Setting an index of remapped ports (so that colors can be changed accordign to label)
         #~ self.index = self.label_to_index.get(str(self.reward_port)) 
         
+        ## Initialize network communicator and tell it what pis to expect
+        self.network_communicator = NetworkCommunicator(
+            params['worker_port'],
+            expected_identities=self.expected_identities,
+            )
         
         ## Initializing variables and lists to store trial information 
         # None is how it knows no session is running
         self.current_trial = None
+        
+        
+        ## Init logger
+        self.logger = NonRepetitiveLogger("test")
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
+        self.logger.addHandler(sh)
+        self.logger.setLevel(logging.INFO)
+    
+    def check_if_running(self):
+        if self.current_trial is None:
+            return False
+        else:
+            return True
     
     def start_session(self, verbose=True):
         """Start a session
@@ -200,13 +318,26 @@ class Worker:
         # can omit it 
         self.prev_choice = new_choice          
         
+        # TODO: choose acoustic params here
+        acoustic_params = {
+            'left_silenced': False,
+            'left_amplitude': 0.0001,
+            'right_silenced': True,
+            }
+        
+        self.logger.info(
+            f'starting trial {self.current_trial}; '
+            f'rewarded port {new_choice}; '
+            f'acoustic params {acoustic_params}'
+            )
+        
         # Send start to each Pi
         self.network_communicator.send_trial_parameters(
             rewarded_port=new_choice,
-            left_silenced=False,
-            left_amplitude=0.0001,
-            right_silenced=True,
+            **acoustic_params,
             )
+        
+        
 
     def stop_session(self):
         """Stop the session
@@ -236,10 +367,16 @@ class Worker:
                 # Start a session if needed
                 # TODO: this should be activated by a button instead
                 if self.current_trial is None:
-                    if len(self.network_communicator.connected_pis) >= 1:
+                    if self.network_communicator.check_if_all_pis_connected():
                         self.start_session()
+                    else:
+                        self.logger.info(
+                            'waiting for {} to connect; only {} connected'.format(
+                            ', '.join(self.network_communicator.expected_identities),
+                            ', '.join(self.network_communicator.connected_pis),
+                            ))
                 
-                time.sleep(0.1)
+                time.sleep(0.5)
                 
             except KeyboardInterrupt:
                 print('shutting down')
@@ -259,21 +396,44 @@ class Worker:
         
             if message_str.startswith('poke'):
                 # A poke was received
-                #self.handle_poke_message(message_str, identity_str, dt_now)
-                self.poke_timestamps.append(dt_now)
+                if not self.check_if_running():
+                    self.logger.warn(
+                        f'warning: received {message_str} from {identity_str}'
+                        ' but session is not running')
+                else:
+                    # Log it
+                    self.logger.info(
+                        f'poke received {message_str} from {identity_str}')
+                    self.poke_timestamps.append(dt_now)
+                    #self.handle_poke_message(message_str, identity_str, dt_now)
 
             elif message_str.startswith('reward'):
                 # A reward was delivered
-                # Log it
-                self.reward_timestamps.append(dt_now)
                 
-                # Start a new trial
-                self.start_trial()
+                if not self.check_if_running():
+                    self.logger.warn(
+                        f'warning: received {message_str} from {identity_str}'
+                        ' but session is not running')
+                else:
+                    # Log it
+                    self.logger.info(
+                        f'reward received {message_str} from {identity_str}')
+                    self.reward_timestamps.append(dt_now)
+                    
+                    # Start a new trial
+                    self.start_trial()
 
             elif message_str.startswith('sound'):
                 # A sound was played
-                # Log it
-                self.sound_times.append(dt_now)
+                if not self.check_if_running():
+                    self.logger.warn(
+                        f'warning: received {message_str} from {identity_str}'
+                        ' but session is not running')
+                else:
+                    # Log it
+                    self.logger.info(
+                        f'sound played {message_str} from {identity_str}')                    
+                    self.sound_times.append(dt_now)
 
             elif message_str.startswith('alive'):
                 # Keep alive
@@ -403,35 +563,3 @@ class Worker:
         self.correct_trials.append(self.current_correct_trials)
         self.fc.append(self.current_fraction_correct)
 
-    def save_results_to_csv(self):
-        """Writes data to CSV"""
-        # TODO: remove these globals
-        global current_task, current_time
-        
-        # Specifying the directory where you want to save the CSV files
-        save_directory = self.params['save_directory']
-        
-        # Generating filename based on current_task and current date/time
-        #filename = f"{current_task}_{current_time}_saved.csv"
-        filename = 'saved.csv'
-        
-        # Saving the results to a CSV file
-        #with open(f"{save_directory}/{filename}", 'w', newline='') as csvfile:
-        with open("filename", 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            
-            # Writing the header row for the CSV file with parameters to be saved as the columns
-            writer.writerow([
-                "No. of Pokes", "Poke Timestamp (seconds)", "Port Visited", 
-                "Current Reward Port", "No. of Trials", "No. of Correct Trials", 
-                "Fraction Correct", "Amplitude", "Rate", "Irregularity", 
-                "Center Frequency"])
-           
-            # Assigning the values at each individual poke to the columns in the CSV file
-            for poke, timestamp, poked_port, reward_port, completed_trial, correct_trial, fc, amplitude, target_rate, target_temporal_log_std, center_freq in zip(
-                self.pokes, self.timestamps, self.poked_port_numbers, self.reward_ports, self.completed_trials, self.correct_trials, self.fc, self.amplitudes, self.target_rates, self.target_temporal_log_stds, self.center_freqs):
-                writer.writerow([poke, timestamp, poked_port, reward_port, completed_trial, correct_trial, fc, amplitude, target_rate, target_temporal_log_std, center_freq])
-
-        print_out(f"Results saved to logs")
-    
-    
