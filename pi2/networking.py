@@ -97,6 +97,137 @@ class NetworkCommunicator(object):
         # Print acknowledgment
         print(f"Connected to router at {self.router_ip}")  
 
+    def parse_trial_parameters(self, msg):
+        """Parse `msg` into left_params and right_params
+        
+        msg : str
+            Should be a list of token separated by semicolons
+            Each token should be KEY=VALUE=DTYPE
+            where KEY is the key, VALUE is the value, and DTYPE is
+            either 'int', 'float', or 'str'
+        
+        Returns : left_params, right_params, each a dict
+        """
+        # Parse
+        split = msg.replace('set_trial_parameters;', '').split(';')
+        params = {}
+        for spl in split:
+            if spl.strip() == '':
+                continue
+            
+            try:
+                key, val, dtyp = spl.strip().split('=')
+            except ValueError:
+                raise ValueError('unparseable messagse: {}'.format(msg))
+            
+            try:
+                if dtyp == 'int':
+                    params[key] = int(val)
+                elif dtyp == 'float':
+                    params[key] = float(val)
+                elif dtyp == 'str':
+                    params[key] = val
+                elif dtyp == 'bool':
+                    params[key] = bool(val)
+                else:
+                    raise ValueError('unrecognized dtyp: {}'.format(dtyp))
+            except ValueError:
+                raise ValueError(f'cannot parse: {key}, {val}, {dtyp}')
+            
+        # Split into left_params and right_params
+        left_params = {}
+        right_params = {}
+        for key, val in params.items():
+            if key.startswith('left'):
+                left_params[key.replace('left_', '')] = val
+            elif key.startswith('right'):
+                right_params[key.replace('right_', '')] = val
+            else:
+                other_params[key] = val
+        
+        return left_params, right_params, other_params
+
+    def handle_message_on_poke_socket(self, msg, verbose=True):
+        """Handle a message received on poke_socket
+        
+        poke_socket handles messages received from the GUI that are used 
+        to control the main loop. 
+        The functions of the different messages are as follows:
+        'exit' : terminates the program completely whenever received and 
+            closes it on all Pis for a particular box
+        'stop' : stops the current session and sends a message back to the 
+            GUI to stop plotting. The program waits until it can start next session 
+        'start' : used to start a new session after the stop message pauses 
+            the main loop
+        'Reward Port' : this message is sent by the GUI to set the reward port 
+            for a trial.
+        The Pis will receive messages of ports of other Pis being set as the 
+            reward port, however will only continue if the message contains 
+            one of the ports listed in its params file
+        'Reward Poke Completed' : Currently 'hacky' logic used to signify the 
+            end of the trial. If the string sent to the GUI matches the 
+            reward port set there it clears all sound parameters and opens 
+            the solenoid valve for the assigned reward duration. The LEDs 
+            also flash to show a trial was completed 
+        """
+        stop_running = False
+        quit_program = False
+        
+        self.logger.debug(f'received message: {msg}')
+        
+        # Different messages have different effects
+        if msg == 'exit': 
+            # Condition to terminate the main loop
+            self.stop_session()
+            print("Received exit command. Terminating program.")
+            
+            # Exit the loop
+            stop_running = True
+            quit_program = True
+        
+        elif msg == 'stop':
+            # Receiving message from the GUI to stop the current session 
+            # Stop all currently active elements and wait for next session
+            self.stop_session()
+            print("Stop command received. Stopping sequence.")
+            
+            # Stop running
+            stop_running = True
+
+        elif msg.startswith("set_trial_parameters;"):    
+            # Log
+            self.logger.info(f'trial started: msg={msg}')
+            
+            # Parse params
+            left_params, right_params, other_params = self.parse_trial_parameters(msg)
+            
+            # Get rewarded port
+            # TODO: replace with binary reward or not for several ports
+            self.rewarded_port = other_params['rewarded_port']
+            
+            # Use those params to set the new sounds
+            self.sound_chooser.set_audio_parameters(left_params, right_params)
+            
+            # Empty and refill the queue with new sounds
+            self.sound_queuer.empty_queue()
+            self.sound_queuer.append_sound_to_queue_as_needed()
+            
+            # Set session is running if it isn't already
+            self.session_is_running = True
+
+        else:
+            print("Unknown message received:", msg)
+
+        return stop_running
+
+    def check_poke_socket(self, socks):
+        ## Check for incoming messages on poke_socket
+        if self.network_communicator.poke_socket in socks and socks[self.network_communicator.poke_socket] == zmq.POLLIN:
+            # Waiting to receive message strings that control the main loop
+            msg = self.network_communicator.poke_socket.recv_string()  
+    
+            self.stop_running = self.handle_message_on_poke_socket(msg)
+
     def close(self):
         """Close all sockets and contexts"""
         self.poke_socket.close()

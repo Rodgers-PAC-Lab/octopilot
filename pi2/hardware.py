@@ -154,6 +154,11 @@ class HardwareController(object):
         set_up_pig(self.pig, self.pins)
         self.set_up_dio()
 
+        # Name my ports
+        # TODO: take this from params
+        self.identity = self.params['identity']
+        self.left_port_name = f'{identity}_L'
+        self.right_port_name = f'{identity}_R'
 
         # This object generates frames of audio
         # TODO: figure out whether to init sound_chooser first (in 
@@ -168,16 +173,7 @@ class HardwareController(object):
         
         # Set
         self.sound_chooser.set_audio_parameters(
-            left_params={
-                'silenced': True,
-                },
-            right_params={
-                'silenced': False,
-                'amplitude': 1e-5,
-                'center_frequency': 5000,
-                'rate': 10,
-                'temporal_std': 0.01,                    
-                },
+            left_params={'silenced': True,}, right_params={'silenced': True},
             )
         
         # This object uses those frames to top up sound_player
@@ -231,14 +227,6 @@ class HardwareController(object):
         self.pig.set_mode(self.pins['led_blue_l'], pigpio.OUTPUT)
         self.pig.set_mode(self.pins['led_blue_r'], pigpio.OUTPUT)        
     
-    def flash(self):
-        """Flash the blue LEDs whenever a trial is completed"""
-        self.pig.write(self.pins['led_blue_l'], 1) # Turning LED on
-        self.pig.write(self.pins['led_blue_r'], 1) 
-        time.sleep(0.5)
-        self.pig.write(self.pins['led_blue_l'], 0) # Turning LED off
-        self.pig.write(self.pins['led_blue_r'], 0) 
-    
     def stop_session(self):
         """Runs when a session is stopped
         
@@ -271,7 +259,7 @@ class HardwareController(object):
         self.pig.set_PWM_frequency(led_pin, pwm_frequency)
         self.pig.set_PWM_dutycycle(led_pin, pwm_duty_cycle)
 
-    def end_trial(self):
+    def handle_reward(self):
         # TODO: open valve here
         
         # Silence sound generation
@@ -283,130 +271,6 @@ class HardwareController(object):
         # Empty the queue of already generated sound
         self.sound_queuer.empty_queue()        
     
-    def parse_trial_parameters(self, msg):
-        """Parse `msg` into left_params and right_params
-        
-        msg : str
-            Should be a list of token separated by semicolons
-            Each token should be KEY=VALUE=DTYPE
-            where KEY is the key, VALUE is the value, and DTYPE is
-            either 'int', 'float', or 'str'
-        
-        Returns : left_params, right_params, each a dict
-        """
-        # Parse
-        split = msg.replace('set_trial_parameters;', '').split(';')
-        params = {}
-        for spl in split:
-            if spl.strip() == '':
-                continue
-            
-            try:
-                key, val, dtyp = spl.strip().split('=')
-            except ValueError:
-                raise ValueError('unparseable messagse: {}'.format(msg))
-            
-            try:
-                if dtyp == 'int':
-                    params[key] = int(val)
-                elif dtyp == 'float':
-                    params[key] = float(val)
-                elif dtyp == 'str':
-                    params[key] = val
-                elif dtyp == 'bool':
-                    params[key] = bool(val)
-                else:
-                    raise ValueError('unrecognized dtyp: {}'.format(dtyp))
-            except ValueError:
-                raise ValueError(f'cannot parse: {key}, {val}, {dtyp}')
-            
-        # Split into left_params and right_params
-        left_params = {}
-        right_params = {}
-        for key, val in params.items():
-            if key.startswith('left'):
-                left_params[key.replace('left_', '')] = val
-            elif key.startswith('right'):
-                right_params[key.replace('right_', '')] = val
-            else:
-                print('warning: unknown key, val: {}, {}'.format(key, val))
-        
-        return left_params, right_params
-
-    def handle_message_on_poke_socket(self, msg, verbose=True):
-        """Handle a message received on poke_socket
-        
-        poke_socket handles messages received from the GUI that are used 
-        to control the main loop. 
-        The functions of the different messages are as follows:
-        'exit' : terminates the program completely whenever received and 
-            closes it on all Pis for a particular box
-        'stop' : stops the current session and sends a message back to the 
-            GUI to stop plotting. The program waits until it can start next session 
-        'start' : used to start a new session after the stop message pauses 
-            the main loop
-        'Reward Port' : this message is sent by the GUI to set the reward port 
-            for a trial.
-        The Pis will receive messages of ports of other Pis being set as the 
-            reward port, however will only continue if the message contains 
-            one of the ports listed in its params file
-        'Reward Poke Completed' : Currently 'hacky' logic used to signify the 
-            end of the trial. If the string sent to the GUI matches the 
-            reward port set there it clears all sound parameters and opens 
-            the solenoid valve for the assigned reward duration. The LEDs 
-            also flash to show a trial was completed 
-        """
-        stop_running = False
-        quit_program = False
-        
-        if verbose:
-            print(f'received message: {msg}')
-        
-        # Different messages have different effects
-        if msg == 'exit': 
-            # Condition to terminate the main loop
-            self.stop_session()
-            print("Received exit command. Terminating program.")
-            
-            # Exit the loop
-            stop_running = True
-            quit_program = True
-        
-        elif msg == 'stop':
-            # Receiving message from the GUI to stop the current session 
-            # Stop all currently active elements and wait for next session
-            self.stop_session()
-            print("Stop command received. Stopping sequence.")
-            
-            # Stop running
-            stop_running = True
-
-        elif msg.startswith("set_trial_parameters;"):    
-            # Parse params
-            left_params, right_params = self.parse_trial_parameters(msg)
-            
-            # Use those params to set the new sounds
-            self.sound_chooser.set_audio_parameters(left_params, right_params)
-            
-            # Empty and refill the queue with new sounds
-            self.sound_queuer.empty_queue()
-            self.sound_queuer.append_sound_to_queue_as_needed()
-            
-            self.session_is_running = True
-
-        else:
-            print("Unknown message received:", msg)
-
-        return stop_running
-
-    def check_poke_socket(self, socks):
-        ## Check for incoming messages on poke_socket
-        if self.network_communicator.poke_socket in socks and socks[self.network_communicator.poke_socket] == zmq.POLLIN:
-            # Waiting to receive message strings that control the main loop
-            msg = self.network_communicator.poke_socket.recv_string()  
-    
-            self.stop_running = self.handle_message_on_poke_socket(msg)
-
     def check_if_session_is_running(self):
         return self.session_is_running
 
@@ -441,10 +305,14 @@ class HardwareController(object):
                 # Randomly send messages
                 if self.check_if_session_is_running():
                     if np.random.random() < 0.1:
-                        self.network_communicator.poke_socket.send_string('poke')
-                        time.sleep(.1)
-                    if np.random.random() < 0.1:
-                        self.network_communicator.poke_socket.send_string('reward')
+                        choose_poke = random.choice(
+                            [self.left_port_name, self.right_port_name])
+                        self.network_communicator.poke_socket.send_string(
+                            f'poke;{choose_poke}')
+                        if choose_poke == self.rewarded_port:
+                            self.network_communicator.poke_socket.send_string(
+                                f'reward;{choose_poke}')
+                        
                         time.sleep(.1)
                 else:
                     self.logger.info('waiting for session to start')
