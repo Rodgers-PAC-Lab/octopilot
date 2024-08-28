@@ -4,6 +4,7 @@ import zmq
 from . import sound
 from . import networking
 from logging_utils.logging_utils import NonRepetitiveLogger
+import logging
 import numpy as np
 
 ## TODO: all of these should be in class Nosepoke, and HC should have a nosepoke
