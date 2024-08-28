@@ -3,6 +3,7 @@ import pigpio
 import zmq
 from . import sound
 from . import networking
+from logging_utils.logging_utils import NonRepetitiveLogger
 import numpy as np
 
 ## TODO: all of these should be in class Nosepoke, and HC should have a nosepoke
@@ -152,46 +153,39 @@ class HardwareController(object):
         set_up_pig(self.pig, self.pins)
         self.set_up_dio()
 
-        # This object puts frames of audio into a sound queue
-        if dummy_sound_queuer:
-            self.sound_queuer = sound.DummySoundQueuer()
-        else:
-            # This object generates frames of audio
-            # TODO: figure out whether to init sound_chooser first (in 
-            # which case how to know blocksize?) or init sound_player first
-            # (in which case it needs to be ready to go without sound_chooser)
-            # I think the best thing to do is store blocksize and fs in
-            # params, and use that also to start jackd
-            self.sound_chooser = sound.SoundChooser_IntermittentBursts(
-                blocksize=1024,
-                fs=192000,
-                )
-            
-            # Set
-            self.sound_chooser.set_audio_parameters(
-                left_params={
-                    'silenced': False,
-                    'duration': 10,
-                    'amplitude': 1e-5,
-                    'center_frequency': 5000,
-                    'bandwidth': 3000,
-                    'rate': 10,
-                    'temporal_std': 0.01,
-                    },
-                right_params={
-                    'silenced': False,
-                    'duration': 10,
-                    'amplitude': 1e-5,
-                    'center_frequency': 5000,
-                    'bandwidth': 3000,
-                    'rate': 10,
-                    'temporal_std': 0.01,                    
-                    },
-                )
-            
-            # This object uses those frames to top up sound_player
-            self.sound_queuer = sound.SoundQueuer(
-                sound_chooser=self.sound_chooser)
+
+        # This object generates frames of audio
+        # TODO: figure out whether to init sound_chooser first (in 
+        # which case how to know blocksize?) or init sound_player first
+        # (in which case it needs to be ready to go without sound_chooser)
+        # I think the best thing to do is store blocksize and fs in
+        # params, and use that also to start jackd
+        self.sound_chooser = sound.SoundChooser_IntermittentBursts(
+            blocksize=1024,
+            fs=192000,
+            )
+        
+        # Set
+        self.sound_chooser.set_audio_parameters(
+            left_params={
+                'silenced': True,
+                },
+            right_params={
+                'silenced': False,
+                'amplitude': 1e-5,
+                'center_frequency': 5000,
+                'rate': 10,
+                'temporal_std': 0.01,                    
+                },
+            )
+        
+        # This object uses those frames to top up sound_player
+        self.sound_queuer = sound.SoundQueuer(
+            sound_chooser=self.sound_chooser)
+        
+        # This is used to know if the sesion is running (e.g. if any
+        # trial parameters have ever been sent
+        self.session_is_running = False
         
         # Fill the queue before we instantiate sound_player
         self.sound_queuer.append_sound_to_queue_as_needed()
@@ -219,6 +213,14 @@ class HardwareController(object):
                 )
         else:
             self.network_communicator = None
+
+
+        ## Init logger
+        self.logger = NonRepetitiveLogger("test")
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
+        self.logger.addHandler(sh)
+        self.logger.setLevel(logging.INFO)
     
     def set_up_dio(self):
         """Set up output DIO lines as OUTPUT
@@ -388,6 +390,8 @@ class HardwareController(object):
             # Empty and refill the queue with new sounds
             self.sound_queuer.empty_queue()
             self.sound_queuer.append_sound_to_queue_as_needed()
+            
+            self.session_is_running = True
 
         else:
             print("Unknown message received:", msg)
@@ -401,6 +405,9 @@ class HardwareController(object):
             msg = self.network_communicator.poke_socket.recv_string()  
     
             self.stop_running = self.handle_message_on_poke_socket(msg)
+
+    def check_if_session_is_running(self):
+        return self.session_is_running
 
     def main_loop(self):
         """Loop forever until told to stop, then exit
@@ -431,12 +438,16 @@ class HardwareController(object):
                     break
                 
                 # Randomly send messages
-                if np.random.random() < 0.1:
-                    self.network_communicator.poke_socket.send_string('poke')
-                    time.sleep(.1)
-                if np.random.random() < 0.1:
-                    self.network_communicator.poke_socket.send_string('reward')
-                    time.sleep(.1)
+                if self.check_if_session_is_running():
+                    if np.random.random() < 0.1:
+                        self.network_communicator.poke_socket.send_string('poke')
+                        time.sleep(.1)
+                    if np.random.random() < 0.1:
+                        self.network_communicator.poke_socket.send_string('reward')
+                        time.sleep(.1)
+                else:
+                    self.logger.info('waiting for session to start')
+                
                 
                 # If there's nothing in the main loop, not even a sleep,
                 # then for some reason this leads to XRun errors
