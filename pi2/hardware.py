@@ -7,125 +7,74 @@ from logging_utils.logging_utils import NonRepetitiveLogger
 import logging
 import numpy as np
 
-## TODO: all of these should be in class Nosepoke, and HC should have a nosepoke
-# Callback functions for nosepoke pin (When the nosepoke is detected)
-# Poke at Left Port 
-def poke_detectedL(pin, level, tick): 
-    global count, left_poke_detected, current_port_poked
-    count += 1
-    left_poke_detected = True
-    print("Poke Completed (Left)")
-    print("Poke Count:", count)
-    nosepoke_idL = nosepoke_pinL  # Set the left nosepoke_id here according to the pi 
-    current_port_poked = nosepoke_idL
-    
-    # Making red LED turn on when a poke is detected for troubleshooting
-    pig.set_mode(led_red_l, pigpio.OUTPUT)
-    if params['nosepokeL_type'] == "901":
-        pig.write(led_red_l, 0)
-    elif params['nosepokeL_type'] == "903":
-        pig.write(led_red_l, 1)
+class Nosepoke(object):
+    def __init__(self, name, poke_pin, poke_sense, solenoid_pin, 
+        red_pin, green_pin, blue_pin):
+        """Init a new Nosepoke"""
+        self.name
+        self.poke_pin = poke_pin
+        self.poke_sense = poke_sense
+        self.red_pin = red_pin
+        self.green_pin = green_pin
+        self.blue_pin = blue_pin
         
-    # Sending nosepoke_id to the GUI wirelessly
-    try:
-        print(f"Sending nosepoke_id = {nosepoke_idL}") 
-        poke_socket.send_string(str(nosepoke_idL))
-    except Exception as e:
-        print("Error sending nosepoke_id:", e)
-
-# Poke at Right Port
-def poke_detectedR(pin, level, tick): 
-    global count, right_poke_detected, current_port_poked
-    count += 1
-    right_poke_detected = True
-    print("Poke Completed (Right)")
-    print("Poke Count:", count)
-    nosepoke_idR = nosepoke_pinR  # Set the right nosepoke_id here according to the pi
-    current_port_poked = nosepoke_idR
+        self.handles_poke_in = []
+        self.handles_poke_out = []
+        self.handles_reward = []
+        
+        # Set up pig direction
+        pigpio.set_mode(self.poke_pin, pigpio.INPUT)
+        pigpio.set_mode(self.solenoid_pin, pigpio.OUTPUT)
+        pigpio.set_mode(self.red_pin, pigpio.OUTPUT)
+        pigpio.set_mode(self.green_pin, pigpio.OUTPUT)
+        pigpio.set_mode(self.blue_pin, pigpio.OUTPUT)
+        
+        # Set up pig call backs
+        if poke_sense:
+            pig.callback(self.poke_pin, pigpio.RISING_EDGE, self.poke_in) 
+        else:
+            pig.callback(self.poke_pin, pigpio.FALLING_EDGE, self.poke_in) 
     
-    # Making red LED turn on when a poke is detected for troubleshooting
-    pig.set_mode(led_red_r, pigpio.OUTPUT)
-    if params['nosepokeR_type'] == "901":
-        pig.write(led_red_r, 0)
-    elif params['nosepokeR_type'] == "903":
-        pig.write(led_red_r, 1)
-
-    # Sending nosepoke_id to the GUI wirelessly
-    try:
-        print(f"Sending nosepoke_id = {nosepoke_idR}") 
-        poke_socket.send_string(str(nosepoke_idR))
-    except Exception as e:
-        print("Error sending nosepoke_id:", e)
-
-# Callback function for nosepoke pin (When the nosepoke is completed)
-def poke_inL(pin, level, tick):
-    global left_poke_detected
-    if left_poke_detected:
-        # Write to left pin
-        print("Left poke detected!")
-        pig.set_mode(led_red_l, pigpio.OUTPUT)
-        if params['nosepokeL_type'] == "901":
-            pig.write(led_red_l, 1)
-        elif params['nosepokeL_type'] == "903":
-            pig.write(led_red_l, 0)
-    # Reset poke detected flags
-    left_poke_detected = False
-
-# Callback function for nosepoke pin (When the nosepoke is completed)
-def poke_inR(pin, level, tick):
-    global right_poke_detected
-    if right_poke_detected:
-        # Write to right pin
-        print("Right poke detected!")
-        pig.set_mode(led_red_r, pigpio.OUTPUT)
-        if params['nosepokeR_type'] == "901":
-            pig.write(led_red_r, 1)
-        elif params['nosepokeR_type'] == "903":
-            pig.write(led_red_r, 0)
-            
-    # Reset poke detected flags
-    right_poke_detected = False
-
-def open_valve(port):
-    """Open the solenoid valve for port to deliver reward
-    *port : port number to be rewarded (1,2,3..etc.)
-    *reward_value: how long the valve should be open (in seconds) [imported from task parameters sent to the pi] 
-    """
-    reward_value = config_data['reward_value']
-    if port == int(nosepoke_pinL):
-        pig.set_mode(valve_l, pigpio.OUTPUT)
+    def reward(self, duration=.050):
+        """Open the solenoid valve for port to deliver reward
+        *port : port number to be rewarded (1,2,3..etc.)
+        *reward_value: how long the valve should be open (in seconds) [imported from task parameters sent to the pi] 
+        """
+        # TODO: thread this instead of sleeping
         pig.write(valve_l, 1) # Opening valve
-        time.sleep(reward_value)
+        time.sleep(duration)
         pig.write(valve_l, 0) # Closing valve
     
-    if port == int(nosepoke_pinR):
-        pig.set_mode(valve_r, pigpio.OUTPUT)
-        pig.write(valve_r, 1)
-        time.sleep(reward_value)
-        pig.write(valve_r, 0)
+    def poke_in(self):
+        dt_now = datetime.datetime.now()
+        
+        # Determine whether to reward
+        # TODO: use lock here to prevent multiple rewards
+        do_reward = False
+        if self.reward_armed:
+            self.reward_armed = False
+            do_reward = True
+        
+        # Handle the pokes
+        for handle in self.handles_poke_in:
+            handle(self.name, dt_now)
 
-# This uses functions defined above
-def set_up_pig(pig, pins):
-    """Connect callbacks to pins
-    
-    Connects the following events to the following functions
-        nosepoke_l falling : poke_inL
-        nosepoke_l rising : poke_detectedL
-        nosepoke_r falling : poke_inR
-        nosepoke_r rising : poke_detectedR
-    
-    The poke_detected is called when the poke starts
-    And the poke_in is called when the poke ends
-    
-    TODO: this should be set by type 901 or 903
-    """
-    pig.callback(pins['nosepoke_l'], pigpio.FALLING_EDGE, poke_inL) 
-    pig.callback(pins['nosepoke_l'], pigpio.RISING_EDGE, poke_detectedL) 
-    pig.callback(pins['nosepoke_r'], pigpio.FALLING_EDGE, poke_inR)
-    pig.callback(pins['nosepoke_r'], pigpio.RISING_EDGE, poke_detectedR)
+        # The actual reward is slow so do it last
+        if do_reward:
+            for handle in self.handles_reward:
+                handle(self.name, dt_now)
 
+    def poke_out(self):
+        # Handle the pokes
+        for handle in self.handles_poke_out:
+            handle(self.name, dt_now)        
 
-## MAIN LOOP
+    def start_flashing(self, led_pin, pwm_frequency=1, pwm_duty_cycle=50):
+        # Writing to the LED pin such that it blinks acc to the parameters 
+        self.pig.set_mode(led_pin, pigpio.OUTPUT)
+        self.pig.set_PWM_frequency(led_pin, pwm_frequency)
+        self.pig.set_PWM_dutycycle(led_pin, pwm_duty_cycle)
+
 class HardwareController(object):
     """Object to control the flow of behavioral sessions
     
@@ -211,6 +160,34 @@ class HardwareController(object):
         else:
             self.network_communicator = None
 
+        # Set up nosepokes
+        # TODO: don't activate callbacks until explicitly told to do so
+        self.left_nosepoke = Nosepoke(
+            name=self.left_port_name,
+            poke_pin=self.pins['left_nosepoke'], 
+            poke_sense=True, 
+            solenoid_pin=self.pins['left_solenoid'],
+            red_pin=self.pins['left_led_red'], 
+            green_pin=self.pins['left_led_green'], 
+            blue_pin=self.pins['left_led_blue'], 
+            )
+        
+        self.left_nosepoke.handles_poke_in.append(self.report_poke)
+        self.left_nosepoke.handles_reward.append(self.report_reward)
+        
+        self.right_nosepoke = Nosepoke(
+            name=self.right_port_name,
+            poke_pin=self.pins['right_nosepoke'], 
+            poke_sense=True, 
+            solenoid_pin=self.pins['right_solenoid'],
+            red_pin=self.pins['right_led_red'], 
+            green_pin=self.pins['right_led_green'], 
+            blue_pin=self.pins['right_led_blue'], 
+            )            
+
+        self.right_nosepoke.handles_poke_in.append(self.report_poke)
+        self.right_nosepoke.handles_reward.append(self.report_reward)
+
 
         ## Init logger
         self.logger = NonRepetitiveLogger("test")
@@ -218,14 +195,6 @@ class HardwareController(object):
         sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
         self.logger.addHandler(sh)
         self.logger.setLevel(logging.INFO)
-    
-    def set_up_dio(self):
-        """Set up output DIO lines as OUTPUT
-        
-        TODO: add all pins not just blue ones
-        """
-        self.pig.set_mode(self.pins['led_blue_l'], pigpio.OUTPUT)
-        self.pig.set_mode(self.pins['led_blue_r'], pigpio.OUTPUT)        
     
     def stop_session(self):
         """Runs when a session is stopped
@@ -252,12 +221,6 @@ class HardwareController(object):
         
         # Empty the queue of sound
         self.sound_queuer.empty_queue()
-
-    def start_flashing(self, led_pin, pwm_frequency=1, pwm_duty_cycle=50):
-        # Writing to the LED pin such that it blinks acc to the parameters 
-        self.pig.set_mode(led_pin, pigpio.OUTPUT)
-        self.pig.set_PWM_frequency(led_pin, pwm_frequency)
-        self.pig.set_PWM_dutycycle(led_pin, pwm_duty_cycle)
 
     def handle_reward(self):
         # TODO: open valve here
@@ -303,6 +266,7 @@ class HardwareController(object):
                     break
                 
                 # Randomly send messages
+                # TODO: move this to Nosepoke
                 if self.check_if_session_is_running():
                     if np.random.random() < 0.1:
                         choose_poke = random.choice(
