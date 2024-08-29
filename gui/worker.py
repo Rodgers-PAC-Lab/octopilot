@@ -176,36 +176,51 @@ class Worker:
     The Worker class also handles tracking information regarding each 
     poke / trial and saving them to a csv file.
     
-    Arguments
-    ---------
-
-    params : dict
-        'worker_port': what zmq port to bind
-    
-
     """
 
     def __init__(self, params):
+        """Initialize a new worker
         
+        Arguments
+        ---------
+        params : dict
+            'worker_port': what zmq port to bind
+            'config_port': no longer used (?)
+            'save_directory'
+            'pi_defaults'
+            'task_configs'
+            'connected_pis' : list. Each item is a dict:
+                'name'
+                'left_port_name' : str
+                'right_port_name' : str
+                'left_port_position' : float (in degrees)
+                'right_port_position' : float (in degrees)
+        """
+        ## Init logger
+        self.logger = NonRepetitiveLogger("test")
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
+        self.logger.addHandler(sh)
+        self.logger.setLevel(logging.INFO)
+
+        
+        ## Save provided params
         self.params = params
+        self.logger.info(f'Initializing worker with params: {params}')
         
-        ## Variables to keep track of reward related messages 
-        # Keeping track of last rewarded port
-        self.last_rewarded_port = None 
-
-
+        
         ## Set up port labels and indices
         # Keep track of which are actually active (mostly for debugging)
-        self.expected_identities = ['rpi26', 'rpi27']
+        self.expected_identities = [
+            pi['name'] for pi in self.params['connected_pis']]
         
         # Creating a dictionary that takes the label of each port and matches 
         # it to the index on the GUI (used for reordering)
-        self.ports = self.params['ports']
-        
-        # Overwrite this to match expected identities
-        # TODO: gui config should know which ports belong to which pis
-        self.ports = {'rpi26_L', 'rpi26_R', 'rpi27_L', 'rpi27_R'}
-        
+        self.ports = set()
+        for pi in self.params['connected_pis']:
+            self.ports.add(pi['left_port_name'])
+            self.ports.add(pi['right_port_name'])
+
 
         ## Initialize network communicator and tell it what pis to expect
         self.network_communicator = NetworkCommunicator(
@@ -214,16 +229,11 @@ class Worker:
             )
         
         ## Initializing variables and lists to store trial information 
+        # Keeping track of last rewarded port
+        self.last_rewarded_port = None 
+
         # None is how it knows no session is running
         self.current_trial = None
-        
-        
-        ## Init logger
-        self.logger = NonRepetitiveLogger("test")
-        sh = logging.StreamHandler()
-        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
-        self.logger.addHandler(sh)
-        self.logger.setLevel(logging.INFO)
     
     def check_if_running(self):
         if self.current_trial is None:

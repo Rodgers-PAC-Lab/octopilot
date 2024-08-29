@@ -8,6 +8,7 @@ import random
 import numpy as np
 import zmq
 import pyqtgraph as pg
+from .worker import Worker
 
 
 from PyQt5 import QtWidgets
@@ -271,21 +272,17 @@ class ArenaWidget(QWidget):
         # Creating an instance of the Worker Class and a QThread to handle the logic
         # in a separate thread from the GUI elements
         # Worker relies on self.total_ports
-        self.worker = Worker(self, params)
-        self.thread = QThread()
-        
-        # Move the worker object to the thread
-        self.worker.moveToThread(self.thread)  
+        self.worker = Worker(params)
 
 
         ## Connect pokedportsignal to methods in this class
         # Connect the pokedportsignal from the Worker to slots that call some methods in Pi Widget
         # Connect the pokedportsignal to the emit_update_signal function
-        self.worker.pokedportsignal.connect(self.emit_update_signal)  
-        self.worker.pokedportsignal.connect(self.reset_last_poke_time)
+        #~ self.worker.pokedportsignal.connect(self.emit_update_signal)  
+        #~ self.worker.pokedportsignal.connect(self.reset_last_poke_time)
         
         # Used for RCP calculation (needs to be changed)
-        self.worker.pokedportsignal.connect(self.calc_and_update_avg_unique_ports) 
+        #~ self.worker.pokedportsignal.connect(self.calc_and_update_avg_unique_ports) 
 
         
         ## Create start and stop buttons and add to start_stop_layout
@@ -788,7 +785,7 @@ class PokePlotWidget(QWidget):
         arena_widget.updateSignal.connect(self.handle_update_signal)
         
         # This one was not done in MainWindow
-        arena_widget.worker.pokedportsignal.connect(self.plot_poked_port)
+        #~ arena_widget.worker.pokedportsignal.connect(self.plot_poked_port)
 
     def setup_plot_graphics(self):
         """Sets colors and labels of plot_widget

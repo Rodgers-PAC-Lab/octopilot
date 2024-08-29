@@ -191,8 +191,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # Wait till after the MainWindow is fully initialized
 
         # Connect the pokedportsignal to handle_update_signal
-        self.arena_widget.worker.pokedportsignal.connect(
-            self.poke_plot_widget.handle_update_signal)
+        #~ self.arena_widget.worker.pokedportsignal.connect(
+            #~ self.poke_plot_widget.handle_update_signal)
         
         # Connect the arena_widget updateSignal to the handle_update_signal
         self.arena_widget.updateSignal.connect(
@@ -209,8 +209,14 @@ class MainWindow(QtWidgets.QMainWindow):
         param_directory = f"{GIT_PATH}/gui/configs/{json_filename}.json"
 
         # Load the parameters from the specified JSON file
-        with open(param_directory, "r") as p:
-            params = json.load(p)
+        try:
+            with open(param_directory, "r") as p:
+                params = json.load(p)
+        except json.decoder.JSONDecodeError as e:
+            raise ValueError(
+                f"unable to load json file at {param_directory}; " +
+                f"original exception: {e}"
+                )
         
         return params
 
