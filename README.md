@@ -17,10 +17,13 @@ These are the main scripts that run the task
 TODO add more detail here
 
 ## Requirements for Pi and GUI
-conda install pyqt pyzmq pyqtgraph pyqt-toast-notification numpy pandas
+conda create --name paclab_sukrith
+conda activate paclab_sukrith
+conda install pyqt pyzmq pyqtgraph numpy pandas ipython
+pip install pyqt-toast-notification
 
 ## Requirements for Pi Only
-PiGPIO: pip install pigpio\
+pip install pigpio
 
 Jack Installation: https://jackclient-python.readthedocs.io/en/0.5.4/installation.html#requirements
 
