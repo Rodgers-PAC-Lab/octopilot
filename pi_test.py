@@ -900,9 +900,10 @@ try:
         # Appending sound to queue 
         sound_chooser.append_sound_to_queue_as_needed()
 
+        socks3 = dict(poller.poll(10))
         socks = dict(poller.poll(100))
         socks2 = dict(poller.poll(100))
-        socks3 = dict(poller.poll(100))
+
 
         ## Check for incoming messages on json_socket
         # If so, use it to update the acoustic parameters
