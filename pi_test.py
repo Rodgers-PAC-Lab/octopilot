@@ -883,6 +883,7 @@ try:
         if last_msg2 == None:
             if msg2 == "True":
                 # Reducing volume of the sound
+                #sound_chooser.running = False    
                 sound_chooser.amplitude = 0.25 * sound_chooser.amplitude
             
                 # Emptying queue and setting sound to play
@@ -892,7 +893,7 @@ try:
                 sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
                     sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
                 sound_chooser.set_sound_cycle()
-                sound_chooser.play()
+                sound_chooser.append_sound_to_queue_as_needed()
             elif msg2 == "False" or None:
                 sound_chooser.amplitude = sound_chooser.amplitude
         
@@ -1069,7 +1070,7 @@ try:
                     sound_chooser.empty_queue()
                     sound_chooser.set_channel('left')
                     sound_chooser.set_sound_cycle()
-                    sound_chooser.play()
+                    sound_chooser.append_sound_to_queue_as_needed()
                     
                     # Debug message
                     print(f"Turning port {value} green")
@@ -1098,7 +1099,7 @@ try:
                     sound_chooser.empty_queue()
                     sound_chooser.set_channel('right')
                     sound_chooser.set_sound_cycle()
-                    sound_chooser.play()
+                    sound_chooser.append_sound_to_queue_as_needed()
 
                     # Debug message
                     print(f"Turning port {value} green")
