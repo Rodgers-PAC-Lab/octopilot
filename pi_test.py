@@ -508,6 +508,21 @@ class SoundQueue:
         
         qsize = sound_queue.qsize()
     
+    def empty_queue1(self):
+        """Empty the queue immediately"""
+        while True:
+            try:
+                # Try to remove an item from the queue without blocking
+                data = sound_queue.get_nowait()
+            except queue.Empty:
+                # If the queue is empty, exit the loop
+                break
+
+        # Optional: Check the queue size after emptying (should be 0)
+        qsize = sound_queue.qsize()
+        print(f"Queue emptied, current size: {qsize}")
+
+
     def set_channel(self, mode):
         """Controlling which channel the sound is played from """
         if mode == 'none':
@@ -952,8 +967,8 @@ try:
                 if last_msg2 == "False" or last_msg2 == None:
                     print("Decreasing the volume of the sound")
                     # Condition to start the task
+                    sound_chooser.empty_queue1()
                     sound_chooser.amplitude = 0.25 * sound_chooser.amplitude
-                    sound_chooser.empty_queue()
 
                     # Setting sound to play 
                     sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
@@ -969,8 +984,9 @@ try:
                 # Testing amplitude
                 if last_msg2 == "True":
                     print("Increasing the volume of the sound")
+                    sound_chooser.empty_queue1()
                     sound_chooser.amplitude = 4 * sound_chooser.amplitude
-                    sound_chooser.empty_queue()
+
 
                     # Setting sound to play 
                     sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
