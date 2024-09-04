@@ -966,7 +966,7 @@ try:
                 sound_chooser.empty_queue()
 
                 # Setting sound to play 
-                sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+                sound_chooser.initialize_sounds(sound_player.client.blocksize, sound_player.client.fs, 
                     sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
                 sound_chooser.set_sound_cycle()
                 sound_chooser.append_sound_to_queue_as_needed()
