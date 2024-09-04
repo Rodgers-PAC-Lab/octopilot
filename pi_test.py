@@ -15,6 +15,7 @@ import queue
 import multiprocessing as mp
 import pandas as pd
 import scipy.signal
+import datetime
 from datetime import datetime
 import collections
 
@@ -652,7 +653,7 @@ class SoundPlayer(object):
         # Warn if the queue was empty
         if queue_is_empty:
             # Calculate how long it's been since the last warning
-            dt_now = datetime.datetime.now()
+            dt_now = datetime.now()
             if self.dt_last_warning is not None:
                 warning_thresh = (self.dt_last_warning + 
                     datetime.timedelta(seconds=1))
