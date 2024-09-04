@@ -530,61 +530,90 @@ class SoundQueue:
 # Define a JackClient, which will play sounds in the background
 # Rename to SoundPlayer to avoid confusion with jack.Client
 class SoundPlayer(object):
-    """Object to play sounds"""
-    def __init__(self, name='jack_client'):
+    """Reads frames of audio from a queue and provides them to a jack.Client
+
+    This object must be initialized with a `sound_queue` argument that provides
+    a frame of audio via `sound_queue.get()`. It should also implement
+    `sound_queue.empty()`. The SoundQueue object provides this functionality. 
+    
+    The `process` method of this object may be provided to jack.Client, which
+    will call it every ~5 ms to request new audio. 
+    
+    Attributes
+    ----------
+    name : str
+        This is only passed to jack.Client, which requires it.
+    
+    """
+    def __init__(self, sound_queuer, name='jack_client', verbose=True):
         """Initialize a new JackClient
+
+        This object has one job: get frames of audio out of sound_queue
+        and into jack.Client. All logic relating to the frames of audio that
+        go into the sound_queue should be handled by something else, such
+        as SoundQueuer.
 
         This object contains a jack.Client object that actually plays audio.
         It provides methods to send sound to its jack.Client, notably a 
         `process` function which is called every 5 ms or so.
         
+        Arguments
+        ----------
         name : str
             Required by jack.Client
-        # 
-        audio_cycle : iter
+        
+        sound_queue : deque-like object
             Should produce a frame of audio on request
         
-        This object should focus only on playing sound as precisely as
-        possible.
+        Flow
+        ----
+        * Initialize self.client as a jack.Client 
+        * Register outports
+        * Set client's process callback to self.process
+        * Activate client
+        * Hook up outports to target ports
         """
-        ## Store provided parameters
+        ## Store provided arguments
         self.name = name
+        self.sound_queuer = sound_queuer
+        self.verbose = verbose
+        
+        # Keep track of time of last warning
+        self.dt_last_warning = None
+        self.frame_rate_warning_already_issued = False
+        
         
         ## Create the contained jack.Client
         # Creating a jack client
         self.client = jack.Client(self.name)
 
-        # Pull these values from the initialized client
-        # These come from the jackd daemon
-        # `blocksize` is the number of samples to provide on each `process`
-        # call
-        self.blocksize = self.client.blocksize
-        
-        # `fs` is the sampling rate
-        self.fs = self.client.samplerate
-        
         # Debug message
-        # TODO: add control over verbosity of debug messages
-        print("Received blocksize {} and fs {}".format(self.blocksize, self.fs))
+        if self.verbose:
+            print(
+                "New jack.Client initialized with blocksize " + 
+                "{} and samplerate {}".format(
+                self.client.blocksize, self.client.samplerate))
 
-        ## Set up outchannels
+
+        ## Set up outports and register callbacks and activate client
+        # Set up outchannels
         self.client.outports.register('out_0')
         self.client.outports.register('out_1')
-        
-        ## Set up the process callback
+
+        # Set up the process callback
         # This will be called on every block and must provide data
         self.client.set_process_callback(self.process)
 
-        ## Activate the client
+        # Activate the client
+        # Strangely, this must be done before hooking up the outports
         self.client.activate()
 
-        ## Hook up the outports (data sinks) to physical ports
         # Get the actual physical ports that can play sound
         target_ports = self.client.get_ports(
             is_physical=True, is_input=True, is_audio=True)
         assert len(target_ports) == 2
 
-        # Connect virtual outport to physical channel
+        # Hook up the outports (data sinks) to physical ports
         self.client.outports[0].connect(target_ports[0])
         self.client.outports[1].connect(target_ports[1])
     
