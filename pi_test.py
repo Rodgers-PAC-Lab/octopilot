@@ -221,6 +221,9 @@ class SoundQueue:
         # Shorter is faster to empty and refill the queue
         self.target_qsize = 60
 
+        # Queue to hold frames of audio
+        self.sound_queue = collections.deque()
+
         # Some counters to keep track of how many sounds we've played
         self.n_frames = 0
 
