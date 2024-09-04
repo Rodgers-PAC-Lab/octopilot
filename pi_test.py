@@ -1011,7 +1011,7 @@ try:
                 rate_min, rate_max, irregularity_min, irregularity_max, 
                 amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
             poke_socket.send_string(new_params)
-            sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+            sound_chooser.initialize_sounds(sound_player.client.blocksize, sound_player.client.fs, 
                 sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
             sound_chooser.set_sound_cycle()
             
@@ -1031,7 +1031,7 @@ try:
                     sound_chooser.empty_queue()
 
                     # Setting sound to play 
-                    sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+                    sound_chooser.initialize_sounds(sound_player.client.blocksize, sound_player.client.fs, 
                         sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
                     
                     sound_chooser.set_sound_cycle()
@@ -1048,7 +1048,7 @@ try:
                     sound_chooser.empty_queue()
 
                     # Setting sound to play 
-                    sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+                    sound_chooser.initialize_sounds(sound_player.client.blocksize, sound_player.client.fs, 
                         sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
                     
                     sound_chooser.set_sound_cycle()
