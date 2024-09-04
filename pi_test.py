@@ -482,7 +482,7 @@ class SoundQueue:
         # TODO: append 10 extra frames, for a bit of stickiness
         while qsize < self.target_qsize:
             # Add a frame from the sound cycle
-            frame = next(self.sound_chooser)
+            frame = next(self.sound_cycle)
             self.sound_queue.appendleft(frame)
             
             # Update qsize
