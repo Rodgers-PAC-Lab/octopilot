@@ -167,11 +167,6 @@ class Noise:
             # Better solution is to encode this into attenuation profile,
             # or a separate "gain" parameter
             self.table = self.table * np.sqrt(10)
-            
-            # Apply the attenuation to each column
-            for n_column in range(self.table.shape[1]):
-                self.table[:, n_column] = apply_attenuation(
-                    self.table[:, n_column], self.attenuation, self.fs)
         
         # Break the sound table into individual chunks of length blocksize
         self.chunk()
@@ -223,7 +218,7 @@ class SoundQueue:
         # Each block/frame is about 5 ms
         # Longer is more buffer against unexpected delays
         # Shorter is faster to empty and refill the queue
-        self.target_qsize = 200
+        self.target_qsize = 60
 
         # Some counters to keep track of how many sounds we've played
         self.n_frames = 0
@@ -275,7 +270,7 @@ class SoundQueue:
             f"Bandwidth: {self.bandwidth}"
             )
 
-        print(parameter_message)
+        #print(parameter_message)
         return parameter_message
 
     """Method to choose which sound to initialize based on the target channel"""
@@ -874,15 +869,41 @@ try:
     
     # Track prev_port
     prev_port = None
+
+    # Keeping track of the bonsai parameters to change the volume of the sound
+    msg2 = None
+    last_msg2 = None
     
     ## Loop forever
     while True:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
+
+        # Initial logic when bonsai is started
+        if last_msg2 == None:
+            if msg2 == "True":
+                # Reducing volume of the sound
+                #sound_chooser.running = False    
+                sound_chooser.amplitude = 0.25 * sound_chooser.amplitude
+            
+                # Emptying queue and setting sound to play
+                sound_chooser.empty_queue()
+
+                # Setting sound to play 
+                sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+                    sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
+                sound_chooser.set_sound_cycle()
+                sound_chooser.append_sound_to_queue_as_needed()
+            elif msg2 == "False" or None:
+                sound_chooser.amplitude = sound_chooser.amplitude
+        
+        # Appending sound to queue 
         sound_chooser.append_sound_to_queue_as_needed()
+
         socks = dict(poller.poll(100))
         socks2 = dict(poller.poll(100))
-        
+        socks3 = dict(poller.poll(100))
+
         ## Check for incoming messages on json_socket
         # If so, use it to update the acoustic parameters
         if json_socket in socks and socks[json_socket] == zmq.POLLIN:
@@ -909,7 +930,6 @@ try:
             center_freq_max = config_data['center_freq_max']
             bandwidth = config_data['bandwidth']
             
-            
             # Update the jack client with the new acoustic parameters
             new_params = sound_chooser.update_parameters(
                 rate_min, rate_max, irregularity_min, irregularity_max, 
@@ -924,23 +944,42 @@ try:
 
         # Logic to handle messages from the bonsai socket
         if bonsai_socket in socks2 and socks2[bonsai_socket] == zmq.POLLIN:
-            
-            # Setting sound to play 
-            sound_chooser.set_sound_cycle()
-            msg = bonsai_socket.recv_string()  
+            msg2 = bonsai_socket.recv_string()  
             
             # Different messages have different effects
-            if msg == "True": 
-                # Condition to start the task
-                sound_chooser.running = True
-                sound_chooser.set_channel('right')
-                print("Received start command. Starting task.")
-            
-            elif msg == "False":
-                # Condition to stop the task
-                sound_chooser.empty_queue()
-                sound_chooser.running = False
-                print("Received stop command. Stopping task.")
+            if msg2 == "True": 
+                if last_msg2 == "False" or last_msg2 == None:
+                    print("Decreasing the volume of the sound")
+                    # Condition to start the task
+                    sound_chooser.amplitude = 0.25 * sound_chooser.amplitude
+                    sound_chooser.empty_queue()
+
+                    # Setting sound to play 
+                    sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+                        sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
+                    
+                    sound_chooser.set_sound_cycle()
+                    sound_chooser.append_sound_to_queue_as_needed()
+                    last_msg2 = msg2
+                else:
+                    last_msg2 = msg2
+
+            elif msg2 == "False":
+                # Testing amplitude
+                if last_msg2 == "True":
+                    print("Increasing the volume of the sound")
+                    sound_chooser.amplitude = 4 * sound_chooser.amplitude
+                    sound_chooser.empty_queue()
+
+                    # Setting sound to play 
+                    sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
+                        sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
+                    
+                    sound_chooser.set_sound_cycle()
+                    sound_chooser.append_sound_to_queue_as_needed()
+                    last_msg2 = msg2
+                else:
+                    last_msg2 = msg2
 
         # Separate logic for Poketrain task
         if task == 'Poketrain':
@@ -949,7 +988,7 @@ try:
         
         ## Check for incoming messages on poke_socket
         # TODO: document the types of messages that can be sent on poke_socket 
-        if poke_socket in socks and socks[poke_socket] == zmq.POLLIN:
+        if poke_socket in socks2 and socks2[poke_socket] == zmq.POLLIN:
             # Blocking receive: #flags=zmq.NOBLOCK)  
             # Non-blocking receive
             msg = poke_socket.recv_string()  
@@ -1031,7 +1070,7 @@ try:
                     sound_chooser.empty_queue()
                     sound_chooser.set_channel('left')
                     sound_chooser.set_sound_cycle()
-                    sound_chooser.play()
+                    sound_chooser.append_sound_to_queue_as_needed()
                     
                     # Debug message
                     print(f"Turning port {value} green")
@@ -1060,7 +1099,7 @@ try:
                     sound_chooser.empty_queue()
                     sound_chooser.set_channel('right')
                     sound_chooser.set_sound_cycle()
-                    sound_chooser.play()
+                    sound_chooser.append_sound_to_queue_as_needed()
 
                     # Debug message
                     print(f"Turning port {value} green")
@@ -1089,6 +1128,12 @@ try:
                 # Opening Solenoid Valve
                 flash()
                 open_valve(prev_port)
+
+                # Verifying state from bonsai 
+                if last_msg2 == "True":
+                    sound_chooser.amplitude = 4 * sound_chooser.amplitude
+                elif last_msg2 == "False":
+                    sound_chooser.amplitude = sound_chooser.amplitude
                 
                 # Adding an inter trial interval
                 time.sleep(1)
@@ -1097,11 +1142,11 @@ try:
                 # TODO: fix this; rate_min etc are not necessarily defined
                 # yet, or haven't changed recently
                 # Reset play mode to 'none'
+
                 new_params = sound_chooser.update_parameters(
                     rate_min, rate_max, irregularity_min, irregularity_max, 
                     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
                 poke_socket.send_string(new_params)
-                
                 
                 # Turn off the currently active LED
                 if current_pin is not None:
@@ -1113,7 +1158,6 @@ try:
            
             else:
                 print("Unknown message received:", msg)
-
 
 except KeyboardInterrupt:
     # Stops the pigpio connection

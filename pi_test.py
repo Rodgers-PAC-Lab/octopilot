@@ -16,6 +16,7 @@ import multiprocessing as mp
 import pandas as pd
 import scipy.signal
 from datetime import datetime
+import collections
 
 
 ## Killing previous pigpiod and jackd background processes
@@ -459,7 +460,7 @@ class SoundQueue:
         # If we never end this function, then it won't respond to END
         #self.stage_block.set()
     
-    def append_sound_to_queue_as_needed(self):
+    def append_sound_to_queue_as_needed(self, verbose=False):
         """Dump frames from `self.sound_cycle` into queue
 
         The queue is filled until it reaches `self.target_qsize`
@@ -471,42 +472,48 @@ class SoundQueue:
         # between calls. If it's getting too close to zero, then target_qsize
         # needs to be increased.
         # Get the size of queue now
-        qsize = sound_queue.qsize()
+        qsize = len(self.sound_queue)
+        start_qsize = qsize
 
         # Add frames until target size reached
-        while self.running ==True and qsize < self.target_qsize:
-            #with qlock:
+        # TODO: append 10 extra frames, for a bit of stickiness
+        while qsize < self.target_qsize:
             # Add a frame from the sound cycle
-            frame = next(self.sound_cycle)
-            #frame = np.random.uniform(-.01, .01, (1024, 2)) 
-            sound_queue.put_nowait(frame)
-            
-            # Keep track of how many frames played
-            self.n_frames = self.n_frames + 1
+            frame = next(self.sound_chooser)
+            self.sound_queue.appendleft(frame)
             
             # Update qsize
-            qsize = sound_queue.qsize()
-            
-    def empty_queue(self, tosize=0):
-        """Empty queue"""
-        while True:
-            # I think it's important to keep the lock for a short period
-            # (ie not throughout the emptying)
-            # in case the `process` function needs it to play sounds
-            # (though if this does happen, there will be an artefact because
-            # we just skipped over a bunch of frames)
-            #with qlock:
-            try:
-                data = sound_queue.get_nowait()
-            except queue.Empty:
-                break
-            
-            # Stop if we're at or below the target size
-            qsize = sound_queue.qsize()
-            if qsize < tosize:
-                break
+            qsize = len(self.sound_queue)
         
-        qsize = sound_queue.qsize()
+        if verbose:
+            if start_qsize != qsize:
+                print('topped up qsize: {} to {}'.format(start_qsize, qsize))
+            
+    def empty_queue(self, tosize=5):
+        """Empty queue
+        
+        Pop frames off the left side of sound_queue (that is, the newest
+        frames) until sound_queue has size `tosize`.
+        
+        tosize : int
+            This many frames of audio from before `empty_queue` was called
+            will still be played. 
+            As this gets larger, the sound takes longer to stop.
+            As this gets smaller, we risk running out of frames and
+            causing an xrun.
+        """
+        # Continue until we're at or below the target size
+        while len(self.sound_queue) > tosize:
+            try:
+                self.sound_queue.popleft()
+            except IndexError:
+                # This shouldn't really happen as long as tosize is 
+                # significantly more than 0
+                print('warning: sound queue was prematurely emptied')
+                break
+
+    def __next__(self):
+        return self.sound_queue.pop()
     
     def set_channel(self, mode):
         """Controlling which channel the sound is played from """
@@ -611,8 +618,8 @@ class SoundPlayer(object):
 
 # Defining a common queue to be used by both classes 
 # Initializing queues to be used by sound player
-sound_queue = mp.Queue()
-nonzero_blocks = mp.Queue()
+sound_queue = collections.deque()
+nonzero_blocks = collections.deque()
 
 # Lock for thread-safe set_channel() updates
 qlock = mp.Lock()
