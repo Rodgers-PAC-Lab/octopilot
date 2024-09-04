@@ -218,7 +218,7 @@ class SoundQueue:
         # Each block/frame is about 5 ms
         # Longer is more buffer against unexpected delays
         # Shorter is faster to empty and refill the queue
-        self.target_qsize = 50
+        self.target_qsize = 60
 
         # Some counters to keep track of how many sounds we've played
         self.n_frames = 0
