@@ -588,33 +588,70 @@ class SoundPlayer(object):
         self.client.outports[0].connect(target_ports[0])
         self.client.outports[1].connect(target_ports[1])
     
-    def process(self, frames):
-        """Process callback function (used to play sound)
+    def process(self, frames, verbose=False):
+        """Write a frame of audio from self.sound_queue to self.client.outports
         
-        TODO: reimplement this to use a queue instead
-        The current implementation uses time.time(), but we need to be more
-        precise.
+        This function is called by self.client every 5 ms or whenever new
+        audio is needed.
+        
+        Flow
+        * A frame of audio is popped from self.sound_queue
+        * If sound_queue is empty, a frame of zeros is generated. This should
+          not happen, so a warning is printed, but not more than once per
+          second.
+        * If the frame is not of shape (blocksize, 2), raises ValueError
+        * Frame is converted to float32
+        * Each column of frame is written to the outports
         """
-        # Check if the queue is empty
-        if sound_queue.empty():
-            # No sound to play, so play silence 
-            # Although this shouldn't be happening
-
-            for n_outport, outport in enumerate(self.client.outports):
-                buff = outport.get_array()
-                buff[:] = np.zeros(self.blocksize, dtype='float32')
+        # Optional debug message
+        if verbose:
+            print('process called')
+        
+        # Try to get audio data from self.sound_queue
+        queue_is_empty = False
+        try:
+            data = next(self.sound_queuer)
+        except IndexError:
+            # The queue is empty
+            # Play zeros and set the flag
+            queue_is_empty = True
+            data = np.zeros((self.client.blocksize, 2), dtype='float32')
+        
+        # Warn if the queue was empty
+        if queue_is_empty:
+            # Calculate how long it's been since the last warning
+            dt_now = datetime.datetime.now()
+            if self.dt_last_warning is not None:
+                warning_thresh = (self.dt_last_warning + 
+                    datetime.timedelta(seconds=1))
             
-        else:
-            # Queue is not empty, so play data from it
-            data = sound_queue.get()
-            if data.shape != (self.blocksize, 2):
-                print(data.shape)
-            assert data.shape == (self.blocksize, 2)
-
-            # Write one column to each channel
-            for n_outport, outport in enumerate(self.client.outports):
-                buff = outport.get_array()
-                buff[:] = data[:, n_outport]
+            # If it's been long enough since the warning, or if warning
+            # has never been issued, warn now
+            if self.dt_last_warning is None or dt_now > warning_thresh:
+                # Set time of last warning
+                self.dt_last_warning = dt_now
+                
+                # Warn
+                # This is the last thing we check, so that verbose can be 
+                # changed and everything will still be up to date
+                if self.verbose:
+                    print(
+                        "warning: sound_queue is empty, playing silence and "
+                        "silencing warnings for 1 s")
+        
+        # Make sure audio data has the correct shape
+        if data.shape != (self.client.blocksize, 2):
+            raise ValueError(
+                "error: process received data of shape {} ".format(data.shape) + 
+                "but it should have been {}".format((self.client.blocksize, 2))
+                )
+        
+        # Ensure it is the correct dtype
+        data = data.astype('float32')
+        
+        # Write one column to each channel
+        self.client.outports[0].get_array()[:] = data[:, 0]
+        self.client.outports[1].get_array()[:] = data[:, 1]
 
 # Defining a common queue to be used by both classes 
 # Initializing queues to be used by sound player
