@@ -16,7 +16,6 @@ import multiprocessing as mp
 import pandas as pd
 import scipy.signal
 import datetime
-from datetime import datetime
 import collections
 
 
@@ -653,7 +652,7 @@ class SoundPlayer(object):
         # Warn if the queue was empty
         if queue_is_empty:
             # Calculate how long it's been since the last warning
-            dt_now = datetime.now()
+            dt_now = datetime.datetime.now()
             if self.dt_last_warning is not None:
                 warning_thresh = (self.dt_last_warning + 
                     datetime.timedelta(seconds=1))
@@ -817,7 +816,7 @@ def poke_detectedL(pin, level, tick):
         pi.write(17, 1)
         
     # Get current datetime
-    poke_time = datetime.now()
+    poke_time = datetime.datetime.now()
         
     # Sending nosepoke_id wirelessly with datetime
     try:
@@ -845,7 +844,7 @@ def poke_detectedR(pin, level, tick):
         pi.write(10, 1)
     
     # Get current datetime
-    poke_time = datetime.now()
+    poke_time = datetime.datetime.now()
     
     # Sending nosepoke_id wirelessly with datetime
     try:
