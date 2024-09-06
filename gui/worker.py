@@ -352,6 +352,10 @@ class Worker:
 
         # None is how it knows no session is running
         self.current_trial = None
+        
+        # History
+        self.poked_port_history = []
+        self.reward_history = []
     
     def check_if_running(self):
         if self.current_trial is None:
