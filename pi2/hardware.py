@@ -5,7 +5,37 @@ from . import sound
 from . import networking
 from logging_utils.logging_utils import NonRepetitiveLogger
 import logging
+import threading
 import numpy as np
+import datetime
+
+class RepeatedTimer(object):
+    # https://stackoverflow.com/questions/474528/how-to-repeatedly-execute-a-function-every-x-seconds
+    def __init__(self, interval, function, *args, **kwargs):
+        self._timer = None
+        self.interval = interval
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
+        self.is_running = False
+        self.next_call = time.time()
+        self.start()
+
+    def _run(self):
+        self.is_running = False
+        self.start()
+        self.function(*self.args, **self.kwargs)
+
+    def start(self):
+        if not self.is_running:
+            self.next_call += self.interval
+        self._timer = threading.Timer(self.next_call - time.time(), self._run)
+        self._timer.start()
+        self.is_running = True
+
+    def stop(self):
+        self._timer.cancel()
+        self.is_running = False
 
 class Nosepoke(object):
     def __init__(self, name, pig, poke_pin, poke_sense, solenoid_pin, 
@@ -23,6 +53,14 @@ class Nosepoke(object):
             False if we should call the callback on a FALLING_EDGE
             TODO: which is 901 and which is 903
         """
+        ## Init logger
+        self.logger = NonRepetitiveLogger("test")
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
+        self.logger.addHandler(sh)
+        self.logger.setLevel(logging.INFO)
+        
+        
         ## Save attributes
         self.name = name
         self.pig = pig
@@ -33,6 +71,11 @@ class Nosepoke(object):
         self.green_pin = green_pin
         self.blue_pin = blue_pin
         
+        # Whether to reward
+        self.reward_pokes = False
+        
+        # Whether to autopoke
+        self.rt = None
         
         ## Set up lists of handles to call on events
         self.handles_poke_in = []
@@ -40,6 +83,7 @@ class Nosepoke(object):
         self.handles_reward = []
         
         # Set up pig direction
+        # TODO: use locks in these functions
         self.pig.set_mode(self.poke_pin, pigpio.INPUT)
         self.pig.set_mode(self.solenoid_pin, pigpio.OUTPUT)
         self.pig.set_mode(self.red_pin, pigpio.OUTPUT)
@@ -52,34 +96,67 @@ class Nosepoke(object):
         else:
             self.pig.callback(self.poke_pin, pigpio.FALLING_EDGE, self.poke_in) 
     
+    def autopoke_start(self, rate=2, interval=0.1):
+        """Create spurious pokes at a rate of `rate` per second.
+        
+        rate : float
+            Expected rate of pokes
+        interval : float
+            How often the timer is called, in seconds. Higher numbers offer more 
+            precision but take more processing time.
+        """
+        # Calculate the probability to use to achieve the rate
+        prob = rate * interval
+        
+        # Set up a RepeatedTimer to run every `interval` seconds
+        self.rt = RepeatedTimer(interval, self._autopoke, prob=prob)
+    
+    def autopoke_stop(self):
+        if self.rt is not None:
+            self.rt.stop()
+    
+    def _autopoke(self, prob=1):
+        self.logger.debug('autopoke')
+        if np.random.random() < prob:
+            self.poke_in()
+    
     def reward(self, duration=.050):
         """Open the solenoid valve for port to deliver reward
         *port : port number to be rewarded (1,2,3..etc.)
         *reward_value: how long the valve should be open (in seconds) [imported from task parameters sent to the pi] 
         """
         # TODO: thread this instead of sleeping
-        self.pig.write(valve_l, 1) # Opening valve
+        #self.pig.write(valve_l, 1) # Opening valve
         time.sleep(duration)
-        self.pig.write(valve_l, 0) # Closing valve
+        #self.pig.write(valve_l, 0) # Closing valve
+        self.logger.info('reward delivered')
     
     def poke_in(self):
+        # Get time right away
         dt_now = datetime.datetime.now()
         
         # Determine whether to reward
+        # If so, immediately disarm
         # TODO: use lock here to prevent multiple rewards
-        do_reward = False
-        if self.reward_armed:
-            self.reward_armed = False
+        if self.reward_pokes:
+            self.reward_pokes = False
             do_reward = True
+        else:
+            do_reward = False
         
-        # Handle the pokes
+        # Any handles associated with pokes
         for handle in self.handles_poke_in:
             handle(self.name, dt_now)
 
-        # The actual reward is slow so do it last
+        # Actually deliver the reward
+        self.reward()
+        
+        # Any handles associated with reward
         if do_reward:
             for handle in self.handles_reward:
                 handle(self.name, dt_now)
+
+        self.logger.info('poke detected')
 
     def poke_out(self):
         # Handle the pokes
@@ -254,6 +331,11 @@ class HardwareController(object):
         self.left_nosepoke.handles_reward.append(self.report_reward)
         self.right_nosepoke.handles_poke_in.append(self.report_poke)
         self.right_nosepoke.handles_reward.append(self.report_reward)
+        
+        
+        ## Autopoke
+        self.left_nosepoke.autopoke_start()
+        self.right_nosepoke.autopoke_start()
     
     def set_trial_parameters(self, msg_params):
         """Called upon receiving set_trial_parameters from GUI
@@ -286,21 +368,24 @@ class HardwareController(object):
         self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed()
     
-    def report_poke(self):
+    def report_poke(self, port_name, poke_time):
         """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
         
         """
+        self.logger.info(f'reporting poke on f{port_name} at f{poke_time}')
         # Send 'poke;poke_name' to GUI
         self.network_communicator.poke_socket.send_string(
-            f'poke;{choose_poke}')
+            f'poke;port_name={port_name}=str;poke_time={poke_time}=str')
     
-    def report_reward(self):
+    def report_reward(self, port_name, poke_time):
         """Called by Nosepoke upon reward. Reports to GUI by ZMQ.
         
         """
+        self.logger.info(f'reporting reward on f{port_name} at f{poke_time}')
+        
         # Send 'reward;poke_name' to GUI
         self.network_communicator.poke_socket.send_string(
-            f'reward;{choose_poke}')
+            f'reward;port_name={port_name}=str;poke_time={poke_time}=str')
     
     def stop_session(self):
         """Runs when a session is stopped
@@ -327,6 +412,10 @@ class HardwareController(object):
         
         # Stops the pigpio connection
         self.pig.stop()
+        
+        # Stops any nosepoke autopoking
+        self.left_nosepoke.autopoke_stop()
+        self.right_nosepoke.autopoke_stop()
         
         # Close all sockets and contexts
         if self.network_communicator is not None:
