@@ -10,6 +10,17 @@ parts of the code, this is why two network ports need to be used
         session, Exit command to end program
     * json_socket: Used to strictly receive task parameters from the GUI 
     (so that audio parameters can be set for each trial)
+
+
+The pi can receive the following messages from the GUI:
+    set_trial_parameters
+    stop
+    exit
+
+The pi can send the following messages to the GUI:
+    poke
+    reward
+
 """
 
 import zmq
@@ -77,6 +88,10 @@ class NetworkCommunicator(object):
         self.logger.setLevel(logging.DEBUG)
         
 
+        ## Set up the method to call on each command
+        self.command2method = {}
+        
+
         ## Set up sockets
         self.init_socket()
 
@@ -127,8 +142,6 @@ class NetworkCommunicator(object):
         self.logger.debug(f'checking poke socket')
         if self.poke_socket in socks and socks[self.poke_socket] == zmq.POLLIN:
             # Waiting to receive message strings that control the main loop
-            self.logger.debug(f'Waiting for message on poke socket')
-            
             # Is this blocking?
             # I think the 'if' is only satisfied if there is something to
             # receive, so it doesn't matter if it's blocking
@@ -139,8 +152,8 @@ class NetworkCommunicator(object):
     
             #self.stop_running = self.handle_message_on_poke_socket(msg)
 
-        # Handle message
-        self.handle_message(msg)
+            # Handle message
+            self.handle_message(msg)
     
     def handle_message(self, msg):
         """Handle a message received on poke_socket
@@ -169,16 +182,19 @@ class NetworkCommunicator(object):
         msg_params = self.parse_params(tokens[1:])
         
         # Find associated method
+        meth = None
         try:
             meth = self.command2method[command]
         except KeyError:
             self.logger.error(
                 f'unrecognized command: {command}. '
-                f'I only recognize: {self.command2method.keys()}'
+                f'I only recognize: {list(self.command2method.keys())}'
                 )
         
         # Call the method
-        meth(msg_params)
+        if meth is not None:
+            self.logger.debug(f'calling method {meth} with params {msg_params}')
+            meth(msg_params)
 
     def parse_params(self, token_l):
         """Parse `token_l` into a dict
@@ -233,6 +249,13 @@ class NetworkCommunicator(object):
         
         return params
 
+    def send_goodbye(self):
+        """Send goodbye message to GUI
+        
+        """
+        self.logger.info('sending goodbye')
+        self.poke_socket.send_string(f"goodbye;{self.identity}") 
+    
     def close(self):
         """Close all sockets and contexts"""
         self.poke_socket.close()

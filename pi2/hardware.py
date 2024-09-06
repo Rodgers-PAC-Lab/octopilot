@@ -210,6 +210,11 @@ class HardwareController(object):
                 poke_port=self.params['poke_port'], 
                 config_port=self.params['config_port'],
                 )
+            
+            # Set up hooks
+            self.network_communicator.command2method['set_trial_parameters'] = (
+                self.set_trial_parameters)
+            
         else:
             self.network_communicator = None
 
@@ -241,18 +246,24 @@ class HardwareController(object):
             )            
 
         # Hook up the poke in and reward callbacks
+        # TODO: add a callback that terminates the audio upon reward
+        # TODO: add a callback that plays an error sound upon incorrect poke
         self.left_nosepoke.handles_poke_in.append(self.report_poke)
         self.left_nosepoke.handles_reward.append(self.report_reward)
         self.right_nosepoke.handles_poke_in.append(self.report_poke)
         self.right_nosepoke.handles_reward.append(self.report_reward)
     
-    def handle_set_parameters_message(self, msg_params):
+    def set_trial_parameters(self, msg_params):
+        """Called upon receiving set_trial_parameters from GUI
         
+        """
+        self.logger.debug(f'setting trial parametesr: {msg_params}')
         # Split into left_params and right_params
         left_params = {}
         right_params = {}
         other_params = {}
-        for key, val in params.items():
+        
+        for key, val in msg_params.items():
             if key.startswith('left'):
                 left_params[key.replace('left_', '')] = val
             elif key.startswith('right'):
@@ -260,14 +271,13 @@ class HardwareController(object):
             else:
                 other_params[key] = val
         
-        return left_params, right_params, other_params
-        
-
         # Get rewarded port
         # TODO: replace with binary reward or not for several ports
         self.rewarded_port = other_params['rewarded_port']
+        self.logger.info(f'setting rewarded port: {self.rewarded_port}')
         
         # Use those params to set the new sounds
+        self.logger.info(f'setting audio parameters: {left_params} {right_params}')
         self.sound_chooser.set_audio_parameters(left_params, right_params)
         
         # Empty and refill the queue with new sounds
@@ -278,13 +288,17 @@ class HardwareController(object):
         """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
         
         """
-        pass
+        # Send 'poke;poke_name' to GUI
+        self.network_communicator.poke_socket.send_string(
+            f'poke;{choose_poke}')
     
     def report_reward(self):
         """Called by Nosepoke upon reward. Reports to GUI by ZMQ.
         
         """
-        pass
+        # Send 'reward;poke_name' to GUI
+        self.network_communicator.poke_socket.send_string(
+            f'reward;{choose_poke}')
     
     def stop_session(self):
         """Runs when a session is stopped
@@ -354,21 +368,17 @@ class HardwareController(object):
                 if self.stop_running:
                     break
                 
-                # Randomly send messages
-                # TODO: move this to Nosepoke
-                if self.check_if_session_is_running():
-                    if np.random.random() < 0.1:
-                        choose_poke = random.choice(
-                            [self.left_port_name, self.right_port_name])
-                        self.network_communicator.poke_socket.send_string(
-                            f'poke;{choose_poke}')
-                        if choose_poke == self.rewarded_port:
-                            self.network_communicator.poke_socket.send_string(
-                                f'reward;{choose_poke}')
+                #~ # Randomly send messages
+                #~ # TODO: move this to Nosepoke
+                #~ if self.check_if_session_is_running():
+                    #~ if np.random.random() < 0.1:
+                        #~ choose_poke = random.choice(
+                            #~ [self.left_port_name, self.right_port_name])
+
                         
-                        time.sleep(.1)
-                else:
-                    self.logger.info('waiting for session to start')
+                        #~ time.sleep(.1)
+                #~ else:
+                    #~ self.logger.info('waiting for session to start')
                 
                 
                 # If there's nothing in the main loop, not even a sleep,
@@ -393,4 +403,5 @@ class HardwareController(object):
             
             # Close all sockets and contexts
             if self.network_communicator is not None:
+                self.network_communicator.send_goodbye()
                 self.network_communicator.close()
