@@ -16,10 +16,14 @@ The pi can receive the following messages from the GUI:
     set_trial_parameters
     stop
     exit
+    alive
 
 The pi can send the following messages to the GUI:
     poke
     reward
+    sound
+    alive
+    goodbye
 
 """
 
@@ -129,7 +133,7 @@ class NetworkCommunicator(object):
         self.poke_socket.connect(self.router_ip) 
 
         # Send the identity of the Raspberry Pi to the server
-        self.poke_socket.send_string(f"hello;{self.identity}") 
+        self.poke_socket.send_string(f"hello") 
 
         # Print acknowledgment
         print(f"Connected to router at {self.router_ip}")  
@@ -197,7 +201,7 @@ class NetworkCommunicator(object):
         # Call the method
         if meth is not None:
             self.logger.debug(f'calling method {meth} with params {msg_params}')
-            meth(msg_params)
+            meth(**msg_params)
 
     def parse_params(self, token_l):
         """Parse `token_l` into a dict
@@ -257,7 +261,7 @@ class NetworkCommunicator(object):
         
         """
         self.logger.info('sending goodbye')
-        self.poke_socket.send_string(f"goodbye;{self.identity}") 
+        self.poke_socket.send_string(f"goodbye") 
     
     def close(self):
         """Close all sockets and contexts"""
