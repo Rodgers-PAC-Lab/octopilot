@@ -339,7 +339,7 @@ class HardwareController(object):
         self.left_nosepoke.autopoke_start()
         self.right_nosepoke.autopoke_start()
     
-    def set_trial_parameters(self, msg_params):
+    def set_trial_parameters(self, **msg_params):
         """Called upon receiving set_trial_parameters from GUI
         
         """
