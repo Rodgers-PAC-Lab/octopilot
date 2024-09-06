@@ -28,6 +28,28 @@ class NetworkCommunicator(object):
         * Bind to tcp://*{worker_port}
         * Initialize empty self.connected_pis
         """
+        ## Init logger
+        self.logger = NonRepetitiveLogger("test")
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
+        self.logger.addHandler(sh)
+        self.logger.setLevel(logging.INFO)
+
+
+        # Store provided params
+        # This is who we expect to connect
+        self.expected_identities = expected_identities
+
+        # Set of identities of all pis connected to that instance of ther GUI 
+        self.connected_pis = set() 
+        
+        # Set up the method to call on each command
+        self.command2method = {}
+        
+        # Set up sockets
+        self.init_socket(worker_port)
+    
+    def init_socket(self, worker_port):
         ## Set up ZMQ
         # Setting up a ZMQ socket to send and receive information about 
         # poked ports 
@@ -40,19 +62,6 @@ class NetworkCommunicator(object):
         
         # Making it bind to the port used for sending poke related information
         self.zmq_socket.bind(f"tcp://*{worker_port}")
-
-        # Set of identities of all pis connected to that instance of ther GUI 
-        self.connected_pis = set() 
-        
-        # This is who we expect to connect
-        self.expected_identities = expected_identities
-    
-        ## Init logger
-        self.logger = NonRepetitiveLogger("test")
-        sh = logging.StreamHandler()
-        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
-        self.logger.addHandler(sh)
-        self.logger.setLevel(logging.INFO)
     
     def check_if_all_pis_connected(self):
         """"Returns True if all pis in self.expected_identies are connected"""
@@ -112,63 +121,152 @@ class NetworkCommunicator(object):
         
         self.send_message_to_all(msg)
     
-    def check_for_messages(self, verbose=True):
+    def check_for_messages(self):
         """Check self.zmq_socket for messages.
         
         If a message is available: return identity, messages
         Otherwise: return None
         """
         ## Check for messages
-        no_message_received = False
+        message_received = True
         try:
             # Without NOBLOCK, this will hang until a message is received
             # TODO: use Poller here?
             identity, message = self.zmq_socket.recv_multipart(
                 flags=zmq.NOBLOCK)
         except zmq.error.Again:
-            no_message_received = True
+            message_received = False
 
         # If there's no message received, there is nothing to do
-        if no_message_received:
-            return        
+        if message_received:
+            self.handle_message(identity, message)
+    
+    def handle_message(self, identity, message):
+        """Handle a message received on poke_socket
         
+        Arguments
+        ---------
+        msg : str
+            A ';'-separated list of strings
+            The first string is the "command"
+            The remaining strings should be in the format {KEY}={VALUE}={DTYP}
+            The method self.command2method[command] is called with a dict
+            of arguments formed from the remaining strings.
+        """        
         # Debug print identity and message
-        if verbose:
-            self.logger.debug(f'received message {message} from identity {identity}')
-
+        self.logger.debug(f'received from {identity}: {message}')
         
-        ## Decode the message
+        # Decode the message
         # TODO: in the future support bytes
         identity_str = identity.decode('utf-8')
         message_str = message.decode('utf-8')
 
-    
-        ## If a message was received, then keep track of the identities
+        # Keep track of the identities
         if identity_str not in self.connected_pis:
-            # This better be a hello message
-            if not message_str.startswith('hello'):
-                self.logger.warn(
-                    f'warning: first message from new identity {identity_str} '
-                    f'was not hello but rather {message_str}'
-                    )
-            
-            else:
-                self.logger.info(f'first message from new identity {identity_str} is {message_str}')
-            
-            # Check whether it's expected
-            if identity_str in self.expected_identities:
-                # Keep track of it
-                self.connected_pis.add(identity_str)
-            
-            else:
-                self.logger.warn(
-                    f'warning: {identity_str} is not in expected_identities '
-                    'but it attempted to connect'
-                    )
+            self.add_identity_to_connected(identity_str, message_str)
 
+        # Split on semicolon
+        tokens = message_str.strip().split(';')
         
-        ## Return identity and message
-        return identity_str, message_str
+        # The command is the first token
+        # This will always run, but command could be ''
+        command = tokens[0]
+        
+        # Get the params
+        # This will always run, but could return {}
+        msg_params = self.parse_params(tokens[1:])
+        
+        # Find associated method
+        meth = None
+        try:
+            meth = self.command2method[command]
+        except KeyError:
+            self.logger.error(
+                f'unrecognized command: {command}. '
+                f'I only recognize: {list(self.command2method.keys())}'
+                )
+        
+        # Call the method
+        if meth is not None:
+            self.logger.debug(f'calling method {meth} with params {msg_params}')
+            meth(msg_params)
+
+    def parse_params(self, token_l):
+        """Parse `token_l` into a dict
+        
+        Iterates over strings in token_l, parses them as KEY=VALUE=DTYPE,
+        and stores in a dict to return. Raises ValueError if unparseable.
+        
+        TODO: replace this with json
+        
+        token_l : list
+            Each entry should be a str, '{KEY}={VALUE}={DTYPE}'
+            where KEY is the key, VALUE is the value, and DTYPE is
+            either 'int', 'float', or 'str'
+        
+        Returns : dict d
+            d[KEY] will be VALUE of type DTYPE
+        """
+        # Parse each token
+        params = {}
+        for tok in token_l:
+            # Strip
+            strip_tok = tok.strip()
+            split_tok = strip_tok.split('=')
+            
+            # Skip if empty
+            if strip_tok == '':
+                # This happens if the message ends with a semicolon,
+                # which is fine
+                continue
+            
+            # Error if it's not KEY=VAL=DTYP
+            try:
+                key, val, dtyp = split_tok
+            except ValueError:
+                raise ValueError('unparseable token: {}'.format(tok))
+            
+            # Convert value
+            if dtyp == 'int':
+                conv_val = int(val)
+            elif dtyp == 'float':
+                conv_val = float(val)
+            elif dtyp == 'str':
+                conv_val = val
+            elif dtyp == 'bool':
+                conv_val = bool(val)
+            else:
+                # Error if DTYP unrecognized
+                raise ValueError('unrecognized dtyp: {}'.format(dtyp))
+            
+            # Store
+            params[key] = conv_val
+        
+        return params
+    
+    def add_identity_to_connected(self, identity_str, message_str):
+        # This better be a hello message
+        if not message_str.startswith('hello'):
+            self.logger.warn(
+                f'warning: first message from new identity {identity_str} '
+                f'was not hello but rather {message_str}'
+                )
+        
+        else:
+            self.logger.info(
+                f'first message from new identity {identity_str} '
+                f'is {message_str}')
+        
+        # Check whether it's expected
+        if identity_str in self.expected_identities:
+            # Keep track of it
+            self.connected_pis.add(identity_str)
+        
+        else:
+            self.logger.warn(
+                f'warning: {identity_str} is not in expected_identities '
+                'but it attempted to connect'
+                )
 
 class Worker:
     """Handles task logic
@@ -231,6 +329,17 @@ class Worker:
             params['worker_port'],
             expected_identities=self.expected_identities,
             )
+        
+        # What to do on each command
+        # TODO: disconnect these handles after session is stopped
+        self.network_communicator.command2method = {
+            'poke': self.handle_poke,
+            'reward': self.handle_reward,
+            'sound': self.handle_sound,
+            'alive': self.handle_alive,
+            'goodbye': self.handle_goodbye,
+            }
+        
         
         ## Initializing variables and lists to store trial information 
         # Keeping track of last rewarded port
@@ -353,184 +462,26 @@ class Worker:
                 print('shutting down')
                 break
     
-    def check_and_handle_messages(self, verbose=True):
-        # Log current time (before checking)
-        dt_now = datetime.datetime.now()
-        
-        
-        ## Check for any messages from the Pis
-        received_message = self.network_communicator.check_for_messages()
-        
-        # Handle whatever message it was
-        if received_message is not None:
-            identity_str, message_str = received_message
-        
-            if message_str.startswith('poke'):
-                # A poke was received
-                if not self.check_if_running():
-                    self.logger.warn(
-                        f'warning: received {message_str} from {identity_str}'
-                        ' but session is not running')
-                else:
-                    # Log it
-                    self.logger.info(
-                        f'poke received {message_str} from {identity_str}')
-                    self.poke_timestamps.append(dt_now)
-                    #self.handle_poke_message(message_str, identity_str, dt_now)
-
-            elif message_str.startswith('reward'):
-                # A reward was delivered
-                
-                if not self.check_if_running():
-                    self.logger.warn(
-                        f'warning: received {message_str} from {identity_str}'
-                        ' but session is not running')
-                else:
-                    # Log it
-                    self.logger.info(
-                        f'reward received {message_str} from {identity_str}')
-                    self.reward_timestamps.append(dt_now)
-                    
-                    # Start a new trial
-                    self.start_trial()
-
-            elif message_str.startswith('sound'):
-                # A sound was played
-                if not self.check_if_running():
-                    self.logger.warn(
-                        f'warning: received {message_str} from {identity_str}'
-                        ' but session is not running')
-                else:
-                    # Log it
-                    self.logger.info(
-                        f'sound played {message_str} from {identity_str}')                    
-                    self.sound_times.append(dt_now)
-
-            elif message_str.startswith('alive'):
-                # Keep alive
-                # Log it
-                self.log_alive(identity, dt_now)
-
-    def handle_poke_message(self, message_str, identity, elapsed_time):
-        ## Converting message string to int 
-        poked_port = int(message_str) 
-
-
-        ## Check if the poked port is the same as the last rewarded port
-        if poked_port == self.last_rewarded_port:
-            # If it is, do nothing and return
-            return
-        
-        
-        ## Get index and icon
-        # For any label in the list of port labels, correlate it to the 
-        # index of the port in the visual arrangement in the widget 
-        poked_port_index = self.label_to_index.get(message_str)
-        poked_port_icon = self.nosepoke_circles[poked_port_index]
-
-        
+    def handle_poke(self, port_name, poke_time):
         ## Store results
         # Appending the poked port to a sequence that contains 
         # all pokes during a session
-        self.poked_port_numbers.append(poked_port)
-        
-        # Can be commented out to declutter terminal
-        print_out("Sequence:", self.poked_port_numbers)
-        self.last_pi_received = identity
+        self.poked_port_history.append((port_name, poke_time))
 
+
+    def handle_reward(self, port_name, poke_time):
         # Appending the current reward port to save to csv 
-        self.reward_ports.append(self.reward_port)
+        self.reward_history.append((port_name, poke_time))
+
+
+    def handle_sound(self):
+        pass
+    
+    def handle_alive(self):
+        pass
+    
+    def handle_goodbye(self, identity):
+        self.logger.info(f'goodbye received from: {identity}')
         
-        # Used to update RCP calculation
-        self.update_unique_ports()
-
         
-        ## Take different actions depending on the type of poke
-        if poked_port == self.reward_port:
-            # This was the rewarded port
-            # This is a correct trial if pokes == 0, otherwise incorrect
-            if self.trials == 0:
-                # This is a correct trial
-                color = "green"
-
-                # Updating count for correct trials
-                self.current_correct_trials += 1 
-                
-                # Updating Fraction Correct
-                self.current_fraction_correct = (
-                    self.current_correct_trials / self.current_completed_trials)
-
-            else:
-                # This is an incorrect trial
-                color = "blue"
-
-            # Updating the number of completed trials in the session 
-            self.current_completed_trials += 1 
-            
-            
-            ## Sending an acknowledgement to the Pis when the reward port is poked
-            for identity in self.identities:
-                self.zmq_socket.send_multipart([
-                    identity, 
-                    bytes(f"Reward Poke Completed: {self.reward_port}", 
-                    'utf-8]')])
-            
-            # Storing the completed reward port to make sure the next 
-            # choice is not at the same port
-            self.last_rewarded_port = self.reward_port 
-            self.reward_port = self.choose() 
-            
-            # Resetting the number of pokes that have happened in the trial
-            self.trials = 0 
-            
-            # Printing reward port
-            print_out(f"Reward Port: {self.reward_port}")
-            
-            
-            ## Start a new trial
-            # When a new trial is started reset color of all 
-            # non-reward ports to gray and set new reward port to green
-            for index, Pi in enumerate(self.nosepoke_circles):
-                # This might be a hack that doesnt work for some boxes 
-                # (needs to be changed)
-                if index + 1 == self.reward_port: 
-                    Pi.set_color("green")
-                else:
-                    Pi.set_color("gray")
-
-            
-            ## Sending the reward port to all connected Pis after a trial is completed
-            for identity in self.identities:
-                self.zmq_socket.send_multipart([
-                identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
-
-        else:
-            # This was an unrewarded poke
-            color = "red" 
-            self.trials += 1
-
-
-        ## Emit signal
-        # Sending information regarding poke and outcome of poke to Pi Widget
-        self.pokedportsignal.emit(poked_port, color)
-
-
-        ## Updating number of pokes in the session 
-        self.current_poke += 1 
         
-        ## Setting the color of the port on the Pi Widget
-        poked_port_icon.set_color(color)
-
-        
-        ## Appending all the information at the time of a particular 
-        # poke to their respective lists
-        self.pokes.append(self.current_poke)
-        self.timestamps.append(elapsed_time)
-        self.amplitudes.append(self.current_amplitude)
-        self.target_rates.append(self.current_target_rate)
-        self.target_temporal_log_stds.append(self.current_target_temporal_log_std)
-        self.center_freqs.append(self.current_center_freq)
-        self.completed_trials.append(self.current_completed_trials)
-        self.correct_trials.append(self.current_correct_trials)
-        self.fc.append(self.current_fraction_correct)
-
