@@ -398,7 +398,7 @@ class Worker:
         self.current_trial = 0
         self.start_trial()
 
-    def start_trial(self, verbose=True):
+    def start_trial(self):
         ## Choose and broadcast reward_port
         # Setting up a new set of possible choices after omitting 
         # the previously rewarded port
@@ -443,34 +443,39 @@ class Worker:
      
         """Send a stop message to the pi"""
         # Send a stop message to each pi
-        self.network_communicator.send_to_all('stop')
+        self.network_communicator.send_message_to_all('stop')
     
     def main_loop(self, verbose=True):
         """Main loop of Worker
 
         """
-        while True:
-            try:
+        try:
+            self.logger.info('starting main_loop')
+            
+            while True:
                 # Check for messages
                 self.network_communicator.check_for_messages()
                 
-                # Start a session if needed
-                # TODO: this should be activated by a button instead
-                if self.current_trial is None:
-                    if self.network_communicator.check_if_all_pis_connected():
+                # Check if we're all connected
+                if self.network_communicator.check_if_all_pis_connected():
+                    # Start if it needs to start
+                    # TODO: this should be started by a button
+                    if self.current_trial is None:
                         self.start_session()
-                    else:
-                        self.logger.info(
-                            'waiting for {} to connect; only {} connected'.format(
-                            ', '.join(self.network_communicator.expected_identities),
-                            ', '.join(self.network_communicator.connected_pis),
-                            ))
-                
-                time.sleep(0.5)
-                
-            except KeyboardInterrupt:
-                print('shutting down')
-                break
+                else:
+                    # We're not all connnected
+                    self.logger.info(
+                        'waiting for {} to connect; only {} connected'.format(
+                        ', '.join(self.network_communicator.expected_identities),
+                        ', '.join(self.network_communicator.connected_pis),
+                    ))
+                    time.sleep(.2)
+            
+        except KeyboardInterrupt:
+            self.logger.info('shutting down')
+        
+        finally:
+            self.stop_session()
     
     def handle_poke(self, identity, port_name, poke_time):
         ## Store results
@@ -482,6 +487,9 @@ class Worker:
         # Appending the current reward port to save to csv 
         self.reward_history.append((port_name, poke_time))
 
+        # Start a new trial
+        self.start_trial()
+
     def handle_sound(self):
         pass
     
@@ -490,5 +498,12 @@ class Worker:
     
     def handle_goodbye(self, identity):
         self.logger.info(f'goodbye received from: {identity}')
+        
+        # remove from connected
         self.network_communicator.remove_identity_from_connected(identity)
+        
+        # TODO: stop the session if we've lost quorum
+        if not self.network_communicator.check_if_all_pis_connected():
+            self.logger.error('session stopped due to early goodbye')
+            self.stop_session()
         
