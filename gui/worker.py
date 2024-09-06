@@ -175,6 +175,9 @@ class NetworkCommunicator(object):
         # This will always run, but could return {}
         msg_params = self.parse_params(tokens[1:])
         
+        # Insert identity into msg_params
+        msg_params['identity'] = identity_str
+        
         # Find associated method
         meth = None
         try:
@@ -469,13 +472,13 @@ class Worker:
                 print('shutting down')
                 break
     
-    def handle_poke(self, port_name, poke_time):
+    def handle_poke(self, identity, port_name, poke_time):
         ## Store results
         # Appending the poked port to a sequence that contains 
         # all pokes during a session
         self.poked_port_history.append((port_name, poke_time))
 
-    def handle_reward(self, port_name, poke_time):
+    def handle_reward(self, identity, port_name, poke_time):
         # Appending the current reward port to save to csv 
         self.reward_history.append((port_name, poke_time))
 
