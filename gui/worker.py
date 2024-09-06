@@ -68,6 +68,8 @@ class NetworkCommunicator(object):
     
     def send_message_to_all(self, msg):
         """"Send msg to all identities in self.connected_pis"""
+        self.logger.info(f'sending message to all connecting pis: {msg}')
+        
         # Convert to bytes
         msg_bytes = bytes(msg, 'utf-8')
         
@@ -75,6 +77,8 @@ class NetworkCommunicator(object):
         for identity in self.connected_pis:
             identity_bytes = bytes(identity, 'utf-8')
             self.zmq_socket.send_multipart([identity_bytes, msg_bytes])
+    
+        self.logger.info(f'above message was sent to {self.connected_pis}')    
     
     def send_trial_parameters(self, **kwargs):
         """Encode a set_trial_parameters message and send to all Pis
