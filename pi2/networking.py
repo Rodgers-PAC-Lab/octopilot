@@ -134,12 +134,16 @@ class NetworkCommunicator(object):
         # Print acknowledgment
         print(f"Connected to router at {self.router_ip}")  
 
-    def check_socket(self, socks):
+    def check_socket(self):
         # Get time
         dt_now = datetime.datetime.now().isoformat()
-        
+
+        # Wait for events on registered sockets. 
+        # Currently polls every 100ms to check for messages 
+        self.logger.debug('checking poke socket')
+        socks = dict(self.poller.poll(100))
+
         # Check for incoming messages on poke_socket
-        self.logger.debug(f'checking poke socket')
         if self.poke_socket in socks and socks[self.poke_socket] == zmq.POLLIN:
             # Waiting to receive message strings that control the main loop
             # Is this blocking?
@@ -148,10 +152,9 @@ class NetworkCommunicator(object):
             msg = self.poke_socket.recv_string()  
             
             # Receive message
-            self.logger.debug(f'{dt_now} - Received message {msg} on poke socket')
+            self.logger.debug(
+                f'{dt_now} - Received message {msg} on poke socket')
     
-            #self.stop_running = self.handle_message_on_poke_socket(msg)
-
             # Handle message
             self.handle_message(msg)
     

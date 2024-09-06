@@ -157,10 +157,6 @@ class HardwareController(object):
         self.left_port_name = f'{self.identity}_L'
         self.right_port_name = f'{self.identity}_R'
 
-        # This is used to know if the session is running (e.g. if any
-        # trial parameters have ever been sent
-        self.session_is_running = False
-        
 
         ## Initialize sound_chooser
         # This object generates frames of audio
@@ -214,7 +210,11 @@ class HardwareController(object):
             # Set up hooks
             self.network_communicator.command2method['set_trial_parameters'] = (
                 self.set_trial_parameters)
-            
+            self.network_communicator.command2method['stop'] = (
+                self.stop_session)
+            self.network_communicator.command2method['exit'] = (
+                self.exit)            
+        
         else:
             self.network_communicator = None
 
@@ -246,6 +246,8 @@ class HardwareController(object):
             )            
 
         # Hook up the poke in and reward callbacks
+        # TODO: add these to a start_session() method that is called upon
+        # set_trial_parameters(), and add the reverse to a stop_session()
         # TODO: add a callback that terminates the audio upon reward
         # TODO: add a callback that plays an error sound upon incorrect poke
         self.left_nosepoke.handles_poke_in.append(self.report_poke)
@@ -310,21 +312,26 @@ class HardwareController(object):
         * stops playing sound,
         * and empties the queue.
         """
-        # Flash
-        self.flash()
-        
-        # Reset flags
-        self.current_led_pin = None
-        self.prev_port = None
-        
-        # Turn off pins
-        self.pig.write(self.pins['led_red_l'], 0)
-        self.pig.write(self.pins['led_red_r'], 0)
-        self.pig.write(self.pins['led_green_l'], 0)
-        self.pig.write(self.pins['led_green_r'], 0)
+        # TODO: disable nosepokes here
         
         # Empty the queue of sound
         self.sound_queuer.empty_queue()
+
+    def exit(self):
+        """Shut down objects"""
+        # Deactivating the Sound Player before closing the program
+        self.sound_player.client.deactivate()
+        
+        # Stop jack
+        self.sound_player.client.close()
+        
+        # Stops the pigpio connection
+        self.pig.stop()
+        
+        # Close all sockets and contexts
+        if self.network_communicator is not None:
+            self.network_communicator.send_goodbye()
+            self.network_communicator.close()        
 
     def handle_reward(self):
         # TODO: open valve here
@@ -338,18 +345,12 @@ class HardwareController(object):
         # Empty the queue of already generated sound
         self.sound_queuer.empty_queue()        
     
-    def check_if_session_is_running(self):
-        return self.session_is_running
-
     def main_loop(self):
-        """Loop forever until told to stop, then exit
-        
-        """
+        """Loop forever until told to stop, then exit"""
         try:
-            ## Loop forever
-            self.stop_running = False
-            print('starting mainloop')
-            
+            self.logger.info('starting mainloop')
+
+            ## Loop until KeyboardInterrupt or exit message received
             while True:
                 # Used to continuously add frames of sound to the 
                 # queue until the program stops
@@ -358,28 +359,7 @@ class HardwareController(object):
                 # Check poke_socket for incoming messages about exit, stop,
                 # start, reward, etc
                 if self.network_communicator is not None:
-                    # Wait for events on registered sockets. 
-                    # Currently polls every 100ms to check for messages 
-                    self.logger.debug('checking poke socket')
-                    socks = dict(self.network_communicator.poller.poll(100))
-                    self.network_communicator.check_socket(socks)
-                
-                # Check if stop_runnning was set by check_poke_socket
-                if self.stop_running:
-                    break
-                
-                #~ # Randomly send messages
-                #~ # TODO: move this to Nosepoke
-                #~ if self.check_if_session_is_running():
-                    #~ if np.random.random() < 0.1:
-                        #~ choose_poke = random.choice(
-                            #~ [self.left_port_name, self.right_port_name])
-
-                        
-                        #~ time.sleep(.1)
-                #~ else:
-                    #~ self.logger.info('waiting for session to start')
-                
+                    self.network_communicator.check_socket()
                 
                 # If there's nothing in the main loop, not even a sleep,
                 # then for some reason this leads to XRun errors
@@ -391,17 +371,5 @@ class HardwareController(object):
             print('KeyboardInterrupt received, shutting down')
             
         finally:
-            ## QUITTING ALL NETWORK AND HARDWARE PROCESSES    
-            # Deactivating the Sound Player before closing the program
-            self.sound_player.client.deactivate()
-            
-            # Stop jack
-            self.sound_player.client.close()
-            
-            # Stops the pigpio connection
-            self.pig.stop()
-            
-            # Close all sockets and contexts
-            if self.network_communicator is not None:
-                self.network_communicator.send_goodbye()
-                self.network_communicator.close()
+            # Shut down all network, sound, and hardware
+            self.exit()
