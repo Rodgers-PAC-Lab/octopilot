@@ -32,7 +32,7 @@ class NetworkCommunicator(object):
         sh = logging.StreamHandler()
         sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
         self.logger.addHandler(sh)
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(logging.DEBUG)
 
 
         # Store provided params
@@ -188,7 +188,7 @@ class NetworkCommunicator(object):
         # Call the method
         if meth is not None:
             self.logger.debug(f'calling method {meth} with params {msg_params}')
-            meth(msg_params)
+            meth(**msg_params)
 
     def parse_params(self, token_l):
         """Parse `token_l` into a dict
@@ -445,7 +445,7 @@ class Worker:
         while True:
             try:
                 # Check for messages
-                self.check_and_handle_messages()
+                self.network_communicator.check_for_messages()
                 
                 # Start a session if needed
                 # TODO: this should be activated by a button instead
@@ -471,11 +471,9 @@ class Worker:
         # all pokes during a session
         self.poked_port_history.append((port_name, poke_time))
 
-
     def handle_reward(self, port_name, poke_time):
         # Appending the current reward port to save to csv 
         self.reward_history.append((port_name, poke_time))
-
 
     def handle_sound(self):
         pass
