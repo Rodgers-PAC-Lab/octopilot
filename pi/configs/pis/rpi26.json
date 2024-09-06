@@ -5,6 +5,6 @@
     "config_port": ":5556",
     "nosepokeL_type": "901",
     "nosepokeR_type": "901",
-    "nosepokeL_id": "5",
-    "nosepokeR_id": "7"
+    "jack_sample_rate": 192000,
+    "jack_blocksize": 1024
 }

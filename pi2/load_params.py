@@ -29,18 +29,6 @@ def load_params_file(verbose=False):
     with open(param_directory, "r") as p:
         params = json.load(p)    
 
-    # Convert pin numbers to int
-    if hasattr(params['nosepokeL_id'], '__len__'):
-        print(
-            "warning: nosepokeL_id should be an int but instead it is " + 
-            "{}, converting".format(params['nosepokeL_id']))
-        params['nosepokeL_id'] = int(params['nosepokeL_id'])
-
-        print(
-            "warning: nosepokeR_id should be an int but instead it is " + 
-            "{}, converting".format(params['nosepokeR_id']))
-        params['nosepokeR_id'] = int(params['nosepokeR_id'])
-
     if verbose:
         dt_now = datetime.datetime.now().isoformat()
         print('{} load_params.load_params_file: Loaded params:'.format(dt_now))

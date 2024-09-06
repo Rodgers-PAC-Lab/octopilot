@@ -13,11 +13,24 @@ parts of the code, this is why two network ports need to be used
 """
 
 import zmq
-
+from logging_utils.logging_utils import NonRepetitiveLogger
+import logging
+import datetime
 
 ## This class is instantiated by HardwareController
 class NetworkCommunicator(object):
     """Handles communication with GUI
+    
+    This object sets up sockets to communicate with GUI, receives messages
+    from the GUI, and can be set to call specific methods upon receiving
+    specific messages.
+    
+    Generally, this object is instantiated by and contained by a 
+    HardwareController, which provides its own methods to be called upon
+    receiving specific messages.
+    
+    This object should focus on network communication (sockets etc) and
+    parsing messages, not on task-specific logic. 
     
     Methods
     -------
@@ -48,22 +61,31 @@ class NetworkCommunicator(object):
         * Set up self.poke_socket. This also sends a message to the GUI.
         * Set up self.poller and register the scokets.
         """
-        # Store required arguments
+        ## Store required arguments
         self.pi_identity = pi_identity
         self.gui_ip = gui_ip
         self.poke_port = poke_port
         self.identity = identity
         self.config_port = config_port
+        
 
-        # Set up sockets
-        self.set_up_poke_socket()
+        ## Init logger
+        self.logger = NonRepetitiveLogger("test")
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
+        self.logger.addHandler(sh)
+        self.logger.setLevel(logging.DEBUG)
+        
+
+        ## Set up sockets
+        self.init_socket()
 
         # Creating a poller object for both sockets that will be used to 
         # continuously check for incoming messages
         self.poller = zmq.Poller()
         self.poller.register(self.poke_socket, zmq.POLLIN)
     
-    def set_up_poke_socket(self):
+    def init_socket(self):
         """Create `self.poke_socket` and connect to GUI
         
         Flow
@@ -97,136 +119,119 @@ class NetworkCommunicator(object):
         # Print acknowledgment
         print(f"Connected to router at {self.router_ip}")  
 
-    def parse_trial_parameters(self, msg):
-        """Parse `msg` into left_params and right_params
+    def check_socket(self, socks):
+        # Get time
+        dt_now = datetime.datetime.now().isoformat()
         
+        # Check for incoming messages on poke_socket
+        self.logger.debug(f'checking poke socket')
+        if self.poke_socket in socks and socks[self.poke_socket] == zmq.POLLIN:
+            # Waiting to receive message strings that control the main loop
+            self.logger.debug(f'Waiting for message on poke socket')
+            
+            # Is this blocking?
+            # I think the 'if' is only satisfied if there is something to
+            # receive, so it doesn't matter if it's blocking
+            msg = self.poke_socket.recv_string()  
+            
+            # Receive message
+            self.logger.debug(f'{dt_now} - Received message {msg} on poke socket')
+    
+            #self.stop_running = self.handle_message_on_poke_socket(msg)
+
+        # Handle message
+        self.handle_message(msg)
+    
+    def handle_message(self, msg):
+        """Handle a message received on poke_socket
+        
+        Arguments
+        ---------
         msg : str
-            Should be a list of token separated by semicolons
-            Each token should be KEY=VALUE=DTYPE
+            A ';'-separated list of strings
+            The first string is the "command"
+            The remaining strings should be in the format {KEY}={VALUE}={DTYP}
+            The method self.command2method[command] is called with a dict
+            of arguments formed from the remaining strings.
+        """
+        # Log
+        self.logger.debug(f'received message: {msg}')
+        
+        # Split on semicolon
+        tokens = msg.strip().split(';')
+        
+        # The command is the first token
+        # This will always run, but command could be ''
+        command = tokens[0]
+        
+        # Get the params
+        # This will always run, but could return {}
+        msg_params = self.parse_params(tokens[1:])
+        
+        # Find associated method
+        try:
+            meth = self.command2method[command]
+        except KeyError:
+            self.logger.error(
+                f'unrecognized command: {command}. '
+                f'I only recognize: {self.command2method.keys()}'
+                )
+        
+        # Call the method
+        meth(msg_params)
+
+    def parse_params(self, token_l):
+        """Parse `token_l` into a dict
+        
+        Iterates over strings in token_l, parses them as KEY=VALUE=DTYPE,
+        and stores in a dict to return. Raises ValueError if unparseable.
+        
+        TODO: replace this with json
+        
+        token_l : list
+            Each entry should be a str, '{KEY}={VALUE}={DTYPE}'
             where KEY is the key, VALUE is the value, and DTYPE is
             either 'int', 'float', or 'str'
         
-        Returns : left_params, right_params, each a dict
+        Returns : dict d
+            d[KEY] will be VALUE of type DTYPE
         """
-        # Parse
-        split = msg.replace('set_trial_parameters;', '').split(';')
+        # Parse each token
         params = {}
-        for spl in split:
-            if spl.strip() == '':
+        for tok in token_l:
+            # Strip
+            strip_tok = tok.strip()
+            split_tok = strip_tok.split('=')
+            
+            # Skip if empty
+            if strip_tok == '':
+                # This happens if the message ends with a semicolon,
+                # which is fine
                 continue
             
+            # Error if it's not KEY=VAL=DTYP
             try:
-                key, val, dtyp = spl.strip().split('=')
+                key, val, dtyp = split_tok
             except ValueError:
-                raise ValueError('unparseable messagse: {}'.format(msg))
+                raise ValueError('unparseable token: {}'.format(tok))
             
-            try:
-                if dtyp == 'int':
-                    params[key] = int(val)
-                elif dtyp == 'float':
-                    params[key] = float(val)
-                elif dtyp == 'str':
-                    params[key] = val
-                elif dtyp == 'bool':
-                    params[key] = bool(val)
-                else:
-                    raise ValueError('unrecognized dtyp: {}'.format(dtyp))
-            except ValueError:
-                raise ValueError(f'cannot parse: {key}, {val}, {dtyp}')
-            
-        # Split into left_params and right_params
-        left_params = {}
-        right_params = {}
-        for key, val in params.items():
-            if key.startswith('left'):
-                left_params[key.replace('left_', '')] = val
-            elif key.startswith('right'):
-                right_params[key.replace('right_', '')] = val
+            # Convert value
+            if dtyp == 'int':
+                conv_val = int(val)
+            elif dtyp == 'float':
+                conv_val = float(val)
+            elif dtyp == 'str':
+                conv_val = val
+            elif dtyp == 'bool':
+                conv_val = bool(val)
             else:
-                other_params[key] = val
+                # Error if DTYP unrecognized
+                raise ValueError('unrecognized dtyp: {}'.format(dtyp))
+            
+            # Store
+            params[key] = conv_val
         
-        return left_params, right_params, other_params
-
-    def handle_message_on_poke_socket(self, msg, verbose=True):
-        """Handle a message received on poke_socket
-        
-        poke_socket handles messages received from the GUI that are used 
-        to control the main loop. 
-        The functions of the different messages are as follows:
-        'exit' : terminates the program completely whenever received and 
-            closes it on all Pis for a particular box
-        'stop' : stops the current session and sends a message back to the 
-            GUI to stop plotting. The program waits until it can start next session 
-        'start' : used to start a new session after the stop message pauses 
-            the main loop
-        'Reward Port' : this message is sent by the GUI to set the reward port 
-            for a trial.
-        The Pis will receive messages of ports of other Pis being set as the 
-            reward port, however will only continue if the message contains 
-            one of the ports listed in its params file
-        'Reward Poke Completed' : Currently 'hacky' logic used to signify the 
-            end of the trial. If the string sent to the GUI matches the 
-            reward port set there it clears all sound parameters and opens 
-            the solenoid valve for the assigned reward duration. The LEDs 
-            also flash to show a trial was completed 
-        """
-        stop_running = False
-        quit_program = False
-        
-        self.logger.debug(f'received message: {msg}')
-        
-        # Different messages have different effects
-        if msg == 'exit': 
-            # Condition to terminate the main loop
-            self.stop_session()
-            print("Received exit command. Terminating program.")
-            
-            # Exit the loop
-            stop_running = True
-            quit_program = True
-        
-        elif msg == 'stop':
-            # Receiving message from the GUI to stop the current session 
-            # Stop all currently active elements and wait for next session
-            self.stop_session()
-            print("Stop command received. Stopping sequence.")
-            
-            # Stop running
-            stop_running = True
-
-        elif msg.startswith("set_trial_parameters;"):    
-            # Log
-            self.logger.info(f'trial started: msg={msg}')
-            
-            # Parse params
-            left_params, right_params, other_params = self.parse_trial_parameters(msg)
-            
-            # Get rewarded port
-            # TODO: replace with binary reward or not for several ports
-            self.rewarded_port = other_params['rewarded_port']
-            
-            # Use those params to set the new sounds
-            self.sound_chooser.set_audio_parameters(left_params, right_params)
-            
-            # Empty and refill the queue with new sounds
-            self.sound_queuer.empty_queue()
-            self.sound_queuer.append_sound_to_queue_as_needed()
-            
-            # Set session is running if it isn't already
-            self.session_is_running = True
-
-        else:
-            print("Unknown message received:", msg)
-
-        return stop_running
-
-    def check_poke_socket(self, socks):
-        ## Check for incoming messages on poke_socket
-        if self.network_communicator.poke_socket in socks and socks[self.network_communicator.poke_socket] == zmq.POLLIN:
-            # Waiting to receive message strings that control the main loop
-            msg = self.network_communicator.poke_socket.recv_string()  
-    
-            self.stop_running = self.handle_message_on_poke_socket(msg)
+        return params
 
     def close(self):
         """Close all sockets and contexts"""
