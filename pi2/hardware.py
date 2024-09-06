@@ -8,32 +8,49 @@ import logging
 import numpy as np
 
 class Nosepoke(object):
-    def __init__(self, name, poke_pin, poke_sense, solenoid_pin, 
+    def __init__(self, name, pig, poke_pin, poke_sense, solenoid_pin, 
         red_pin, green_pin, blue_pin):
-        """Init a new Nosepoke"""
-        self.name
+        """Init a new Nosepoke
+        
+        Arguments
+        ---------
+        name : str
+            How it refers to itself in messages. Typical piname_L etc
+        pig : pigpio.pi
+        poke_pin, solenoid_pin, {red|green|blue}_pin : pin numbers 0-53
+        poke_sense : bool
+            True if we should call the callback on a RISING_EDGE,
+            False if we should call the callback on a FALLING_EDGE
+            TODO: which is 901 and which is 903
+        """
+        ## Save attributes
+        self.name = name
+        self.pig = pig
         self.poke_pin = poke_pin
         self.poke_sense = poke_sense
+        self.solenoid_pin = solenoid_pin
         self.red_pin = red_pin
         self.green_pin = green_pin
         self.blue_pin = blue_pin
         
+        
+        ## Set up lists of handles to call on events
         self.handles_poke_in = []
         self.handles_poke_out = []
         self.handles_reward = []
         
         # Set up pig direction
-        pigpio.set_mode(self.poke_pin, pigpio.INPUT)
-        pigpio.set_mode(self.solenoid_pin, pigpio.OUTPUT)
-        pigpio.set_mode(self.red_pin, pigpio.OUTPUT)
-        pigpio.set_mode(self.green_pin, pigpio.OUTPUT)
-        pigpio.set_mode(self.blue_pin, pigpio.OUTPUT)
+        self.pig.set_mode(self.poke_pin, pigpio.INPUT)
+        self.pig.set_mode(self.solenoid_pin, pigpio.OUTPUT)
+        self.pig.set_mode(self.red_pin, pigpio.OUTPUT)
+        self.pig.set_mode(self.green_pin, pigpio.OUTPUT)
+        self.pig.set_mode(self.blue_pin, pigpio.OUTPUT)
         
         # Set up pig call backs
         if poke_sense:
-            pig.callback(self.poke_pin, pigpio.RISING_EDGE, self.poke_in) 
+            self.pig.callback(self.poke_pin, pigpio.RISING_EDGE, self.poke_in) 
         else:
-            pig.callback(self.poke_pin, pigpio.FALLING_EDGE, self.poke_in) 
+            self.pig.callback(self.poke_pin, pigpio.FALLING_EDGE, self.poke_in) 
     
     def reward(self, duration=.050):
         """Open the solenoid valve for port to deliver reward
@@ -41,9 +58,9 @@ class Nosepoke(object):
         *reward_value: how long the valve should be open (in seconds) [imported from task parameters sent to the pi] 
         """
         # TODO: thread this instead of sleeping
-        pig.write(valve_l, 1) # Opening valve
+        self.pig.write(valve_l, 1) # Opening valve
         time.sleep(duration)
-        pig.write(valve_l, 0) # Closing valve
+        self.pig.write(valve_l, 0) # Closing valve
     
     def poke_in(self):
         dt_now = datetime.datetime.now()
@@ -90,7 +107,41 @@ class HardwareController(object):
     SoundQueuer at the beginning of each trial, and to tell SoundQueuer
     when to stop at the end of the trial.
     """
-    def __init__(self, pins, params, start_networking=False, dummy_sound_queuer=False):
+    def __init__(self, pins, params, start_networking=True, dummy_sound_queuer=False):
+        """Initialize a new HardwareController
+        
+        Arguments
+        ---------
+        pins : dict
+            Data about pin numbers. Loaded from a pins json. 
+            Keys:
+                left_nosepoke, right_nosepoke : input pin for poke
+                left_led_{red|green|blue}, right_led_{red|green|blue}:
+                    LED output pins
+                left_solenoid, right_solenoid : solenoid output pins
+                TODO: are these BOARD or BCM?
+        params : dict
+            Data about pi parameters. Loaded from a params json. 
+            Keys:
+                identity : str
+                    The name of this pi. Must match what the GUI is waiting for.
+            TODO: document rest of keys
+        start_networking : bool
+            If False, don't use any networking
+            This was only for troubleshooting. TODO: remove?
+        dummy_sound_queuer : bool
+            If True, use a dummy queuer that never provides any audio
+            TODO: remove?
+        """
+        ## Init logger
+        self.logger = NonRepetitiveLogger("test")
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
+        self.logger.addHandler(sh)
+        self.logger.setLevel(logging.INFO)
+        
+        
+        ## Set attributes
         # Store received parameters
         self.pins = pins
         self.params = params
@@ -99,25 +150,25 @@ class HardwareController(object):
         # Initialize a pig to use
         self.pig = pigpio.pi()
 
-        # Connect callbacks to pins
-        set_up_pig(self.pig, self.pins)
-        self.set_up_dio()
-
         # Name my ports
-        # TODO: take this from params
+        # Currently this is hardcoded. Otherwise it would have to be matched
+        # with the port names in the gui config
         self.identity = self.params['identity']
-        self.left_port_name = f'{identity}_L'
-        self.right_port_name = f'{identity}_R'
+        self.left_port_name = f'{self.identity}_L'
+        self.right_port_name = f'{self.identity}_R'
 
+        # This is used to know if the session is running (e.g. if any
+        # trial parameters have ever been sent
+        self.session_is_running = False
+        
+
+        ## Initialize sound_chooser
         # This object generates frames of audio
-        # TODO: figure out whether to init sound_chooser first (in 
-        # which case how to know blocksize?) or init sound_player first
-        # (in which case it needs to be ready to go without sound_chooser)
-        # I think the best thing to do is store blocksize and fs in
-        # params, and use that also to start jackd
+        # We need to have it ready to go before initializing the sound queuer
+        # TODO: tell daemons.py to use the params for this pi
         self.sound_chooser = sound.SoundChooser_IntermittentBursts(
-            blocksize=1024,
-            fs=192000,
+            blocksize=self.params['jack_blocksize'],
+            fs=self.params['jack_sample_rate'],
             )
         
         # Set
@@ -125,28 +176,30 @@ class HardwareController(object):
             left_params={'silenced': True,}, right_params={'silenced': True},
             )
         
+        
+        ## Initialize sound_queuer
         # This object uses those frames to top up sound_player
         self.sound_queuer = sound.SoundQueuer(
             sound_chooser=self.sound_chooser)
         
-        # This is used to know if the sesion is running (e.g. if any
-        # trial parameters have ever been sent
-        self.session_is_running = False
-        
         # Fill the queue before we instantiate sound_player
         self.sound_queuer.append_sound_to_queue_as_needed()
         
+        
+        ## Initialize sound_player
         # This object pulls frames of audio from that queue and gives them
         # to a jack.Client that it contains
         # TODO: probably instantiate the jack.Client here and provide it
-        # Note that it will immediately start asking for frames of audio, but
-        # sound_queuer doesn't have anything to play yet
+        # Note that it will immediately start asking for frames of audio, so
+        # sound_queuer has to be ready to go
+        # TODO: add a start() method to sound_player
         self.sound_player = sound.SoundPlayer(
             name='sound_player', 
             sound_queuer=self.sound_queuer,
             )
         
-        # Set up networking
+        
+        ## Set up networking
         if start_networking:
             # Instantiates self.network_communicator
             # This will also connect to the GUI
@@ -160,10 +213,13 @@ class HardwareController(object):
         else:
             self.network_communicator = None
 
-        # Set up nosepokes
+        
+        ## Set up nosepokes
         # TODO: don't activate callbacks until explicitly told to do so
+        # Init left nosepoke
         self.left_nosepoke = Nosepoke(
             name=self.left_port_name,
+            pig=self.pig,
             poke_pin=self.pins['left_nosepoke'], 
             poke_sense=True, 
             solenoid_pin=self.pins['left_solenoid'],
@@ -172,11 +228,10 @@ class HardwareController(object):
             blue_pin=self.pins['left_led_blue'], 
             )
         
-        self.left_nosepoke.handles_poke_in.append(self.report_poke)
-        self.left_nosepoke.handles_reward.append(self.report_reward)
-        
+        # Init right_nosepoke
         self.right_nosepoke = Nosepoke(
             name=self.right_port_name,
+            pig=self.pig,
             poke_pin=self.pins['right_nosepoke'], 
             poke_sense=True, 
             solenoid_pin=self.pins['right_solenoid'],
@@ -185,16 +240,51 @@ class HardwareController(object):
             blue_pin=self.pins['right_led_blue'], 
             )            
 
+        # Hook up the poke in and reward callbacks
+        self.left_nosepoke.handles_poke_in.append(self.report_poke)
+        self.left_nosepoke.handles_reward.append(self.report_reward)
         self.right_nosepoke.handles_poke_in.append(self.report_poke)
         self.right_nosepoke.handles_reward.append(self.report_reward)
+    
+    def handle_set_parameters_message(self, msg_params):
+        
+        # Split into left_params and right_params
+        left_params = {}
+        right_params = {}
+        other_params = {}
+        for key, val in params.items():
+            if key.startswith('left'):
+                left_params[key.replace('left_', '')] = val
+            elif key.startswith('right'):
+                right_params[key.replace('right_', '')] = val
+            else:
+                other_params[key] = val
+        
+        return left_params, right_params, other_params
+        
 
-
-        ## Init logger
-        self.logger = NonRepetitiveLogger("test")
-        sh = logging.StreamHandler()
-        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
-        self.logger.addHandler(sh)
-        self.logger.setLevel(logging.INFO)
+        # Get rewarded port
+        # TODO: replace with binary reward or not for several ports
+        self.rewarded_port = other_params['rewarded_port']
+        
+        # Use those params to set the new sounds
+        self.sound_chooser.set_audio_parameters(left_params, right_params)
+        
+        # Empty and refill the queue with new sounds
+        self.sound_queuer.empty_queue()
+        self.sound_queuer.append_sound_to_queue_as_needed()
+    
+    def report_poke(self):
+        """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
+        
+        """
+        pass
+    
+    def report_reward(self):
+        """Called by Nosepoke upon reward. Reports to GUI by ZMQ.
+        
+        """
+        pass
     
     def stop_session(self):
         """Runs when a session is stopped
@@ -247,11 +337,6 @@ class HardwareController(object):
             print('starting mainloop')
             
             while True:
-                # Wait for events on registered sockets. 
-                # Currently polls every 100ms to check for messages 
-                if self.network_communicator is not None:
-                    socks = dict(self.network_communicator.poller.poll(100))
-                
                 # Used to continuously add frames of sound to the 
                 # queue until the program stops
                 self.sound_queuer.append_sound_to_queue_as_needed()
@@ -259,7 +344,11 @@ class HardwareController(object):
                 # Check poke_socket for incoming messages about exit, stop,
                 # start, reward, etc
                 if self.network_communicator is not None:
-                    self.check_poke_socket(socks)
+                    # Wait for events on registered sockets. 
+                    # Currently polls every 100ms to check for messages 
+                    self.logger.debug('checking poke socket')
+                    socks = dict(self.network_communicator.poller.poll(100))
+                    self.network_communicator.check_socket(socks)
                 
                 # Check if stop_runnning was set by check_poke_socket
                 if self.stop_running:
