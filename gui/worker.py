@@ -1,7 +1,6 @@
 """The worker handles the interaction with the Pi, but not any graphics.
 
 """
-
 import zmq
 import time
 import random
@@ -267,6 +266,12 @@ class NetworkCommunicator(object):
                 f'warning: {identity_str} is not in expected_identities '
                 'but it attempted to connect'
                 )
+    
+    def remove_identity_from_connected(self, identity):
+        if identity not in self.connected_pis:
+            self.logger.error(f'{identity} said goodbye but it was not connected')
+        
+        self.connected_pis.remove(identity)
 
 class Worker:
     """Handles task logic
@@ -435,8 +440,6 @@ class Worker:
     
     def main_loop(self, verbose=True):
         """Main loop of Worker
-        
-
 
         """
         while True:
@@ -482,6 +485,5 @@ class Worker:
     
     def handle_goodbye(self, identity):
         self.logger.info(f'goodbye received from: {identity}')
-        
-        
+        self.network_communicator.remove_identity_from_connected(identity)
         
