@@ -72,7 +72,7 @@ class Nosepoke(object):
         self.blue_pin = blue_pin
         
         # Whether to reward
-        self.reward_pokes = False
+        self.reward_armed = False
         
         # Whether to autopoke
         self.rt = None
@@ -96,7 +96,7 @@ class Nosepoke(object):
         else:
             self.pig.callback(self.poke_pin, pigpio.FALLING_EDGE, self.poke_in) 
     
-    def autopoke_start(self, rate=2, interval=0.1):
+    def autopoke_start(self, rate=0.5, interval=0.1):
         """Create spurious pokes at a rate of `rate` per second.
         
         rate : float
@@ -138,21 +138,23 @@ class Nosepoke(object):
         # Determine whether to reward
         # If so, immediately disarm
         # TODO: use lock here to prevent multiple rewards
-        if self.reward_pokes:
-            self.reward_pokes = False
+        if self.reward_armed:
+            self.reward_armed = False
             do_reward = True
         else:
             do_reward = False
         
         # Any handles associated with pokes
+        # This almost always includes HardwareController.report_poke
         for handle in self.handles_poke_in:
             handle(self.name, dt_now)
 
-        # Actually deliver the reward
-        self.reward()
-        
-        # Any handles associated with reward
         if do_reward:
+            # Actually deliver the reward
+            self.reward()
+            
+            # Any handles associated with reward
+            # This almost always includes HardwareController.report_reward
             for handle in self.handles_reward:
                 handle(self.name, dt_now)
 
@@ -357,8 +359,18 @@ class HardwareController(object):
         
         # Get rewarded port
         # TODO: replace with binary reward or not for several ports
-        self.rewarded_port = other_params['rewarded_port']
-        self.logger.info(f'setting rewarded port: {self.rewarded_port}')
+        if other_params['rewarded_port'] == self.left_nosepoke.name:
+            self.logger.info(f'arming left nosepoke for reward')
+            self.left_nosepoke.reward_armed = True
+
+        elif other_params['rewarded_port'] == self.right_nosepoke.name:
+            self.logger.info(f'arming right nosepoke for reward')
+            self.right_nosepoke.reward_armed = True
+        
+        else:
+            self.logger.info(f'disarming all nosepokes')
+            self.left_nosepoke.reward_armed = False
+            self.right_nosepoke.reward_armed = False
         
         # Use those params to set the new sounds
         self.logger.info(f'setting audio parameters: {left_params} {right_params}')
@@ -372,7 +384,7 @@ class HardwareController(object):
         """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
         
         """
-        self.logger.info(f'reporting poke on f{port_name} at f{poke_time}')
+        self.logger.info(f'reporting poke on {port_name} at {poke_time}')
         # Send 'poke;poke_name' to GUI
         self.network_communicator.poke_socket.send_string(
             f'poke;port_name={port_name}=str;poke_time={poke_time}=str')
@@ -381,7 +393,7 @@ class HardwareController(object):
         """Called by Nosepoke upon reward. Reports to GUI by ZMQ.
         
         """
-        self.logger.info(f'reporting reward on f{port_name} at f{poke_time}')
+        self.logger.info(f'reporting reward on {port_name} at {poke_time}')
         
         # Send 'reward;poke_name' to GUI
         self.network_communicator.poke_socket.send_string(

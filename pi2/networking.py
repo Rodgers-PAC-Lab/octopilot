@@ -263,5 +263,5 @@ class NetworkCommunicator(object):
         """Close all sockets and contexts"""
         self.poke_socket.close()
         
-        # Sometimes gets stuck here?
+        # Gets stuck here if the GUI was closed and more messages were sent
         self.poke_context.term()
