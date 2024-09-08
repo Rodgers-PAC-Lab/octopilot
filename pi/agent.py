@@ -12,6 +12,7 @@ of tasks. Most of the task-specific logic should be contained within this
 object. Other objects should be mostly agnostic to the task rules. 
 """
 
+import datetime
 import logging
 import time
 import pigpio
@@ -127,35 +128,6 @@ class PiController(object):
             sound_queuer=self.sound_queuer,
             )
         
-        
-        ## Optionally set up networking
-        if start_networking:
-            # Instantiates self.network_communicator
-            # This will also connect to the Dispatcher
-            self.network_communicator = PiNetworkCommunicator(
-                identity=self.params['identity'], 
-                pi_identity=self.params['identity'], 
-                gui_ip=self.params['gui_ip'], 
-                poke_port=self.params['poke_port'], 
-                config_port=self.params['config_port'],
-                )
-            
-            # Set up hooks
-            # These methods will be called when these commands are received
-            self.network_communicator.command2method = {
-                'set_trial_parameters': self.set_trial_parameters,
-                'stop': self.stop_session,
-                'exit': self.exit,
-                'start': self.start_session,
-                'alive': self.recv_alive,
-                }            
-            
-            # Set up aliver
-            alive_interval = 5
-            self.alive_timer = hardware.RepeatedTimer(
-                alive_interval, self.network_communicator.send_alive)
-
-        
         ## Set up nosepokes
         # TODO: don't activate callbacks until explicitly told to do so
         # Init left nosepoke
@@ -187,6 +159,37 @@ class PiController(object):
         # the session actually starts
         self.left_nosepoke.autopoke_start()
         self.right_nosepoke.autopoke_start()
+
+        
+        ## Optionally set up networking
+        if start_networking:
+            # Instantiates self.network_communicator
+            # This will also connect to the Dispatcher
+            self.network_communicator = PiNetworkCommunicator(
+                identity=self.params['identity'], 
+                pi_identity=self.params['identity'], 
+                gui_ip=self.params['gui_ip'], 
+                poke_port=self.params['poke_port'], 
+                config_port=self.params['config_port'],
+                )
+            
+            # Set up hooks
+            # These methods will be called when these commands are received
+            self.network_communicator.command2method = {
+                'set_trial_parameters': self.set_trial_parameters,
+                'stop': self.stop_session,
+                'exit': self.exit,
+                'start': self.start_session,
+                'alive': self.recv_alive,
+                }            
+            
+            # Send hello
+            self.network_communicator.send_hello()
+            
+            # Set up aliver
+            alive_interval = 5
+            self.alive_timer = hardware.RepeatedTimer(
+                alive_interval, self.network_communicator.send_alive)
 
     def recv_alive(self):
         """Log that we know the Dispatcher is out there
@@ -364,6 +367,7 @@ class PiController(object):
             self.logger.info('starting mainloop')
 
             ## Loop until KeyboardInterrupt or exit message received
+            last_hello_time = datetime.datetime.now()
             while True:
                 # Used to continuously add frames of sound to the 
                 # queue until the program stops
@@ -373,6 +377,13 @@ class PiController(object):
                 # start, reward, etc
                 if self.network_communicator is not None:
                     self.network_communicator.check_socket()
+                    
+                    # If not running, send hello
+                    threshold_time = last_hello_time + datetime.timedelta(seconds=5)
+                    dt_now = datetime.datetime.now()
+                    if not self.session_running and dt_now > threshold_time:
+                        self.network_communicator.send_hello()
+                        last_hellow_time = dt_now
                 
                 # If there's nothing in the main loop, not even a sleep,
                 # then for some reason this leads to XRun errors
