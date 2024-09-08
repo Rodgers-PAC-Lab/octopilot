@@ -1,4 +1,5 @@
 from . import controllers
+from ..shared import load_params
 import json
 import argparse
 
@@ -14,8 +15,8 @@ args = parser.parse_args()
 
 
 ## TODO: move to shared location
-params = load_params(args.json_filename)
-dispatcher = controllers.Dispatcher(params)
+box_params = load_params.load_box_params(args.json_filename)
+dispatcher = controllers.Dispatcher(box_params)
 dispatcher.main_loop()
     
     
