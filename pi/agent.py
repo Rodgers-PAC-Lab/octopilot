@@ -17,7 +17,7 @@ import time
 import pigpio
 from . import hardware
 from . import sound
-from ..shared import networking
+from ..shared.networking import PiNetworkCommunicator
 from ..shared.logtools import NonRepetitiveLogger
 
 class PiController(object):
@@ -127,7 +127,7 @@ class PiController(object):
         if start_networking:
             # Instantiates self.network_communicator
             # This will also connect to the GUI
-            self.network_communicator = networking.NetworkCommunicator(
+            self.network_communicator = PiNetworkCommunicator(
                 identity=self.params['identity'], 
                 pi_identity=self.params['identity'], 
                 gui_ip=self.params['gui_ip'], 
