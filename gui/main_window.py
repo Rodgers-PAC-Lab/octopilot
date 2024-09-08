@@ -140,6 +140,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Start the dispatcher and the updates
         self.start_button.clicked.connect(self.dispatcher.start_session)
         self.start_button.clicked.connect(self.poke_plot_widget.start_plot)
+        self.start_button.clicked.connect(self.arena_widget.start)
 
     def set_up_stop_button(self):
         """Create a start button and connect to self.start_sequence"""
