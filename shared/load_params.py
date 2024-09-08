@@ -14,7 +14,7 @@ def load_box_params(json_filename):
     GIT_PATH = '/home/mouse/dev/paclab_sukrith'
     
     # Constructing the full path to the config file
-    param_directory = f"{GIT_PATH}/gui/configs/{json_filename}.json"
+    param_directory = f"{GIT_PATH}/config/box/{json_filename}.json"
 
     # Load the parameters from the specified JSON file
     with open(param_directory, "r") as p:
@@ -29,7 +29,7 @@ def load_task_params(json_filename):
     GIT_PATH = '/home/mouse/dev/paclab_sukrith'
     
     # Constructing the full path to the config file
-    param_directory = f"{GIT_PATH}/configs/tasks/{json_filename}.json"
+    param_directory = f"{GIT_PATH}/config/task/{json_filename}.json"
 
     # Load the parameters from the specified JSON file
     with open(param_directory, "r") as p:
@@ -37,12 +37,12 @@ def load_task_params(json_filename):
     
     return params    
 
-def load_task_params(mouse_name):
+def load_mouse_params(mouse_name):
     """Load and return parameters for mouse `mouse_name`"""
     GIT_PATH = '/home/mouse/dev/paclab_sukrith'
     
     # Constructing the full path to the config file
-    param_directory = f"{GIT_PATH}/configs/mouse/{mouse_name}.json"
+    param_directory = f"{GIT_PATH}/config/mouse/{mouse_name}.json"
 
     # Load the parameters from the specified JSON file
     with open(param_directory, "r") as p:
@@ -67,7 +67,7 @@ def load_pi_params(verbose=False):
 
     # Load the config parameters for this pi
     # Doc for these params is in README
-    param_directory = f"/home/pi/dev/paclab_sukrith/configs/pis/{pi_name}.json"
+    param_directory = f"/home/pi/dev/paclab_sukrith/config/pi/{pi_name}.json"
     with open(param_directory, "r") as p:
         params = json.load(p)    
 
@@ -95,7 +95,7 @@ def load_pins(verbose=False):
     
     Each value is an int
     """
-    pin_directory = f"/home/pi/dev/paclab_sukrith/configs/pins.json"
+    pin_directory = f"/home/pi/dev/paclab_sukrith/config/pins.json"
     with open(pin_directory, "r") as n:
         pins = json.load(n)
 

@@ -22,12 +22,12 @@ class Dispatcher:
     
     """
 
-    def __init__(self, params):
+    def __init__(self, box_params, task_params, mouse_params):
         """Initialize a new worker
         
         Arguments
         ---------
-        params : dict
+        box_params : dict
             'worker_port': what zmq port to bind
             'config_port': no longer used (?)
             'save_directory'
@@ -39,6 +39,8 @@ class Dispatcher:
                 'right_port_name' : str
                 'left_port_position' : float (in degrees)
                 'right_port_position' : float (in degrees)
+        task_params : dict, parameters of the task
+        mouse_params : dict, parameters of the mouse
         """
         ## Init logger
         self.logger = NonRepetitiveLogger("test")
@@ -47,10 +49,13 @@ class Dispatcher:
         self.logger.addHandler(sh)
         self.logger.setLevel(logging.INFO)
 
-        
-        ## Save provided params
-        self.params = params
-        self.logger.info(f'Initializing worker with params: {params}')
+        # Log
+        self.logger.info(
+            'Initializing Dispatcher with the following params:\n'
+            f'box_params: {box_params};\n'
+            f'task_params: {task_params};\n'
+            f'mouse_params: {mouse_params};\n'
+            )
         
 
         ## Init instance variables
@@ -65,19 +70,19 @@ class Dispatcher:
         ## Set up port labels and indices
         # Keep track of which are actually active (mostly for debugging)
         self.expected_identities = [
-            pi['name'] for pi in self.params['connected_pis']]
+            pi['name'] for pi in box_params['connected_pis']]
         
         # Creating a dictionary that takes the label of each port and matches 
         # it to the index on the GUI (used for reordering)
         self.ports = set()
-        for pi in self.params['connected_pis']:
+        for pi in box_params['connected_pis']:
             self.ports.add(pi['left_port_name'])
             self.ports.add(pi['right_port_name'])
 
 
         ## Initialize network communicator and tell it what pis to expect
         self.network_communicator = DispatcherNetworkCommunicator(
-            params['worker_port'],
+            box_params['worker_port'],
             expected_identities=self.expected_identities,
             )
         
