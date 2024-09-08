@@ -57,6 +57,9 @@ the existence of the Agent. However, rather than have the Agent continuously
 ping the Dispatcher (which could fill up a queue and cause problems), instead
 the Dispatcher should be able to stop and start the Agent process. For now
 this is done manually by the user.
+
+I think that messages can "build up" in the Agent's queue if the Dispatcher
+is not running. Not sure if messages can build up in the Dispatcher's queue.
 """
 
 import zmq
