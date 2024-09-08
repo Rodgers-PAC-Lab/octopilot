@@ -13,10 +13,16 @@ parser.add_argument(
     )
 args = parser.parse_args()
 
-
-## TODO: move to shared location
+# Load parameters of the specified box
 box_params = load_params.load_box_params(args.json_filename)
-dispatcher = controllers.Dispatcher(box_params)
+
+# Load parameters of the task
+# TODO: make this configurable
+task_params = load_params.load_task_params('single_sound_source')
+mouse_params = load_params.load_mouse_params('mouse1')
+
+# Start
+dispatcher = controllers.Dispatcher(box_params, task_params, mouse_params)
 dispatcher.main_loop()
     
     

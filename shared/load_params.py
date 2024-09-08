@@ -22,6 +22,34 @@ def load_box_params(json_filename):
     
     return params
 
+def load_task_params(json_filename):
+    """Load task params from `json_filename` and return
+    
+    """
+    GIT_PATH = '/home/mouse/dev/paclab_sukrith'
+    
+    # Constructing the full path to the config file
+    param_directory = f"{GIT_PATH}/configs/tasks/{json_filename}.json"
+
+    # Load the parameters from the specified JSON file
+    with open(param_directory, "r") as p:
+        params = json.load(p)
+    
+    return params    
+
+def load_task_params(mouse_name):
+    """Load and return parameters for mouse `mouse_name`"""
+    GIT_PATH = '/home/mouse/dev/paclab_sukrith'
+    
+    # Constructing the full path to the config file
+    param_directory = f"{GIT_PATH}/configs/mouse/{mouse_name}.json"
+
+    # Load the parameters from the specified JSON file
+    with open(param_directory, "r") as p:
+        params = json.load(p)
+    
+    return params    
+
 def load_pi_params(verbose=False):
     """Load pi parameters
     
