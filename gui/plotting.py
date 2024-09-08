@@ -110,7 +110,20 @@ class ArenaWidget(QWidget):
     
     def update(self):
         """Update the colors of the circles"""
-        pass
+        for port_idx, port_name in enumerate(self.dispatcher.ports):
+            # Get circle
+            nosepoke_circle = self.nosepoke_circles[port_idx]
+            
+            # Identify if poked
+            if port_name == self.dispatcher.previously_rewarded_port:
+                nosepoke_circle.setBrush(QColor("white"))
+            elif port_name in self.dispatcher.ports_poked_this_trial:
+                if port_name == self.dispatcher.rewarded_port:
+                    nosepoke_circle.setBrush(QColor("red"))
+                else:
+                    nosepoke_circle.setBrush(QColor("green"))
+            else:
+                nosepoke_circle.setBrush(QColor("gray"))
 
 ## Widget to display text performance metrics
 class PerformanceMetricDisplay(QWidget):
