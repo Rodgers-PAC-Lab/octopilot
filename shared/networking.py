@@ -34,7 +34,7 @@ import datetime
 
 
 ## Shared methods
-def parse_params(self, token_l):
+def parse_params(token_l):
     """Parse `token_l` into a dict
     
     Iterates over strings in token_l, parses them as KEY=VALUE=DTYPE,
