@@ -16,7 +16,8 @@ from . import controllers
 from ..shared import load_params
 
 # This defines standard QApplication
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget
+from PyQt5.QtCore import QObject, pyqtSignal, QThread
 
 # For getting info from the command line
 import threading
@@ -42,34 +43,63 @@ box_params = load_params.load_box_params(args.json_filename)
 task_params = load_params.load_task_params('single_sound_source')
 mouse_params = load_params.load_mouse_params('mouse1')
 
+"""
+## Define a Worker who will execute the Dispatcher.main_loop in its own thread
+# https://realpython.com/python-pyqt-qthread/
+
+class Worker(QObject):
+    finished = pyqtSignal()
+    progress = pyqtSignal(int)
+
+    def __init__(self, box_params, task_params, mouse_params):
+        super(Worker, self).__init__()
+        self.dispatcher = controllers.Dispatcher(box_params, task_params, mouse_params)
+
+    def run(self):
+        self.dispatcher.main_loop()
+        self.finished.emit()
+
+
+## Define a Window that will run the GUI and instantiate the Worker
+# https://realpython.com/python-pyqt-qthread/
+
+class Window(QMainWindow):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.clicksCount = 0
+        self.setupUi()
+
+    def setupUi(self):
+        self.setWindowTitle("Freezing GUI")
+        self.resize(300, 150)
+        self.centralWidget = QWidget()
+        self.setCentralWidget(self.centralWidget)
+
+
+        self.worker = Worker(box_params, task_params, mouse_params)
+        self.thread = QThread()
+        self.worker.moveToThread(self.thread)
+        
+        # Step 5: Connect signals and slots
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.progress.connect(self.reportProgress)
+
+        self.thread.start()
+
+    def reportProgress(self, n):
+        print(n)
+"""
 
 ## Start
 if __name__ == '__main__':
-    # Create a QApplication
-    """
-    QApplication manages the inital settings of the GUI. We pass sys.argv as an 
-    argument to let it know that the settings for each box might be different 
-    (for example,the particular log folder to use, the mice saved for that box etc.).
-    Right now the settings for all boxes have the same directories but we can use 
-    different locations to save session results and tasks for each box. 
-    """
     # Apparently QApplication needs sys.argv for some reason
     # https://stackoverflow.com/questions/27940378/why-do-i-need-sys-argv-to-start-a-qapplication-in-pyqt
     app = QApplication([])#sys.argv)
     
     # Instantiate a MainWindow
-    dispatcher = controllers.Dispatcher(box_params, task_params, mouse_params)
-    thread = threading.Thread(target=dispatcher.main_loop)
-    thread.start()
-    
-    this_main_window = main_window.MainWindow(dispatcher)
-    
-    """
-    '.exec() is used to to enter the main loop and run the different widgets on 
-    the GUI until it is closed (which is when sys.exit() is called)
-    """
-    sys.exit(app.exec())
-
-    
-    thread.join()
-    
+    win = main_window.MainWindow(box_params, task_params, mouse_params)
+    win.show()
+    sys.exit(app.exec())    

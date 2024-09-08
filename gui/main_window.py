@@ -13,11 +13,35 @@ from . import plotting
 # Qt imports
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QAction, QWidget, QVBoxLayout, QHBoxLayout
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget
+from PyQt5.QtCore import QObject, pyqtSignal, QThread, QTimer
 
+from . import controllers
 
 ## TODO: find a way to not hardcode this
 GIT_PATH = '/home/mouse/dev/paclab_sukrith'
 
+
+#~ ## Define a Worker who will execute the Dispatcher.main_loop in its own thread
+#~ # https://realpython.com/python-pyqt-qthread/
+#~ class Worker(QObject):
+    #~ finished = pyqtSignal()
+    #~ progress = pyqtSignal(int)
+
+    #~ def __init__(self, box_params, task_params, mouse_params):
+        #~ super(Worker, self).__init__()
+        #~ self.dispatcher = controllers.Dispatcher(box_params, task_params, mouse_params)
+
+    #~ def run(self):
+        #~ try:
+            #~ while True:
+                #~ self.dispatcher.network_communicator.check_for_messages()
+        #~ except:
+            #~ (typ, val, trcbk) = sys.exc_info()
+            #~ print('exception: typ')
+            #~ sys.excepthook(typ, val, trcbk)
+        #~ finally:
+            #~ self.finished.emit()
 
 ## MAIN GUI WINDOW
 class MainWindow(QtWidgets.QMainWindow):
@@ -62,7 +86,7 @@ class MainWindow(QtWidgets.QMainWindow):
     
     closeEvent : Called on close, and tells each worker to exit
     """
-    def __init__(self, dispatcher):
+    def __init__(self, box_params, task_params, mouse_params):
         """Initialize a new MainWindow
         
         Arguments
@@ -93,17 +117,36 @@ class MainWindow(QtWidgets.QMainWindow):
         ## Load params
         #~ self.params = self.load_params(json_filename)
 
+        self.dispatcher = controllers.Dispatcher(box_params, task_params, mouse_params)
+
+        #~ self.worker = Worker(box_params, task_params, mouse_params)
+        #~ self.thread = QThread()
+        #~ self.worker.moveToThread(self.thread)
+        
+        #~ # Step 5: Connect signals and slots
+        #~ self.thread.started.connect(self.worker.run)
+        #~ self.worker.finished.connect(self.thread.quit)
+        #~ self.worker.finished.connect(self.worker.deleteLater)
+        #~ self.thread.finished.connect(self.thread.deleteLater)
+        #~ self.worker.progress.connect(self.reportProgress)
+
+        #~ self.thread.start()
+
+
+        #~ # Create a timer and connect to self.update_time_elapsed
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update)
 
         ## Set up the graphical objects
         # Instantiate a ArenaWidget to show the ports
-        self.arena_widget = plotting.ArenaWidget(dispatcher)
+        self.arena_widget = plotting.ArenaWidget(self.dispatcher)
         
         #~ # Instatiate a ConfigurationList to choose the task
         #~ self.config_list = config_dialog.ConfigurationList(self.params)
 
         #~ # Initializing PokePlotWidget to show the pokes
         #~ # Note that it uses information from arena_widget
-        self.poke_plot_widget = plotting.PokePlotWidget(dispatcher)
+        self.poke_plot_widget = plotting.PokePlotWidget(self.dispatcher)
 
 
         ## Set up the actions for the menu bar
@@ -191,13 +234,19 @@ class MainWindow(QtWidgets.QMainWindow):
         #~ # config_list.on_start_button_clicked
         #~ self.arena_widget.startButtonClicked.connect(
             #~ self.config_list.on_start_button_clicked)
-
-    #~ def closeEvent(self, event):
-        #~ """Executes when the window is closed
         
-        #~ Send 'exit' signal to all IP addresses bound to the GUI
-        #~ """
-        #~ # Iterate through identities and send 'exit' message
-        #~ for identity in self.arena_widget.worker.identities:
-            #~ self.arena_widget.worker.zmq_socket.send_multipart([identity, b"exit"])
-        #~ event.accept()
+        self.timer.start(100)
+
+    def update(self):
+        self.dispatcher.one_loop()
+    
+    def closeEvent(self, event):
+        """Executes when the window is closed
+        
+        Send 'exit' signal to all IP addresses bound to the GUI
+        """
+        # Iterate through identities and send 'exit' message
+        self.timer.stop()
+        self.dispatcher.stop_session()
+        #~ self.thread.quit()
+        event.accept()

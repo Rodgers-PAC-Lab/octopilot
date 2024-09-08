@@ -819,14 +819,27 @@ class PokePlotWidget(QWidget):
 
         # Included a separate symbol here that shows as a tiny dot under the 
         # raster to make it easier to distinguish multiple pokes in sequence
+        #~ self.line = self.plot_widget.plot(
+            #~ [3], #self.timestamps,
+            #~ [3], #self.signal,
+            #~ pen=None,
+            #~ symbol="o", 
+            #~ symbolSize=1,
+            #~ symbolBrush="r",
+        #~ )
+
         self.line = self.plot_widget.plot(
-            [], #self.timestamps,
-            [], #self.signal,
-            pen=None,
-            symbol="o", 
-            symbolSize=1,
-            symbolBrush="r",
+            [3, 4], #self.timestamps,
+            [3, 4], #self.signal,
+            #~ pen=None, # no connecting line
+            pen=pg.mkPen('r'),
+            symbol="arrow_down",  
+            symbolSize=20, # use 8 or lower if using dots
+            symbolBrush='r',
+            #~ symbolPen=None,
         )
+
+
 
     def start_plot(self):
         """Activates plot updates.
@@ -982,16 +995,17 @@ class PokePlotWidget(QWidget):
 
     def update_plot(self):
         """Plot `timestamps` and `signal` as `line`"""
-        
+        return
         # Extract x and y vals
         xvals = []
         yvals = []
         for port_name, poke_time in self.dispatcher.poked_port_history:
             xvals.append(3)
-            yvals.append(poke_time)
-        
-        print("plotting: {} {}".format(xvals, yvals))
-        
+            tdelta = (
+                datetime.fromisoformat(poke_time) - 
+                self.dispatcher.session_start_time
+                )
+            yvals.append(tdelta.total_seconds())
         
         # Update plot with timestamps and signals
         self.line.setData(
