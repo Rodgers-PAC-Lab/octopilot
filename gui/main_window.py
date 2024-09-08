@@ -58,9 +58,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # Instantiate a ArenaWidget to show the ports
         self.arena_widget = plotting.ArenaWidget(self.dispatcher)
         
-        #~ # Instatiate a ConfigurationList to choose the task
-        #~ self.config_list = config_dialog.ConfigurationList(self.params)
-
         # Initializing PokePlotWidget to show the pokes
         self.poke_plot_widget = plotting.PokePlotWidget(self.dispatcher)
 
@@ -73,22 +70,10 @@ class MainWindow(QtWidgets.QMainWindow):
         
         ## Creating container widgets for each component 
         # These containers determine size and arrangment of widgets
-        #~ # Container for each widget
-        #~ config_list_container = QWidget()
         arena_widget_container = QWidget()
-        
-        #~ # Set the widths of the containers
-        #~ config_list_container.setFixedWidth(250)  
         arena_widget_container.setFixedWidth(500)  
-        
-        #~ # Set each one to have a vertical layout
-        #~ config_list_container.setLayout(QVBoxLayout())
         arena_widget_container.setLayout(QVBoxLayout())
-        
-        #~ # Add each widget to its container
-        #~ config_list_container.layout().addWidget(self.config_list)
         arena_widget_container.layout().addWidget(self.arena_widget)
-
 
         # Create self.start_button and connect it to self.start_sequence
         self.set_up_start_button()
@@ -119,6 +104,7 @@ class MainWindow(QtWidgets.QMainWindow):
         container_layout.addWidget(arena_widget_container)
         container_layout.addWidget(self.poke_plot_widget)
         container_layout.addWidget(self.start_button)
+        container_layout.addWidget(self.stop_button)
         
         # Set this one as the central widget
         self.setCentralWidget(container_widget)
@@ -145,21 +131,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.start_button.setStyleSheet(
             "background-color : green; color: white;") 
 
-        # Connect the start button to the start_sequence function 
-        # (includes start logic from the worker class)
-        #~ self.start_button.clicked.connect(self.start_sequence)
-    
+        # Start the dispatcher and the updates
+        self.start_button.clicked.connect(self.dispatcher.start_session)
+        self.start_button.clicked.connect(self.poke_plot_widget.start_plot)
+
     def set_up_stop_button(self):
-        """Create stop button and connect to stop_sequence and save_results_to_csv"""
-        # Create a stop button
+        """Create a start button and connect to self.start_sequence"""
+        # Create button
         self.stop_button = QPushButton("Stop Session")
         
         # Set style
-        self.stop_button.setStyleSheet("background-color : red; color: white;") 
-
-        # Connect the stop button to stop_sequence and save_results_to_csv
-        #~ self.stop_button.clicked.connect(self.stop_sequence)  
-        #~ self.stop_button.clicked.connect(self.save_results_to_csv)       
+        self.start_button.setStyleSheet(
+            "background-color : green; color: white;") 
+        
+        # Stop the dispatcher and the updates
+        self.stop_button.clicked.connect(self.dispatcher.stop_session)
+        self.stop_button.clicked.connect(self.poke_plot_widget.stop_plot)
 
     def closeEvent(self, event):
         """Executes when the window is closed

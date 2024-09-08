@@ -243,10 +243,8 @@ class Dispatcher:
         
         # Check if we're all connected
         if self.network_communicator.check_if_all_pis_connected():
-            # Start if it needs to start
-            # TODO: this should be started by a button
-            if self.current_trial is None:
-                self.start_session()
+            pass
+
         else:
             # We're not all connnected
             self.logger.info(

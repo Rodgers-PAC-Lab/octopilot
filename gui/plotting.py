@@ -490,100 +490,29 @@ class ArenaWidget(QWidget):
 class PokePlotWidget(QWidget):
     """Widget that plots the pokes as they happen
     
-    This class defines a pyqtgraph plot that updates in real-time based on 
-    the pokes received by Pi Widget
-    It is connected to ArenaWidget but updates in accordance to updates 
-    received by worker since ArenaWidget uses its methods
-    It communicates using the signals updateSignal and startbuttonClicked 
-    
-    Attributes
-    ----------
-    is_active - bool
-        True if start button has been pressed and we are running
-    start_time - datetime or None
-        None if not started. Otherwise, the time it was started.
-    timer - QTimer
-        Recurringly calls self.update_plot
-    time_bar_timer - QTimer
-        Recurringly calls self.update_time_bar
-    plot_widget - pg.PlotWidget 
-        A widget for the graph that actually shows pokes
-    layout - QVBoxLayout 
-        Contains self.plot_widget
-    timestamps - list of float
-        Every time an event is received by handle_update_signal, the
-        elapsed time in the session is appended to this list.
-    signal - list of ?
-        Every time an event is received by handle_update_signal, the
-        event is appended to this list.
-    line_of_current_time_color - float
-        This is slowly changed over time to make the timebar dynamic
-    line_of_current_time - plot handle
-    line - plot handle
-    plotted_items - list of plot handles
-        All of these items are removed from the plot when clear_plot is called
-    
-    Methods
-    -------
-    start_plot - Activates the plot
-        Starts `timer` and `time_bar_timer`. Sets `is_active` and `start_time`
-        Called by ArenaWidget.
-    stop_plot - Deactivates the plot
-    clear_plot - Clears all plot items
-    update_time_bar - Updates the time bar. Connected to self.time_bar_timer.
-    handle_update_signal - Stores event and calls update_plot
-    plot_poked_port - Plots a specified symbol at a specified time
-    update_plot - Plots `timestamps` and `signal`. Connected to self.timer.
-    setup_plot_graphics - Sets labels and colors of plot_widget
-    initialize_plot_handles - Plots line and line_of_current_time
     """
     def __init__(self, dispatcher, *args, **kwargs):
         """Initialize a new PokePlotWidget
         
-        Arguments
-        ---------
-        arena_widget : the corresponding ArenaWidget 
-            Sukrith : Is this only used to connect signals?
-            If so we should remove it here and connect signals in MainWindow
-            only.
-        
-        Flow
-        ----
-        * Initializes self.timer, self.time_bar_timer to update plots.
-        * Initializes self.plot_widget to plots the pokes.
-        * Sets up graphics on self.plot_widget.
-        * Initializes timestamps and signal to store timestamps and pokes.
-        * Initializes self.line_of_current_time and self.line, graphical 
-          elements on self.plot_widget that indicates the time.
+
         """
         ## Superclass QWidget init
         super().__init__(*args, **kwargs)
         
         
+        ## Instance variables
+        # Dispatcher, where the data comes from
         self.dispatcher = dispatcher
         
-        ## Flags
-        # Flag to check if the Start Button is pressed
-        self.is_active = False  
-        
-        # Initializing the start time 
-        self.start_time = None 
-        
-        
-        ## Timers for continuous updating
+        # Timers for continuous updating
         # Create a QTimer object to continuously update the plot         
-        self.timer = QTimer(self) 
-        self.timer.timeout.connect(self.update_plot)  
+        self.timer_update_plot = QTimer(self) 
+        self.timer_update_plot.timeout.connect(self.update_plot)  
         
         # Creating a QTimer for updating the moving time bar
-        self.time_bar_timer = QTimer(self)
-        self.time_bar_timer.timeout.connect(self.update_time_bar) 
+        self.timer_update_time_bar = QTimer(self)
+        self.timer_update_time_bar.timeout.connect(self.update_time_bar) 
 
-
-        ## To store data
-        # List to keep track of all plotted items so we can clear when needed
-        self.plotted_items = []        
-        
         
         ## Initialize the plot_widget which actually does the plotting
         # Initializing the pyqtgraph widget
@@ -598,18 +527,6 @@ class PokePlotWidget(QWidget):
        
         # Plots line_of_current_time and line
         self.initalize_plot_handles()
-        
-        
-        ## Connecting to signals from ArenaWidget and Worker 
-        # TODO: Sukrith why are you connecting again here? Connection already
-        # happened in MainWindow
-        #~ arena_widget.updateSignal.connect(self.handle_update_signal)
-        
-        # This one was not done in MainWindow
-        #~ arena_widget.worker.pokedportsignal.connect(self.plot_poked_port)
-        
-        
-        self.start_plot()
 
     def setup_plot_graphics(self):
         """Sets colors and labels of plot_widget
@@ -656,14 +573,14 @@ class PokePlotWidget(QWidget):
 
         # Included a separate symbol here that shows as a tiny dot under the 
         # raster to make it easier to distinguish multiple pokes in sequence
-        #~ self.line = self.plot_widget.plot(
-            #~ [3], #self.timestamps,
-            #~ [3], #self.signal,
-            #~ pen=None,
-            #~ symbol="o", 
-            #~ symbolSize=1,
-            #~ symbolBrush="r",
-        #~ )
+        self.line = self.plot_widget.plot(
+            [],
+            [],
+            pen=None,
+            symbol="o", 
+            symbolSize=1,
+            symbolBrush="r",
+        )
 
         self.line = self.plot_widget.plot(
             [3, 4], #self.timestamps,
@@ -682,65 +599,25 @@ class PokePlotWidget(QWidget):
         Activates `timer` and `time_bar_timer` to update plot.
         Sets `start_time` and `is_active`.
         """
-        # Flag to initiate plotting 
-        self.is_active = True 
-        
-        # Setting the initial time at which plotting starts 
-        self.start_time = datetime.now()  
-        
-        # Start the timer to update every 10 ms 
-        self.timer.start(1000)  
+        # Plot updates every 200 ms
+        self.timer_update_plot.start(200)  
 
-        # Start the timer for updating the time bar when the plot starts
-        self.time_bar_timer.start(500)  # Update every 50 ms
+        # Time bar updates every 50 ms
+        self.timer_update_time_bar.start(50)  
 
     def stop_plot(self):
-        """Deactivates plot updates
+        """Deactivates plot updates"""
+        self.timer_update_plot.stop()
+        self.timer_update_time_bar.stop()
 
-        Deactivates `timer` and `time_bar_timer` to update plot.
-        Sets `is_active` to False.
-        Clears the plot.
-        """
-        # Deactivating the plot window and stopping the timer
-        self.is_active = False # Stopping the plot
-        self.timer.stop()
-        
-        # Stop the timer for updating the time bar when the plot stops
-        self.time_bar_timer.stop()
-        
-        # Using a method to reset the plot to its initial state 
-        self.clear_plot() 
-
-    def clear_plot(self):
-        """Clears the plot.
-        
-        Clear the lists of pokes `timestamps` and `signal`.
-        Removes the time bar
-        Calls the `removeItem` method on all items in `plotted_items`.
-        """
-        # Clear the plot information by clearing lists
-        self.timestamps.clear()
-        self.signal.clear()
-        
-        # Resetting the initial plot location to zero
-        self.line.setData(x=[], y=[])
-
-        # Clear all items on the plot
-        for item in self.plotted_items:
-            self.plot_widget.removeItem(item)
-        self.plotted_items.clear()
-
-        # Resetting thje timebar to zero 
-        self.line_of_current_time.setData(x=[], y=[])
-    
     def update_time_bar(self):
         """Controls how the timebar moves according to the timer"""
         # Do nothing if there is no start_time
-        if self.start_time is not None:
+        if self.dispatcher.session_start_time is not None:
             # Determine elapsed time
             current_time = datetime.now()
             approx_time_in_session = (
-                current_time - self.start_time).total_seconds()
+                current_time - self.dispatcher.session_start_time).total_seconds()
 
             # Update the color of the time bar to make it slowly change, so
             # that there is a visual indicator if it stops running
@@ -752,81 +629,6 @@ class PokePlotWidget(QWidget):
                 x=[approx_time_in_session, approx_time_in_session], y=[-1, 9],
                 pen=pg.mkPen(np.abs(self.line_of_current_time_color - 1)),
             )
-    
-    def handle_update_signal(self, update_value):
-        """Store information about received event and update the plot
-        
-        Arguments
-        ---------
-        update_value : Sukrith what is this?
-            This seems to come from the line:
-                self.updateSignal.emit(poked_port_number, color)
-            But which one is update_value??
-        
-        Flow
-        ----
-        * Appends the current elapsed time to self.timestamps
-        * Appends `update_value` to self.signal
-        * Calls `update_plot`
-        """
-        if self.is_active:
-            # Append current timestamp and update value to the lists
-            self.timestamps.append((datetime.now() - self.start_time).total_seconds())
-            self.signal.append(update_value)
-            self.update_plot()
-
-    def plot_poked_port(self, poked_port_value, color):
-        """Main function used to draw the poke items as rasters on the plot. 
-
-        Sukrith what is this and how is it different from update_plot?
-        What is the difference between the things that are plotted by this
-        function and the things in self.timestamps and self.signal?
-
-        Arguments
-        ---------
-        poked_port_value : numeric
-            This is the y-value of the point that will be added
-        color : str
-            The color of the point that will be added
-        
-        Flow
-        ----
-        * Plot a point with x-value equal to current elapsed time and y-value
-          equal to `poked_port_value`. This will be an arrow_down symbol of
-          size 20 and no connecting line.
-        * Add the plot handle to `self.plotted_items` so it can be cleared
-          at the end of the session.
-        
-        It appends the items to a list based on the position of the relative 
-        time from the start of the session
-        
-        
-        TODO: Currently it does not used the timestamps sent from the pi to plot 
-        these pokes but this could be changed in the future 
-        """
-        # Do nothing unless active
-        if self.is_active:
-            # Setting item colors to match the logic present in the worker class
-            # TODO: worker should pass colors that are recognized here
-            brush_color = "g" if color == "green" else "r" if color == "red" else "b" 
-            
-            # Converting to seconds to plot according to start time
-            relative_time = (datetime.now() - self.start_time).total_seconds()  
-            
-            # Setting the parameters for the individual items being plotted
-            # No connecting line between these points 
-            item = self.plot_widget.plot(
-                [relative_time],
-                [poked_port_value],
-                pen=None, # no connecting line
-                symbol="arrow_down",  
-                symbolSize=20, # use 8 or lower if using dots
-                symbolBrush=brush_color,
-                symbolPen=None,
-            )
-            
-            # Keep track of plotted items so they can be cleared later
-            self.plotted_items.append(item) 
 
     def update_plot(self):
         """Plot `timestamps` and `signal` as `line`"""
@@ -846,6 +648,4 @@ class PokePlotWidget(QWidget):
             x=xvals,
             y=yvals,
             )
-        
-        print('plotting: {} {}'.format(xvals, yvals))
 
