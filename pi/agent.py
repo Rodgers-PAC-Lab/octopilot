@@ -377,13 +377,6 @@ class PiController(object):
                 # start, reward, etc
                 if self.network_communicator is not None:
                     self.network_communicator.check_socket()
-                    
-                    # If not running, send hello
-                    threshold_time = last_hello_time + datetime.timedelta(seconds=5)
-                    dt_now = datetime.datetime.now()
-                    if not self.session_running and dt_now > threshold_time:
-                        self.network_communicator.send_hello()
-                        last_hellow_time = dt_now
                 
                 # If there's nothing in the main loop, not even a sleep,
                 # then for some reason this leads to XRun errors

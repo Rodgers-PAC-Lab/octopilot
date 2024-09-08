@@ -458,9 +458,6 @@ class PiNetworkCommunicator(object):
         # https://github.com/zeromq/pyzmq/issues/102
         self.poke_socket.setsockopt(zmq.LINGER, 100)
 
-        # Set CONFLATE
-        self.poke_socket.setsockopt(zmq.CONFLATE)
-        
 
         ## Connect to the server
         # Connecting to the GUI IP address stored in params
