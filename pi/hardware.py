@@ -228,7 +228,11 @@ class Nosepoke(object):
             for handle in self.handles_reward:
                 handle(self.name, dt_now)
 
-        self.logger.info('poke detected')
+        # log
+        if len(self.handles_poke_in) == 0:
+            self.logger.info('poke detected but nothing to do about it')
+        else:
+            self.logger.info('poke detected')
 
     def poke_out(self):
         # Handle the pokes

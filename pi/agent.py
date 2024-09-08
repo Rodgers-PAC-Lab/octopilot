@@ -177,8 +177,14 @@ class PiController(object):
             green_pin=self.pins['right_led_green'], 
             blue_pin=self.pins['right_led_blue'], 
             )            
-    
-    def start_session(self, autopoke=False):
+
+        # Autopoke
+        # This simulates the presence of a mouse, which may be poking before
+        # the session actually starts
+        self.left_nosepoke.autopoke_start()
+        self.right_nosepoke.autopoke_start()
+
+    def start_session(self):
         """Called whenever a new session is started by Dispatcher
         
         Currently there is no explicit "start" message. Instead, we use
@@ -197,11 +203,6 @@ class PiController(object):
         self.right_nosepoke.handles_poke_in.append(self.report_poke)
         self.right_nosepoke.handles_reward.append(self.report_reward)
         
-        # Autopoke
-        if autopoke:
-            self.left_nosepoke.autopoke_start()
-            self.right_nosepoke.autopoke_start()
-    
         # Set session_running
         self.session_running = True
     
