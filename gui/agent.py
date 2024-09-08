@@ -6,6 +6,7 @@ import time
 import random
 import datetime
 import logging
+from ..misc import RepeatedTimer
 from ..shared.logtools import NonRepetitiveLogger
 from ..shared.networking import DispatcherNetworkCommunicator
 
@@ -54,6 +55,7 @@ class Worker:
 
         ## Init instance variables
         self.session_is_running = False
+        self.last_alive_message_received = {}
 
         # Initializing variables and lists to store trial information 
         self.reset_history()
@@ -111,6 +113,9 @@ class Worker:
         """
         self.logger.info(
             f'received alive from agent {identity}')# at {datetime.datetime.now()}')        
+        
+        # Log that this happened
+        self.last_alive_message_received[identity] = datetime.datetime.now()
     
     def start_session(self, verbose=True):
         """Start a session"""
@@ -138,8 +143,9 @@ class Worker:
         self.start_trial()
 
         # Set up timer to test if the Agent is still running
+        self.last_alive_message_received = {}
         alive_interval = 3
-        self.alive_timer = hardware.RepeatedTimer(
+        self.alive_timer = RepeatedTimer(
             alive_interval, self.send_alive_request)
 
     def start_trial(self):
@@ -190,6 +196,9 @@ class Worker:
         """
      
         """Send a stop message to the pi"""
+        # Stop the timer
+        self.alive_timer.stop()
+        
         # Send a stop message to each pi
         self.network_communicator.send_message_to_all('stop')
 
@@ -200,6 +209,15 @@ class Worker:
         self.session_is_running = True
 
     def send_alive_request(self):
+        # Warn if it's been too long
+        for identity in self.connected_pis:
+            last_time = self.last_alive_message_received[identity]
+            threshold = datetime.datetime.now() - datetime.timedelta(seconds=4)
+            if last_time < threshold:
+                self.logger.error(f'no recent alive responses from {identity}')
+            
+            # TODO: initiate shutdown
+        
         self.network_communicator.send_alive_request()
 
     def main_loop(self, verbose=True):

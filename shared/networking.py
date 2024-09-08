@@ -204,6 +204,10 @@ class DispatcherNetworkCommunicator(object):
         self.logger.info('sending start message to all connected pis')
         self.send_message_to_all('start')
     
+    def send_alive_request(self):
+        self.logger.info('sending are_you_alive message to all connected pis')
+        self.send_message_to_all('are_you_alive')
+    
     def send_trial_parameters(self, **kwargs):
         """Encode a set_trial_parameters message and send to all Pis
         
