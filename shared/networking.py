@@ -377,6 +377,7 @@ class PiNetworkCommunicator(object):
         
 
         ## Set up sockets
+        self.socket_is_open = False
         self.init_socket()
 
         # Creating a poller object for both sockets that will be used to 
@@ -424,6 +425,7 @@ class PiNetworkCommunicator(object):
         self.poke_socket.send_string(f"hello") 
 
         # Print acknowledgment
+        self.socket_is_open = True
         print(f"Connected to router at {self.router_ip}")  
 
     def check_socket(self):
@@ -500,11 +502,18 @@ class PiNetworkCommunicator(object):
     
     def send_alive(self):
         """Send alive message to Dispatcher"""
-        self.logger.debug('sending alive')
-        self.poke_socket.send_string('alive')
+        if self.socket_is_open:
+            self.logger.debug('sending alive')
+            self.poke_socket.send_string('alive')
+        else:
+            self.logger.error('alive requested but socket is closed')
     
     def close(self):
         """Close all sockets and contexts"""
+        # Prevent sending
+        self.socket_is_open = False
+        
+        # Close
         self.poke_socket.close()
         
         # Gets stuck here if the GUI was closed and more messages were sent
