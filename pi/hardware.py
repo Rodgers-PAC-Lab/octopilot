@@ -10,7 +10,7 @@ import pigpio
 import zmq
 from . import sound
 from . import networking
-from logging_utils.logging_utils import NonRepetitiveLogger
+from ..logging_utils.logging_utils import NonRepetitiveLogger
 import logging
 import threading
 import numpy as np

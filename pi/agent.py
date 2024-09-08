@@ -12,6 +12,14 @@ of tasks. Most of the task-specific logic should be contained within this
 object. Other objects should be mostly agnostic to the task rules. 
 """
 
+import logging
+import time
+import pigpio
+from . import hardware
+from . import sound
+from . import networking
+from ..logging_utils.logging_utils import NonRepetitiveLogger
+
 class PiController(object):
     """Object to control the flow of behavioral sessions
     
@@ -142,7 +150,7 @@ class PiController(object):
         ## Set up nosepokes
         # TODO: don't activate callbacks until explicitly told to do so
         # Init left nosepoke
-        self.left_nosepoke = Nosepoke(
+        self.left_nosepoke = hardware.Nosepoke(
             name=self.left_port_name,
             pig=self.pig,
             poke_pin=self.pins['left_nosepoke'], 
@@ -154,7 +162,7 @@ class PiController(object):
             )
         
         # Init right_nosepoke
-        self.right_nosepoke = Nosepoke(
+        self.right_nosepoke = hardware.Nosepoke(
             name=self.right_port_name,
             pig=self.pig,
             poke_pin=self.pins['right_nosepoke'], 

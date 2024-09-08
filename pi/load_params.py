@@ -25,7 +25,7 @@ def load_params_file(verbose=False):
 
     # Load the config parameters for this pi
     # Doc for these params is in README
-    param_directory = f"/home/pi/dev/paclab_sukrith/pi/configs/pis/{pi_name}.json"
+    param_directory = f"/home/pi/dev/paclab_sukrith/configs/pis/{pi_name}.json"
     with open(param_directory, "r") as p:
         params = json.load(p)    
 
@@ -53,7 +53,7 @@ def load_pins(verbose=False):
     
     Each value is an int
     """
-    pin_directory = f"/home/pi/dev/paclab_sukrith/pi/configs/pins.json"
+    pin_directory = f"/home/pi/dev/paclab_sukrith/configs/pins.json"
     with open(pin_directory, "r") as n:
         pins = json.load(n)
 
