@@ -12,20 +12,51 @@ parts of the code, this is why two network ports need to be used
     (so that audio parameters can be set for each trial)
 
 
-The pi can receive the following messages from the GUI:
-    set_trial_parameters
+The Dispatcher can send the following messages to the Agent
     start
+        Start a session. This tells the Agent to expect set_trial_parameters.
+    set_trial_parameters
+        Sets the acoustic and reward parameters for the next trial, which
+        will start immediately. 
+        If the Agent does not think a session is running, it will do 
+        nothign and produce an error message.
     stop
+        Stop a session. This tells the Agent to stop expecting 
+        set_trial_parameters
     exit
-    alive
+        Tells the Agent to close the process.
+    are_you_alive
+        TODO: tell the Agent to respond if it is alive.
+        This message should only be sent while a session is running.
+        If the Agent does not respond, the Dispatcher knows something 
+        has gone wrong.
+        If the Agent thinks a session is running but it does not receive
+        periodic alive requests, it will know that the Dispatcher has 
+        crashed, and eventually it will shut itself down.
 
-The pi can send the following messages to the GUI:
+
+The Agent can send the following messages to the Dispatcher
+    hello
+        The Agent has just started up and is ready to go.
     poke
+        A poke has occurred
     reward
+        A reward has been delivered
     sound
+        A sound has been played
     alive
+        This message is only sent in response to an alive request from 
+        the Dispatcher. If a session is not running, the Agent will 
+        log and error.
     goodbye
+        This message is sent when the Agent shuts down.
 
+Right now there is an issue if the Agent is already running and the 
+Dispatcher is restarted, there is no way for the Dispatcher to know about
+the existence of the Agent. However, rather than have the Agent continuously
+ping the Dispatcher (which could fill up a queue and cause problems), instead
+the Dispatcher should be able to stop and start the Agent process. For now
+this is done manually by the user.
 """
 
 import zmq

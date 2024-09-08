@@ -84,7 +84,6 @@ class Worker:
             'poke': self.handle_poke,
             'reward': self.handle_reward,
             'sound': self.handle_sound,
-            'alive': self.handle_alive,
             'goodbye': self.handle_goodbye,
             'alive': self.recv_alive,
             }
@@ -110,7 +109,8 @@ class Worker:
         
         This is useful in the case that the Dispatcher has been restarted
         """
-        self.logger.info(f'received alive from agent {identity} at {datetime.datetime.now()}')        
+        self.logger.info(
+            f'received alive from agent {identity}')# at {datetime.datetime.now()}')        
     
     def start_session(self, verbose=True):
         """Start a session"""
@@ -136,6 +136,11 @@ class Worker:
         
         # Start the first trial
         self.start_trial()
+
+        # Set up timer to test if the Agent is still running
+        alive_interval = 3
+        self.alive_timer = hardware.RepeatedTimer(
+            alive_interval, self.send_alive_request)
 
     def start_trial(self):
         ## Choose and broadcast reward_port
@@ -194,6 +199,9 @@ class Worker:
         # Flag that it has started
         self.session_is_running = True
 
+    def send_alive_request(self):
+        self.network_communicator.send_alive_request()
+
     def main_loop(self, verbose=True):
         """Main loop of Worker
 
@@ -240,9 +248,6 @@ class Worker:
         self.start_trial()
 
     def handle_sound(self):
-        pass
-    
-    def handle_alive(self):
         pass
     
     def handle_goodbye(self, identity):
