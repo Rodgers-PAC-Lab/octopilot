@@ -249,68 +249,111 @@ class DispatcherNetworkCommunicator(object):
         identity_str = identity.decode('utf-8')
         message_str = message.decode('utf-8')
 
-        # Keep track of the identities
+        
+        ## Handle message
+        if message_str == 'hello':
+            # Special case 'hello', which is the only message handled
+            # directly and exclusively by NetworkCommunicator
+            # If this agent is expected and not yet connected, it will
+            # be added.
+            # Otherwise an error will be logged
+            self.handle_hello(identity_str)
+        
+        elif identity_str not in self.connected_pis:
+            # A non-hello message from an unconnected agent
+            self.handle_message_from_unconnected_agent(identity_str)
+ 
+        else:
+            # Handle a non-hello message from a connected agent
+            # Split on semicolon
+            tokens = message_str.strip().split(';')
+            
+            # The command is the first token
+            # This will always run, but command could be ''
+            command = tokens[0]
+            
+            # Get the params
+            # This will always run, but could return {}
+            msg_params = parse_params(tokens[1:])
+            
+            # Insert identity into msg_params
+            msg_params['identity'] = identity_str
+            
+            # Find associated method
+            meth = None
+            try:
+                meth = self.command2method[command]
+            except KeyError:
+                self.logger.error(
+                    f'unrecognized command: {command}. ' +
+                    'I only recognize: ' +
+                    ' '.join(self.command2method.keys())
+                    )
+            
+            # Call the method
+            if meth is not None:
+                self.logger.debug(
+                    f'calling method {meth} with params {msg_params}')
+                meth(**msg_params)
+
+    def handle_hello(self, identity_str):
+        """Handle `hello` from `identity_str`
+        
+        If it is not connected:
+            If it is expected: add it
+            If it is not expected: error
+        If it is connected: error
+        """
         if identity_str not in self.connected_pis:
-            self.add_identity_to_connected(identity_str, message_str)
-
-        # Split on semicolon
-        tokens = message_str.strip().split(';')
+            # A new Agent has made contact
+            if identity_str in self.expected_identities:
+                # It was expected, add it
+                self.logger.info(
+                    f'received hello from {identity_str}, '
+                    'adding to connected_agents')
+                self.connected_pis.add(identity_str)
+            else:
+                # It was not expected, error
+                self.logger.error(
+                    f'received hello from {identity_str}, '
+                    f'ignore because I only expect to connect to: '
+                    ' '.join(self.expected_identities))
         
-        # The command is the first token
-        # This will always run, but command could be ''
-        command = tokens[0]
-        
-        # Get the params
-        # This will always run, but could return {}
-        msg_params = parse_params(tokens[1:])
-        
-        # Insert identity into msg_params
-        msg_params['identity'] = identity_str
-        
-        # Find associated method
-        meth = None
-        try:
-            meth = self.command2method[command]
-        except KeyError:
+        else:
+            # This Agent has already made contact
             self.logger.error(
-                f'unrecognized command: {command}. '
-                f'I only recognize: {list(self.command2method.keys())}'
-                )
-        
-        # Call the method
-        if meth is not None:
-            self.logger.debug(f'calling method {meth} with params {msg_params}')
-            meth(**msg_params)
+                f'received hello from {identity_str}, '
+                f'but we were already connected')
+            
+            # TODO: call received_double_hello here        
 
-    def add_identity_to_connected(self, identity_str, message_str):
-        # This better be a hello message
-        if not message_str.startswith('hello'):
-            self.logger.warn(
-                f'warning: first message from new identity {identity_str} '
-                f'was not hello but rather {message_str}'
-                )
+    def handle_message_from_unconnected_agent(self, identity_str):
+        """Handle non-hello message from unconnected agent
         
-        else:
-            self.logger.info(
-                f'first message from new identity {identity_str} '
-                f'is {message_str}')
-        
-        # Check whether it's expected
+        If it is from an expected agent: error
+        Otherwise: error
+        """
         if identity_str in self.expected_identities:
-            # Keep track of it
-            self.connected_pis.add(identity_str)
+            # This is a known agent, but it's not connected
+            # TODO: call received_message_without_hello here
+            self.logger.error(
+                'received message from known but unconnected agent '
+                f'{identity_str}'
+                )
         
         else:
-            self.logger.warn(
-                f'warning: {identity_str} is not in expected_identities '
-                'but it attempted to connect'
-                )
-    
+            # This is an unknown agent
+            self.logger.error(
+                'received message from unknown agent '
+                f'{identity_str}'
+                )        
+
     def remove_identity_from_connected(self, identity):
         if identity not in self.connected_pis:
-            self.logger.error(f'{identity} said goodbye but it was not connected')
-        
-        self.connected_pis.remove(identity)
+            self.logger.error(
+                f'{identity} said goodbye but it was not connected')
+        else:
+            self.connected_pis.remove(identity)
 
 ## This class is instantiated by HardwareController
 class PiNetworkCommunicator(object):
@@ -415,6 +458,9 @@ class PiNetworkCommunicator(object):
         # https://github.com/zeromq/pyzmq/issues/102
         self.poke_socket.setsockopt(zmq.LINGER, 100)
 
+        # Set CONFLATE
+        self.poke_socket.setsockopt(zmq.CONFLATE)
+        
 
         ## Connect to the server
         # Connecting to the GUI IP address stored in params

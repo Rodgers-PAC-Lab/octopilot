@@ -191,6 +191,9 @@ class Worker:
         # Reset history when a new session is started 
         self.reset_history()    
 
+        # Flag that it has started
+        self.session_is_running = True
+
     def main_loop(self, verbose=True):
         """Main loop of Worker
 
