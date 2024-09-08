@@ -1,4 +1,4 @@
-"""The worker handles the interaction with the Pi, but not any graphics.
+"""The Dispatcher handles the interaction with the Agent on each Pi.
 
 """
 import zmq
@@ -10,7 +10,7 @@ from ..shared.misc import RepeatedTimer
 from ..shared.logtools import NonRepetitiveLogger
 from ..shared.networking import DispatcherNetworkCommunicator
 
-class Worker:
+class Dispatcher:
     """Handles task logic
     
     It handles the logic of starting sessions, stopping sessions, 

@@ -1,4 +1,4 @@
-from . import agent
+from . import controllers
 import json
 import argparse
 
@@ -28,8 +28,8 @@ def load_params(json_filename):
     return params
 
 params = load_params(args.json_filename)
-worker = agent.Worker(params)
-worker.main_loop()
+dispatcher = controllers.Dispatcher(params)
+dispatcher.main_loop()
     
     
     
