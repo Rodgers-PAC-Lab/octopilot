@@ -8,8 +8,22 @@ import socket
 import json
 import datetime
 
-def load_params_file(verbose=False):
-    """Load parameters
+
+def load_box_params(json_filename):
+    """Loads box params from `json_filename` and returns"""
+    GIT_PATH = '/home/mouse/dev/paclab_sukrith'
+    
+    # Constructing the full path to the config file
+    param_directory = f"{GIT_PATH}/gui/configs/{json_filename}.json"
+
+    # Load the parameters from the specified JSON file
+    with open(param_directory, "r") as p:
+        params = json.load(p)
+    
+    return params
+
+def load_pi_params(verbose=False):
+    """Load pi parameters
     
     Returns: dict of parameters with keys
         identity : str, name of rpi

@@ -14,19 +14,6 @@ args = parser.parse_args()
 
 
 ## TODO: move to shared location
-GIT_PATH = '/home/mouse/dev/paclab_sukrith'
-
-def load_params(json_filename):
-    """Loads params from `json_filename` and returns"""
-    # Constructing the full path to the config file
-    param_directory = f"{GIT_PATH}/gui/configs/{json_filename}.json"
-
-    # Load the parameters from the specified JSON file
-    with open(param_directory, "r") as p:
-        params = json.load(p)
-    
-    return params
-
 params = load_params(args.json_filename)
 dispatcher = controllers.Dispatcher(params)
 dispatcher.main_loop()
