@@ -137,7 +137,7 @@ class DispatcherNetworkCommunicator(object):
         ----
         * Create context and socket using zmq.ROUTER
         * Bind to tcp://*{worker_port}
-        * Initialize empty self.connected_pis
+        * Initialize empty self.connected_agents
         """
         ## Init logger
         self.logger = NonRepetitiveLogger("test")
@@ -152,7 +152,7 @@ class DispatcherNetworkCommunicator(object):
         self.expected_identities = expected_identities
 
         # Set of identities of all pis connected to that instance of ther GUI 
-        self.connected_pis = set() 
+        self.connected_agents = set() 
         
         # Set up the method to call on each command
         self.command2method = {}
@@ -180,25 +180,25 @@ class DispatcherNetworkCommunicator(object):
         # Return False if any is missing
         all_connected = True
         for identity in self.expected_identities:
-            if identity not in self.connected_pis:
+            if identity not in self.connected_agents:
                 all_connected = False
                 break
         
         return all_connected
     
     def send_message_to_all(self, msg):
-        """"Send msg to all identities in self.connected_pis"""
+        """"Send msg to all identities in self.connected_agents"""
         self.logger.info(f'sending message to all connecting pis: {msg}')
         
         # Convert to bytes
         msg_bytes = bytes(msg, 'utf-8')
         
         # Send to all
-        for identity in self.connected_pis:
+        for identity in self.connected_agents:
             identity_bytes = bytes(identity, 'utf-8')
             self.zmq_socket.send_multipart([identity_bytes, msg_bytes])
     
-        self.logger.info(f'above message was sent to {self.connected_pis}')    
+        self.logger.info(f'above message was sent to {self.connected_agents}')    
     
     def send_start(self):
         self.logger.info('sending start message to all connected pis')
@@ -294,7 +294,7 @@ class DispatcherNetworkCommunicator(object):
             # Otherwise an error will be logged
             self.handle_hello(identity_str)
         
-        elif identity_str not in self.connected_pis:
+        elif identity_str not in self.connected_agents:
             # A non-hello message from an unconnected agent
             self.handle_message_from_unconnected_agent(identity_str)
  
@@ -339,14 +339,14 @@ class DispatcherNetworkCommunicator(object):
             If it is not expected: error
         If it is connected: error
         """
-        if identity_str not in self.connected_pis:
+        if identity_str not in self.connected_agents:
             # A new Agent has made contact
             if identity_str in self.expected_identities:
                 # It was expected, add it
                 self.logger.info(
                     f'received hello from {identity_str}, '
                     'adding to connected_agents')
-                self.connected_pis.add(identity_str)
+                self.connected_agents.add(identity_str)
             else:
                 # It was not expected, error
                 self.logger.error(
@@ -384,11 +384,11 @@ class DispatcherNetworkCommunicator(object):
                 )        
 
     def remove_identity_from_connected(self, identity):
-        if identity not in self.connected_pis:
+        if identity not in self.connected_agents:
             self.logger.error(
                 f'{identity} said goodbye but it was not connected')
         else:
-            self.connected_pis.remove(identity)
+            self.connected_agents.remove(identity)
 
 ## This class is instantiated by HardwareController
 class PiNetworkCommunicator(object):

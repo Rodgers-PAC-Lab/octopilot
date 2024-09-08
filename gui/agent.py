@@ -6,7 +6,7 @@ import time
 import random
 import datetime
 import logging
-from ..misc import RepeatedTimer
+from ..shared.misc import RepeatedTimer
 from ..shared.logtools import NonRepetitiveLogger
 from ..shared.networking import DispatcherNetworkCommunicator
 
@@ -56,6 +56,7 @@ class Worker:
         ## Init instance variables
         self.session_is_running = False
         self.last_alive_message_received = {}
+        self.alive_timer = None
 
         # Initializing variables and lists to store trial information 
         self.reset_history()
@@ -197,7 +198,10 @@ class Worker:
      
         """Send a stop message to the pi"""
         # Stop the timer
-        self.alive_timer.stop()
+        if self.alive_timer is None:
+            self.logger.error('stopping session but no alive timer')
+        else:
+            self.alive_timer.stop()
         
         # Send a stop message to each pi
         self.network_communicator.send_message_to_all('stop')
@@ -210,11 +214,14 @@ class Worker:
 
     def send_alive_request(self):
         # Warn if it's been too long
-        for identity in self.connected_pis:
-            last_time = self.last_alive_message_received[identity]
-            threshold = datetime.datetime.now() - datetime.timedelta(seconds=4)
-            if last_time < threshold:
-                self.logger.error(f'no recent alive responses from {identity}')
+        for identity in self.network_communicator.connected_agents:
+            if identity in self.last_alive_message_received.keys():
+                last_time = self.last_alive_message_received[identity]
+                threshold = datetime.datetime.now() - datetime.timedelta(seconds=4)
+                if last_time < threshold:
+                    self.logger.error(f'no recent alive responses from {identity}')
+            else:
+                self.logger.warning(f'{identity} is not in last_alive_message_received')
             
             # TODO: initiate shutdown
         
@@ -242,7 +249,7 @@ class Worker:
                     self.logger.info(
                         'waiting for {} to connect; only {} connected'.format(
                         ', '.join(self.network_communicator.expected_identities),
-                        ', '.join(self.network_communicator.connected_pis),
+                        ', '.join(self.network_communicator.connected_agents),
                     ))
                     time.sleep(.2)
             
