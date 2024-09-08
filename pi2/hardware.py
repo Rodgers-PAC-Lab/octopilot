@@ -1,3 +1,10 @@
+"""Defines objects to control hardware such as nosepokes.
+
+These objects handle low-level operations on GPIO. They should not contain
+task logic. A PiController might use these objects and tell them what 
+methods to call upon certain events, such as nosepokes.
+"""
+
 import time
 import pigpio
 import zmq
@@ -10,34 +17,96 @@ import numpy as np
 import datetime
 
 class RepeatedTimer(object):
-    # https://stackoverflow.com/questions/474528/how-to-repeatedly-execute-a-function-every-x-seconds
+    """Helper object used to call an event at regular intervals
+    
+    https://stackoverflow.com/questions/474528/how-to-repeatedly-execute-a-function-every-x-seconds
+    """
     def __init__(self, interval, function, *args, **kwargs):
-        self._timer = None
+        """Init a new RepatedTimer that will call `function` every `interval`
+        
+        The timer starts immediately upon initialization.
+        
+        Arguments
+        ---------
+        interval : numeric, time in seconds
+        function : method
+            This method will be called every `interval` seconds
+        args, kwargs : passed to function
+        """
+        # Store aguments
         self.interval = interval
         self.function = function
         self.args = args
         self.kwargs = kwargs
+
+        # Instance variables
+        self._timer = None
         self.is_running = False
         self.next_call = time.time()
+        
+        # Start immediately
         self.start()
 
     def _run(self):
+        """The function that is called when _timer completes"""
+        # Start again
         self.is_running = False
         self.start()
+        
+        # Call the function
         self.function(*self.args, **self.kwargs)
 
     def start(self):
+        """Start the Repeated Timer"""
+        # Define next_call
         if not self.is_running:
             self.next_call += self.interval
+        
+        # Define the timer to use
         self._timer = threading.Timer(self.next_call - time.time(), self._run)
+        
+        # Start the _timer
         self._timer.start()
         self.is_running = True
 
     def stop(self):
+        """Cancel _timer and stop"""
         self._timer.cancel()
         self.is_running = False
 
 class Nosepoke(object):
+    """Controls a nosepoke object using pigpio.
+    
+    This object encapsulates all the GPIO-level logic used for interacting
+    with a nosepoke. 
+    
+    The typical way to interact with this object is to append a method to its
+    instance variable `self.handles_poke_out`. Then that method will be called
+    after every poke. 
+    
+    Instance variables
+    ------------------
+    reward_armed : bool
+        Whether to give a reward upon poke
+    handles_poke_in, handles_poke_out, handles_reward : list
+        These methods are called upon poke in, poke out, and reward, 
+        respectively.
+    
+    Methods
+    -------
+    __init__
+    autopoke_start : For debugging, tell it to spuriously report pokes
+    autopoke_stop : Stop spurious reporting pokes
+    reward : Open the reward valve
+        Usually this is called automatically as a result of a poke
+    poke_in : The method that pigpio calls upon poke start
+        Will call all methods in `self.handles_poke_in`
+        If `self.reward_armed`, will issue reward and call all methods
+        in `self.handles_reward`
+    poke_out : The method that pigpio calls upon poke stop
+        Will call all methods in `self.hanldes_poke_out`
+    start_flashing
+    """
     def __init__(self, name, pig, poke_pin, poke_sense, solenoid_pin, 
         red_pin, green_pin, blue_pin):
         """Init a new Nosepoke
@@ -76,6 +145,7 @@ class Nosepoke(object):
         
         # Whether to autopoke
         self.rt = None
+        
         
         ## Set up lists of handles to call on events
         self.handles_poke_in = []
