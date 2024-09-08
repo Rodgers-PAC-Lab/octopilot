@@ -2,7 +2,7 @@
 
 import os
 from . import daemons
-from . import load_params
+from shared import load_params
 from . import agent
 
 
@@ -23,7 +23,7 @@ jackd_proc = daemons.start_jackd(verbose=True)
 
 ## Start the main loop
 try:
-    hc = agent.PiController(pins=pins, params=params, start_networking=True)
+    hc = agent.Agent(pins=pins, params=params, start_networking=True)
     hc.main_loop()
 except:
     raise
