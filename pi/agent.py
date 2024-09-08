@@ -90,6 +90,10 @@ class PiController(object):
 
         # Whether the session is running
         self.session_running = False
+    
+        # How long it's been since we received an alive request
+        self.last_alive_request_received = datetime.datetime.now()
+        self.critical_shutdown = False
         
 
         ## Initialize sound_chooser
@@ -180,24 +184,22 @@ class PiController(object):
                 'stop': self.stop_session,
                 'exit': self.exit,
                 'start': self.start_session,
-                'alive': self.recv_alive,
+                'are_you_alive': self.recv_alive_request,
                 }            
             
             # Send hello
             self.network_communicator.send_hello()
-            
-            # Set up aliver
-            alive_interval = 5
-            self.alive_timer = hardware.RepeatedTimer(
-                alive_interval, self.network_communicator.send_alive)
 
-    def recv_alive(self):
-        """Log that we know the Dispatcher is out there
+    def recv_alive_request(self):
+        """Respond to Dispatcher's request to know if we are alive
         
-        Presently this does nothing useful. Eventually this might be used
-        to detect when the Dispatcher has crashed.
+        Log when this happens. If it doesn't happen frequently enough
+        and a sessions is running, conclude that the Dispatcher has crashed
+        and initiate critical shutdown.
         """
-        self.logger.info('received alive from dispatcher')
+        self.logger.debug('received alive from dispatcher; will respond')
+        self.last_alive_request_received = datetime.datetime.now()
+        self.networking_communicator.send_alive()
 
     def start_session(self):
         """Called whenever a new session is started by Dispatcher
@@ -220,6 +222,30 @@ class PiController(object):
         
         # Set session_running
         self.session_running = True
+        
+        # Set up timer to test if the Dispatcher is still running and
+        # sending are_you_alive requests
+        alive_interval = 5
+        self.alive_timer = hardware.RepeatedTimer(
+            alive_interval, self.check_for_alive_requests)
+    
+    def check_for_alive_requests(self):
+        """Periodically called during a session to see if the Dispatcher running
+        
+        """
+        dt_now = datetime.datetime.now()
+        threshold1 = dt_now - datetime.timedelta(seconds=5)
+        threshold2 = dt_now - datetime.timedelta(seconds=15)
+        
+        if self.last_alive_request_received >= threshold1:
+            self.logger.debug('dispatcher is alive')
+        
+        elif self.last_alive_request_received >= threshold2:
+            self.logger.error('dispatcher has crashed')
+        
+        else:
+            self.logger.critical('dispatcher has crashed; shutting down')
+            self.critical_shutdown = True
     
     def set_trial_parameters(self, **msg_params):
         """Called upon receiving set_trial_parameters from GUI
@@ -377,6 +403,10 @@ class PiController(object):
                 # start, reward, etc
                 if self.network_communicator is not None:
                     self.network_communicator.check_socket()
+                
+                if self.critical_shutdown:
+                    self.logger.critical('critical shutdown')
+                    raise ValueError('critical shutdown')
                 
                 # If there's nothing in the main loop, not even a sleep,
                 # then for some reason this leads to XRun errors
