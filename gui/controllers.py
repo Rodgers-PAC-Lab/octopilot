@@ -290,6 +290,7 @@ class Dispatcher:
     def handle_poke(self, identity, port_name, poke_time):
         ## Store results
         # TODO: store the raw datetime in the csv
+        # TODO: keep track of correct and incorrect
         # Store the time in seconds on this port
         poke_time_sec = (
             datetime.datetime.fromisoformat(poke_time) - 
@@ -298,6 +299,7 @@ class Dispatcher:
 
     def handle_reward(self, identity, port_name, poke_time):
         # TODO: store the raw datetime in the csv
+        # TODO: keep track of correct and incorrect
         # Store the time in seconds on this port
         poke_time_sec = (
             datetime.datetime.fromisoformat(poke_time) - 

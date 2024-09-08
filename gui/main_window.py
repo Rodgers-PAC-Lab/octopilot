@@ -1,4 +1,20 @@
-"""Define the MainWindow of the GUI"""
+"""Define the MainWindow of the GUI
+
+This file shoud be used to lay out the connections between the Dispatcher
+and the various plotting widgets, by instantiating them and by laying out
+the way they are started and updated by threads and timers.
+
+The MainWindow
+* Instantiates and contains the Dispatcher to control the task
+* Instantiates each of the individual plotting widgets and lays them out
+* Starts QTimer to update the Dispatcher
+* Instantiates a start button which will be connected to the start method
+  of each individual widget
+
+The plotting widgets are defined in plotting.py. They get the data they
+need directly from the Dispatcher.
+"""
+
 import sys
 import zmq
 import numpy as np
@@ -6,24 +22,17 @@ import time
 import os
 import json
 
-# From this module
-from . import plotting
-#~ from . import config_dialog
-
 # Qt imports
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QAction, QWidget, QVBoxLayout, QHBoxLayout, QPushButton
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget
 from PyQt5.QtCore import QObject, pyqtSignal, QThread, QTimer
 
+# From this module
+from . import plotting
 from . import controllers
 
 
-## TODO: find a way to not hardcode this
-GIT_PATH = '/home/mouse/dev/paclab_sukrith'
-
-
-## MAIN GUI WINDOW
 class MainWindow(QtWidgets.QMainWindow):
     """Main window of the GUI that arranges all the widgets.
     
@@ -54,6 +63,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer_dispatcher = QTimer(self)
         self.timer_dispatcher.timeout.connect(self.dispatcher.update)
 
+
         ## Set up the graphical objects
         # Instantiate a ArenaWidget to show the ports
         self.arena_widget = plotting.ArenaWidget(self.dispatcher)
@@ -61,8 +71,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Initializing PokePlotWidget to show the pokes
         self.poke_plot_widget = plotting.PokePlotWidget(self.dispatcher)
 
-
-        ## Set up the actions for the menu bar
+        # Set up the actions for the menu bar
         # Creating a menu bar with some actions
         menubar = self.menuBar()
         file_menu = menubar.addMenu('File')
@@ -95,12 +104,9 @@ class MainWindow(QtWidgets.QMainWindow):
         container_layout = QtWidgets.QHBoxLayout(container_widget)
         
         # Add config_list_container, arena_widget_container, and poke_plot_widget
-        """
-        poke_plot_widget is handled separately because we are not creating a container
-        for it. This means that its width and height will both change when resizing
-        the main window. it does not have a fixed width like the other widgets
-        """
-        #~ container_layout.addWidget(config_list_container)
+        # poke_plot_widget is handled separately because we are not creating a container
+        # for it. This means that its width and height will both change when resizing
+        # the main window. it does not have a fixed width like the other widgets
         container_layout.addWidget(arena_widget_container)
         container_layout.addWidget(self.poke_plot_widget)
         container_layout.addWidget(self.start_button)

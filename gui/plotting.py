@@ -1,4 +1,8 @@
-"""Module for the individual plot widgets"""
+"""Module for the individual plot widgets
+
+Each individual widget should be initialized with the Dispatcher, 
+and get the data it needs by reading the attributes of the Dispatcher.
+"""
 
 import math
 from datetime import datetime
@@ -98,31 +102,11 @@ class NosepokeCircle(QGraphicsEllipseItem):
         else:
             print_out("Invalid color:", color)
 
-
-## TRIAL INFORMATION DISPLAY / SESSION CONTROL    
 # ArenaWidget Class that represents all ports
 class ArenaWidget(QWidget):
-    """Displays pokes and also contains logic to start and stop session
-    
-    This class is the main GUI class that displays the ports on the Raspberry 
-    Pi and the information related to the trials. The primary use of the widget 
-    is to keep track of the pokes in the trial (done through the port icons 
-    and details box). This information is then used to calculate performance 
-    metrics like fraction correct and RCP. It also has additional logic to 
-    stop and start sessions. 
-    
-    Most of the work is done by self.worker. 
-    This class is just for plotting.
-    
-
-
-    
-    """
+    """Displays nosepokes"""
     def __init__(self, dispatcher, *args, **kwargs):
-        """Initialize an ArenaWidget
-        
-
-        """
+        """Initialize an ArenaWidget"""
         ## Superclass QWidget init
         super(ArenaWidget, self).__init__(*args, **kwargs)
 
@@ -317,88 +301,39 @@ class ArenaWidget(QWidget):
             self.fraction_correct_label.setText(
                 f"Fraction Correct (FC): {self.fraction_correct:.3f}")
 
-    def start_sequence(self):
-        """Starts the session
-        
-        This is connected to self.start_button.clicked
-        
-        Flow
-        ----
-        * Emit the startButtonClicked signal
-        * Calls self.worker.start_message
-        * Starts worker thread
-        * QMetaObject.invokeMethod ???
-        * Tells MainWindow to start the plot
-        * Starts the start_time QTime
-        * Start self.timer
-        """
-        # Emit the startButtonClicked signal
-        self.startButtonClicked.emit() 
-        
-        # Tell the worker to start
-        self.worker.start_message()
-        
-        # Starting the worker thread when the start button is pressed
-        self.thread.start()
-        
-        # Log
-        print_out("Experiment Started!")
-        
-        # Sukrith: what does this do? 
-        QMetaObject.invokeMethod(self.worker, "start_sequence", Qt.QueuedConnection) 
-
-        # Sending a message so that the plotting object can start plotting
-        self.main_window.poke_plot_widget.start_plot()
-
+    def start(self):
         # Start the timer
         self.start_time.start()
         
         # Update every second
         self.timer.start(10)  
 
-    def stop_sequence(self):
-        """Stop the session
+    def save_results_to_csv(self):
+        """Save results
         
-        Flow:
-        * QMetaObject.invokeMethod ???
-        * Stops plot in main_window
-        * Updates text on labels
-        * Sets counts to zero
-        * Stops self.timer
-        * Quits self.thread
+        Tells worker to stop
+        Tells worker to save results to csv
+        Sets a toast notification
         """
-        # Sukrith document this
-        QMetaObject.invokeMethod(self.worker, "stop_sequence", Qt.QueuedConnection)
+        # Tell worker to stop
+        self.worker.stop_message()
         
-        # Log
-        print_out("Experiment Stopped!")
+        # Tell worker to save
+        self.worker.save_results_to_csv()
         
-        # Stopping the plot
-        self.main_window.poke_plot_widget.stop_plot()
+        # Send toast notification
+        toast = Toast(self) # Initializing a toast message
+        toast.setDuration(5000)  # Hide after 5 seconds
+        toast.setTitle('Results Saved') # Printing acknowledgement in terminal
         
-        # Reset all labels to intial values 
-        # Currently has an issue with time since last poke updating after session is stopped. 
-        # Note: This parameter is not saved on the CSV but is just for display)
-        self.time_label.setText("Time Elapsed: 00:00")
-        self.poke_time_label.setText("Time since last poke: 00:00")
-        self.red_label.setText("Number of Pokes: 0")
-        self.blue_label.setText("Number of Trials: 0")
-        self.green_label.setText("Number of Correct Trials: 0")
-        self.fraction_correct_label.setText("Fraction Correct (FC): 0.000")
-        self.rcp_label.setText("Rank of Correct Port (RCP): 0")
+        # Setting text for the toast message
+        toast.setText('Log saved to /home/mouse/dev/paclab_sukrith/logs') 
+        toast.applyPreset(ToastPreset.SUCCESS)  # Apply style preset
+        toast.show()
 
-        # Resetting poke and trial counts
-        self.red_count = 0
-        self.blue_count = 0
-        self.green_count = 0
 
-        # Stopping the timer for the session 
-        self.timer.stop()
-        
-        # Quitting the thread so a new session can be started
-        self.thread.quit()
-
-    
+## Widget to display text performance metrics
+class PerformanceMetricDisplay(QWidget):
     @pyqtSlot() 
     def update_time_elapsed(self):
         """Updates self.time_label with time elapsed
@@ -461,30 +396,6 @@ class ArenaWidget(QWidget):
         str1 = str(int(minutes)).zfill(2)
         str2 = str(int(seconds)).zfill(2)
         self.poke_time_label.setText(f"Time since last poke: {str1}:{str2}")
-
-    def save_results_to_csv(self):
-        """Save results
-        
-        Tells worker to stop
-        Tells worker to save results to csv
-        Sets a toast notification
-        """
-        # Tell worker to stop
-        self.worker.stop_message()
-        
-        # Tell worker to save
-        self.worker.save_results_to_csv()
-        
-        # Send toast notification
-        toast = Toast(self) # Initializing a toast message
-        toast.setDuration(5000)  # Hide after 5 seconds
-        toast.setTitle('Results Saved') # Printing acknowledgement in terminal
-        
-        # Setting text for the toast message
-        toast.setText('Log saved to /home/mouse/dev/paclab_sukrith/logs') 
-        toast.applyPreset(ToastPreset.SUCCESS)  # Apply style preset
-        toast.show()
-
 
 ## Widget to plot pokes
 class PokePlotWidget(QWidget):
