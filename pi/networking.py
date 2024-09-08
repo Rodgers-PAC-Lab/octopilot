@@ -28,7 +28,7 @@ The pi can send the following messages to the GUI:
 """
 
 import zmq
-from logging_utils.logging_utils import NonRepetitiveLogger
+from ..logging_utils.logging_utils import NonRepetitiveLogger
 import logging
 import datetime
 
@@ -125,6 +125,14 @@ class NetworkCommunicator(object):
 
         # Setting the identity of the socket in bytes
         self.poke_socket.identity = bytes(f"{self.pi_identity}", "utf-8") 
+
+        # Set LINGER to 100 ms
+        # During context.term(), this is how long it will wait to send 
+        # remaining messages before closing. The default value is to wait
+        # forever, which means that whenever the server is closed first,
+        # then closing the Pi will hang.
+        # https://github.com/zeromq/pyzmq/issues/102
+        self.poke_socket.setsockopt(zmq.LINGER, 100)
 
 
         ## Connect to the server
