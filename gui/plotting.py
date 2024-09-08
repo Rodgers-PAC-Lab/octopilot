@@ -8,7 +8,7 @@ import random
 import numpy as np
 import zmq
 import pyqtgraph as pg
-from .worker import Worker
+#~ from .worker import Worker
 
 
 from PyQt5 import QtWidgets
@@ -24,8 +24,8 @@ from PyQt5.QtCore import (
     QMetaObject, Qt,
     )
 from PyQt5.QtGui import QFont, QColor
-from pyqttoast import Toast, ToastPreset
-from .logging import print_out
+#~ from pyqttoast import Toast, ToastPreset
+#~ from .logging import print_out
 
 ## VISUAL REPRESENTATION OF PORTS
 class NosepokeCircle(QGraphicsEllipseItem):
@@ -36,7 +36,7 @@ class NosepokeCircle(QGraphicsEllipseItem):
     * calculate_position
     * set_color
     """
-    def __init__(self, index, total_ports, params):
+    def __init__(self, index, total_ports, name):
         # Setting the diameters of the ellipse while initializing the class
         super(NosepokeCircle, self).__init__(0, 0, 38, 38) 
         
@@ -46,16 +46,8 @@ class NosepokeCircle(QGraphicsEllipseItem):
         # Creating a variable for the total number of ports
         self.total_ports = total_ports 
         
-        # Defining list and order of the ports
-        # Ensure index is within specified number of ports listed in params 
-        if 0 <= self.index < len(params['ports']): 
-            port_data = params['ports'][self.index]
-            
-            # Assigning a label to each port index in params 
-            label_text = port_data['label'] 
-        
         # Setting the label for each port on the GUI
-        self.label = QGraphicsTextItem(f"Port-{port_data['label']}", self) 
+        self.label = QGraphicsTextItem(name, self)
         font = QFont()
         
         # Set the font size here (10 in this example)
@@ -105,8 +97,6 @@ class NosepokeCircle(QGraphicsEllipseItem):
             self.setBrush(QColor("gray"))
         else:
             print_out("Invalid color:", color)
-
-
 
 
 ## TRIAL INFORMATION DISPLAY / SESSION CONTROL    
@@ -204,13 +194,13 @@ class ArenaWidget(QWidget):
     # TODO: update, these no longer communicate only with Worker, I'm not sure
     # they communicate with Worker at all
     
-    # Signal that is emitted whenever the start button is pressed 
-    startButtonClicked = pyqtSignal() 
+    #~ # Signal that is emitted whenever the start button is pressed 
+    #~ startButtonClicked = pyqtSignal() 
     
-    # Signal to emit the id and outcome of the current poke
-    updateSignal = pyqtSignal(int, str) 
+    #~ # Signal to emit the id and outcome of the current poke
+    #~ updateSignal = pyqtSignal(int, str) 
     
-    def __init__(self, main_window, params, *args, **kwargs):
+    def __init__(self, dispatcher, *args, **kwargs):
         """Initialize an ArenaWidget
         
         Arguments
@@ -239,9 +229,8 @@ class ArenaWidget(QWidget):
         super(ArenaWidget, self).__init__(*args, **kwargs)
 
 
-        ## Keep track of main_window so we can start and stop its poke plot later
-        # TODO: main_window should handle this itself
-        self.main_window = main_window
+        # Store
+        self.dispatcher = dispatcher
         
 
         ## Creating the GUI widget to display the Pi signals
@@ -250,12 +239,11 @@ class ArenaWidget(QWidget):
 
 
         ## Add individual ports to the widget
-        self.active_nosepokes = [int(i) for i in params['active_nosepokes']]
-        self.total_ports = 8
+        self.total_ports = len(self.dispatcher.ports)
         self.nosepoke_circles = []
-        for i in range(self.total_ports):
+        for port_idx, port_name in enumerate(self.dispatcher.ports):
             # Create the nosepoke circle
-            nosepoke_circle = NosepokeCircle(i, self.total_ports, params)
+            nosepoke_circle = NosepokeCircle(port_idx, self.total_ports, port_name)
             
             # Store it
             self.nosepoke_circles.append(nosepoke_circle)
@@ -265,14 +253,14 @@ class ArenaWidget(QWidget):
         
         # This is used only by Worker
         # TODO: Move this there
-        self.poked_port_numbers = []
+        #~ self.poked_port_numbers = []
         
         
         ## Create Worker
         # Creating an instance of the Worker Class and a QThread to handle the logic
         # in a separate thread from the GUI elements
         # Worker relies on self.total_ports
-        self.worker = Worker(params)
+        #~ self.worker = Worker(params)
 
 
         ## Connect pokedportsignal to methods in this class
@@ -290,31 +278,31 @@ class ArenaWidget(QWidget):
         # These may rely on logic in Worker class
         
         # Create self.start_button and connect it to self.start_sequence
-        self.set_up_start_button()
+        #~ self.set_up_start_button()
         
         # Create self.start_button and connect it to self.stop_sqeuence
         # and to self.save_results_to_csv
-        self.set_up_stop_button()
+        #~ self.set_up_stop_button()
 
 
         ## Create timers
         # Create a timer and connect to self.update_time_elapsed
-        self.timer = QTimer(self)
+        #~ self.timer = QTimer(self)
         
         # Method to calculate and update elapsed time (can be replaced with date 
         # time instead of current implementation if needed)
-        self.timer.timeout.connect(self.update_time_elapsed) 
+        #~ self.timer.timeout.connect(self.update_time_elapsed) 
 
         # Create timer and connect to update_last_poke_time
         # Initializing QTimer for tracking time since last poke 
-        # (resets when poke is detected)
-        self.last_poke_timer = QTimer()
-        self.last_poke_timer.timeout.connect(self.update_last_poke_time)
+        #~ # (resets when poke is detected)
+        #~ self.last_poke_timer = QTimer()
+        #~ self.last_poke_timer.timeout.connect(self.update_last_poke_time)
 
         
         ## Lay out all elements
         # Create session progress metrics and labels
-        self.set_up_session_progress_layout()
+        #~ self.set_up_session_progress_layout()
         
         # Put everything in the main layout
         self.set_up_main_layout()
@@ -355,18 +343,18 @@ class ArenaWidget(QWidget):
         """
         # Creating horizontal layout for start and stop buttons
         start_stop_layout = QHBoxLayout()
-        start_stop_layout.addWidget(self.start_button)
-        start_stop_layout.addWidget(self.stop_button)
+        #~ start_stop_layout.addWidget(self.start_button)
+        #~ start_stop_layout.addWidget(self.stop_button)
         
         # Creating a layout where the port window and buttons are arranged vertically
         view_buttons_layout = QVBoxLayout()
         view_buttons_layout.addWidget(self.view)  
-        view_buttons_layout.addLayout(start_stop_layout)  
+        #~ view_buttons_layout.addLayout(start_stop_layout)  
 
         # Arranging the previous layout horizontally with the session details
         main_layout = QHBoxLayout(self)
         main_layout.addLayout(view_buttons_layout)  
-        main_layout.addLayout(self.details_layout)  
+        #~ main_layout.addLayout(self.details_layout)  
 
         # Set main_layout as the layout for this widget
         self.setLayout(main_layout)
@@ -712,7 +700,7 @@ class PokePlotWidget(QWidget):
     setup_plot_graphics - Sets labels and colors of plot_widget
     initialize_plot_handles - Plots line and line_of_current_time
     """
-    def __init__(self, arena_widget, *args, **kwargs):
+    def __init__(self, dispatcher, *args, **kwargs):
         """Initialize a new PokePlotWidget
         
         Arguments
@@ -735,6 +723,8 @@ class PokePlotWidget(QWidget):
         super().__init__(*args, **kwargs)
         
         
+        self.dispatcher = dispatcher
+        
         ## Flags
         # Flag to check if the Start Button is pressed
         self.is_active = False  
@@ -754,12 +744,6 @@ class PokePlotWidget(QWidget):
 
 
         ## To store data
-        # List to store timestamps
-        self.timestamps = []  
-        
-        # List to store pokes 
-        self.signal = []  
-
         # List to keep track of all plotted items so we can clear when needed
         self.plotted_items = []        
         
@@ -782,10 +766,13 @@ class PokePlotWidget(QWidget):
         ## Connecting to signals from ArenaWidget and Worker 
         # TODO: Sukrith why are you connecting again here? Connection already
         # happened in MainWindow
-        arena_widget.updateSignal.connect(self.handle_update_signal)
+        #~ arena_widget.updateSignal.connect(self.handle_update_signal)
         
         # This one was not done in MainWindow
         #~ arena_widget.worker.pokedportsignal.connect(self.plot_poked_port)
+        
+        
+        self.start_plot()
 
     def setup_plot_graphics(self):
         """Sets colors and labels of plot_widget
@@ -833,8 +820,8 @@ class PokePlotWidget(QWidget):
         # Included a separate symbol here that shows as a tiny dot under the 
         # raster to make it easier to distinguish multiple pokes in sequence
         self.line = self.plot_widget.plot(
-            self.timestamps,
-            self.signal,
+            [], #self.timestamps,
+            [], #self.signal,
             pen=None,
             symbol="o", 
             symbolSize=1,
@@ -994,10 +981,19 @@ class PokePlotWidget(QWidget):
             self.plotted_items.append(item) 
 
     def update_plot(self):
-        """Plot `timestamps` and `signal` as `line`
+        """Plot `timestamps` and `signal` as `line`"""
         
-        Sukrith what is this?
-        """
+        # Extract x and y vals
+        xvals = []
+        yvals = []
+        for port_name, poke_time in self.dispatcher.poked_port_history:
+            xvals.append(3)
+            yvals.append(poke_time)
+        
+        
         # Update plot with timestamps and signals
-        self.line.setData(x=self.timestamps, y=self.signal)
+        self.line.setData(
+            x=xvals,
+            y=yvals,
+            )
 

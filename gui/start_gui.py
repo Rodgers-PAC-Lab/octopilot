@@ -12,6 +12,8 @@
 ## Module imports
 # shared defines all widgets
 from . import main_window
+from . import controllers
+from ..shared import load_params
 
 # This defines standard QApplication
 from PyQt5.QtWidgets import QApplication
@@ -31,6 +33,14 @@ parser.add_argument(
     )
 args = parser.parse_args()
 
+# Load parameters of the specified box
+box_params = load_params.load_box_params(args.json_filename)
+
+# Load parameters of the task
+# TODO: make this configurable
+task_params = load_params.load_task_params('single_sound_source')
+mouse_params = load_params.load_mouse_params('mouse1')
+
 
 ## Start
 if __name__ == '__main__':
@@ -42,12 +52,13 @@ if __name__ == '__main__':
     Right now the settings for all boxes have the same directories but we can use 
     different locations to save session results and tasks for each box. 
     """
-    # I don't see how QApplication can make sense of the stuff we provide in
-    # argv. Seems like that is parsed by argparse and provided to MainWindow
-    app = QApplication(sys.argv)
+    # Apparently QApplication needs sys.argv for some reason
+    # https://stackoverflow.com/questions/27940378/why-do-i-need-sys-argv-to-start-a-qapplication-in-pyqt
+    app = QApplication([])#sys.argv)
     
     # Instantiate a MainWindow
-    this_main_window = main_window.MainWindow(args.json_filename)
+    dispatcher = controllers.Dispatcher(box_params, task_params, mouse_params)
+    this_main_window = main_window.MainWindow(dispatcher)
     
     """
     '.exec() is used to to enter the main loop and run the different widgets on 

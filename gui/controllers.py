@@ -63,6 +63,9 @@ class Dispatcher:
         self.last_alive_message_received = {}
         self.alive_timer = None
 
+        # Store parameters
+        self.task_params = task_params
+
         # Initializing variables and lists to store trial information 
         self.reset_history()
 
