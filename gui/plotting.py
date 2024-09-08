@@ -403,7 +403,7 @@ class PokePlotWidget(QWidget):
         # Iterate over ports and get poke times from each
         for n_port, port_name in enumerate(self.dispatcher.ports):
             # Get poke times for this port
-            this_poke_times = self.dispatcher.poked_port_history[port_name]
+            this_poke_times = self.dispatcher.history_of_pokes[port_name]
             
             # The x-value will be the n_port
             port_number = [n_port] * len(this_poke_times)

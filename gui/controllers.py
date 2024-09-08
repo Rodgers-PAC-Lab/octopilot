@@ -106,16 +106,22 @@ class Dispatcher:
         """
         # Identity of last_rewarded_port (to avoid repeats)
         self.previously_rewarded_port = None 
+        self.rewarded_port = None
 
         # Trial index (None if not running)
         self.current_trial = None
         
-        # History
-        self.poked_port_history = {}
-        self.reward_history = {}
+        # History (dict by port)
+        self.history_of_pokes = {}
+        self.history_of_rewarded_correct_pokes = {}
+        self.history_of_rewarded_incorrect_pokes = {}
         for port in self.ports:
-            self.poked_port_history[port] = []
-            self.reward_history[port] = []
+            self.history_of_pokes[port] = []
+            self.history_of_rewarded_correct_pokes[port] = []
+            self.history_of_rewarded_incorrect_pokes[port] = []
+        
+        # History (simple lists)
+        self.history_of_ports_poked_per_trial = []
     
     def recv_alive(self, identity):
         """Log that we know the Agent is out there
@@ -161,15 +167,25 @@ class Dispatcher:
 
     def start_trial(self):
         ## Choose and broadcast reward_port
+        # Update which ports have been poked
+        self.ports_poked_this_trial = set()
+        
+        # Update the previously_rewarded_port
+        self.previously_rewarded_port = self.rewarded_port
+        
         # Setting up a new set of possible choices after omitting 
         # the previously rewarded port
         possible_rewarded_ports = [
-            port for port in self.ports if port != self.previously_rewarded_port] 
+            port for port in self.ports 
+            if port != self.previously_rewarded_port] 
         
         # Randomly choosing within the new set of possible choices
         # Updating the previous choice that was made so the next choice 
         # can omit it 
-        self.previously_rewarded_port = random.choice(possible_rewarded_ports) 
+        self.rewarded_port = random.choice(possible_rewarded_ports) 
+        
+        # Keep track of which have been poked
+        self.ports_poked_this_trial = set()
         
         # Set up new trial index
         if self.current_trial is None:
@@ -178,6 +194,8 @@ class Dispatcher:
             self.current_trial += 1
         
         # TODO: choose acoustic params here
+        # TODO: also send the current_trial number, so that the Agent
+        # can assign a trial number to pokes that come back
         acoustic_params = {
             'left_silenced': False,
             'left_amplitude': 0.0001,
@@ -186,13 +204,13 @@ class Dispatcher:
         
         self.logger.info(
             f'starting trial {self.current_trial}; '
-            f'rewarded port {self.previously_rewarded_port}; '
+            f'rewarded port {self.rewarded_port}; '
             f'acoustic params {acoustic_params}'
             )
         
         # Send start to each Pi
         self.network_communicator.send_trial_parameters(
-            rewarded_port=self.previously_rewarded_port,
+            rewarded_port=self.rewarded_port,
             **acoustic_params,
             )
 
@@ -290,22 +308,55 @@ class Dispatcher:
     def handle_poke(self, identity, port_name, poke_time):
         ## Store results
         # TODO: store the raw datetime in the csv
-        # TODO: keep track of correct and incorrect
-        # Store the time in seconds on this port
+
+        # Keep track of what ports have been poked on this trial
+        # handle_reward is always the last thing that is sent, so we can 
+        # assume that the trial hasn't incremented yet
+        self.ports_poked_this_trial.add(port_name)
+
+        # Compute time in seconds from start of session
         poke_time_sec = (
             datetime.datetime.fromisoformat(poke_time) - 
             self.session_start_time).total_seconds()
-        self.poked_port_history[port_name].append(poke_time_sec)
+        
+        # Store
+        self.history_of_pokes[port_name].append(poke_time_sec)
 
     def handle_reward(self, identity, port_name, poke_time):
         # TODO: store the raw datetime in the csv
-        # TODO: keep track of correct and incorrect
         # Store the time in seconds on this port
+        
+        # Compute time in seconds from start of session
         poke_time_sec = (
             datetime.datetime.fromisoformat(poke_time) - 
             self.session_start_time).total_seconds()
-        self.reward_history[port_name].append(poke_time_sec)
 
+        # Error check
+        if port_name not in self.ports_poked_this_trial:
+            self.logger.error(
+                f"reward delivered to {port_name} but it hasn't been poked yet")
+        
+        # Identify which ports have been poked on this trial, not including
+        # the previously rewarded port, and not including the port that was
+        # just poked
+        not_including_current = (self.ports_poked_this_trial - 
+            set([port_name, self.previously_rewarded_port]))
+        
+        # Store according to whether this was correct or incorrect
+        if len(not_including_current) == 0:
+            # This was a correct trial
+            self.history_of_rewarded_correct_pokes[port_name].append(
+                poke_time_sec)
+        else:
+            # This was an incorrect trial
+            self.history_of_rewarded_incorrect_pokes[port_name].append(
+                poke_time_sec)
+        
+        # Either way record the ports poked per trial
+        # This will be 1 if the trial was correct
+        self.history_of_ports_poked_per_trial.append(
+            len(not_including_current) + 1)
+        
         # Start a new trial
         self.start_trial()
 
