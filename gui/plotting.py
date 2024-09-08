@@ -562,7 +562,11 @@ class PokePlotWidget(QWidget):
         self.plot_widget.showGrid(x=True, y=True) 
         
         # Setting the range for the Y axis
-        self.plot_widget.setYRange(1, 9)         
+        self.plot_widget.setYRange(-0.5, len(self.dispatcher.ports))
+        
+        # Set the ticks
+        ticks = list(enumerate(self.dispatcher.ports))
+        self.plot_widget.getPlotItem().getAxis('left').setTicks([ticks, []])
 
     def initalize_plot_handles(self):
         """Plots line_of_current_time and line"""
@@ -573,7 +577,7 @@ class PokePlotWidget(QWidget):
 
         # Included a separate symbol here that shows as a tiny dot under the 
         # raster to make it easier to distinguish multiple pokes in sequence
-        self.line = self.plot_widget.plot(
+        self.plot_handle_poke_times1 = self.plot_widget.plot(
             [],
             [],
             pen=None,
@@ -582,15 +586,13 @@ class PokePlotWidget(QWidget):
             symbolBrush="r",
         )
 
-        self.line = self.plot_widget.plot(
-            [3, 4], #self.timestamps,
-            [3, 4], #self.signal,
-            #~ pen=None, # no connecting line
-            pen=pg.mkPen('r'),
+        self.plot_handle_poke_times2 = self.plot_widget.plot(
+            [],
+            [],
+            pen=None, # no connecting line
             symbol="arrow_down",  
             symbolSize=20, # use 8 or lower if using dots
             symbolBrush='r',
-            #~ symbolPen=None,
         )
 
     def start_plot(self):
@@ -631,21 +633,25 @@ class PokePlotWidget(QWidget):
             )
 
     def update_plot(self):
-        """Plot `timestamps` and `signal` as `line`"""
+        """Update self.plot_handle_poke_times with poke times from dispatcher
+        
+        """
         # Extract x and y vals
         xvals = []
         yvals = []
-        for port_name, poke_time in self.dispatcher.poked_port_history:
-            yvals.append(3)
-            tdelta = (
-                datetime.fromisoformat(poke_time) - 
-                self.dispatcher.session_start_time
-                )
-            xvals.append(tdelta.total_seconds())
         
-        # Update plot with timestamps and signals
-        self.line.setData(
-            x=xvals,
-            y=yvals,
-            )
-
+        # Iterate over ports and get poke times from each
+        for n_port, port_name in enumerate(self.dispatcher.ports):
+            # Get poke times for this port
+            this_poke_times = self.dispatcher.poked_port_history[port_name]
+            
+            # The x-value will be the n_port
+            port_number = [n_port] * len(this_poke_times)
+            
+            # Append
+            xvals += this_poke_times
+            yvals += port_number
+        
+        # Update plot with the new xvals and yvals
+        self.plot_handle_poke_times1.setData(x=xvals, y=yvals)
+        self.plot_handle_poke_times2.setData(x=xvals, y=yvals)

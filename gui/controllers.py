@@ -66,21 +66,20 @@ class Dispatcher:
         # Store parameters
         self.task_params = task_params
 
-        # Initializing variables and lists to store trial information 
-        self.reset_history()
-
         
         ## Set up port labels and indices
         # Keep track of which are actually active (mostly for debugging)
         self.expected_identities = [
             pi['name'] for pi in box_params['connected_pis']]
         
-        # Creating a dictionary that takes the label of each port and matches 
-        # it to the index on the GUI (used for reordering)
-        self.ports = set()
+        # List of the connected port names
+        self.ports = []
         for pi in box_params['connected_pis']:
-            self.ports.add(pi['left_port_name'])
-            self.ports.add(pi['right_port_name'])
+            self.ports.append(pi['left_port_name'])
+            self.ports.append(pi['right_port_name'])
+
+        # Initialize trial history (requires self.ports)
+        self.reset_history()
 
 
         ## Initialize network communicator and tell it what pis to expect
@@ -112,8 +111,11 @@ class Dispatcher:
         self.current_trial = None
         
         # History
-        self.poked_port_history = []
-        self.reward_history = []
+        self.poked_port_history = {}
+        self.reward_history = {}
+        for port in self.ports:
+            self.poked_port_history[port] = []
+            self.reward_history[port] = []
     
     def recv_alive(self, identity):
         """Log that we know the Agent is out there
@@ -287,13 +289,20 @@ class Dispatcher:
     
     def handle_poke(self, identity, port_name, poke_time):
         ## Store results
-        # Appending the poked port to a sequence that contains 
-        # all pokes during a session
-        self.poked_port_history.append((port_name, poke_time))
+        # TODO: store the raw datetime in the csv
+        # Store the time in seconds on this port
+        poke_time_sec = (
+            datetime.datetime.fromisoformat(poke_time) - 
+            self.session_start_time).total_seconds()
+        self.poked_port_history[port_name].append(poke_time_sec)
 
     def handle_reward(self, identity, port_name, poke_time):
-        # Appending the current reward port to save to csv 
-        self.reward_history.append((port_name, poke_time))
+        # TODO: store the raw datetime in the csv
+        # Store the time in seconds on this port
+        poke_time_sec = (
+            datetime.datetime.fromisoformat(poke_time) - 
+            self.session_start_time).total_seconds()
+        self.reward_history[port_name].append(poke_time_sec)
 
         # Start a new trial
         self.start_trial()
