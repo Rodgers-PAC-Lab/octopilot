@@ -1,4 +1,4 @@
-from . import worker
+from . import agent
 import json
 import argparse
 
@@ -28,7 +28,7 @@ def load_params(json_filename):
     return params
 
 params = load_params(args.json_filename)
-worker = worker.Worker(params)
+worker = agent.Worker(params)
 worker.main_loop()
     
     

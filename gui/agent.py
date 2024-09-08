@@ -5,7 +5,7 @@ import zmq
 import time
 import random
 import datetime
-from logging_utils.logging_utils import NonRepetitiveLogger
+from ..logging_utils.logging_utils import NonRepetitiveLogger
 import logging
 
 class NetworkCommunicator(object):
