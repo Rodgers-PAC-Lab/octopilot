@@ -325,6 +325,9 @@ class PiController(object):
 
     def exit(self):
         """Shut down objects"""
+        # Shutdown alive timer
+        self.alive_timer.stop()
+        
         # Deactivating the Sound Player before closing the program
         self.sound_player.client.deactivate()
         
