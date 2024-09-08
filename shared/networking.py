@@ -32,6 +32,61 @@ from ..shared.logtools import NonRepetitiveLogger
 import logging
 import datetime
 
+
+## Shared methods
+def parse_params(self, token_l):
+    """Parse `token_l` into a dict
+    
+    Iterates over strings in token_l, parses them as KEY=VALUE=DTYPE,
+    and stores in a dict to return. Raises ValueError if unparseable.
+    
+    TODO: replace this with json
+    
+    token_l : list
+        Each entry should be a str, '{KEY}={VALUE}={DTYPE}'
+        where KEY is the key, VALUE is the value, and DTYPE is
+        either 'int', 'float', or 'str'
+    
+    Returns : dict d
+        d[KEY] will be VALUE of type DTYPE
+    """
+    # Parse each token
+    params = {}
+    for tok in token_l:
+        # Strip
+        strip_tok = tok.strip()
+        split_tok = strip_tok.split('=')
+        
+        # Skip if empty
+        if strip_tok == '':
+            # This happens if the message ends with a semicolon,
+            # which is fine
+            continue
+        
+        # Error if it's not KEY=VAL=DTYP
+        try:
+            key, val, dtyp = split_tok
+        except ValueError:
+            raise ValueError('unparseable token: {}'.format(tok))
+        
+        # Convert value
+        if dtyp == 'int':
+            conv_val = int(val)
+        elif dtyp == 'float':
+            conv_val = float(val)
+        elif dtyp == 'str':
+            conv_val = val
+        elif dtyp == 'bool':
+            conv_val = bool(val)
+        else:
+            # Error if DTYP unrecognized
+            raise ValueError('unrecognized dtyp: {}'.format(dtyp))
+        
+        # Store
+        params[key] = conv_val
+    
+    return params
+
 ## Instantiated by Dispatcher
 class DispatcherNetworkCommunicator(object):
     """Handles communication with the Pis"""
@@ -198,7 +253,7 @@ class DispatcherNetworkCommunicator(object):
         
         # Get the params
         # This will always run, but could return {}
-        msg_params = self.parse_params(tokens[1:])
+        msg_params = parse_params(tokens[1:])
         
         # Insert identity into msg_params
         msg_params['identity'] = identity_str
@@ -218,59 +273,6 @@ class DispatcherNetworkCommunicator(object):
             self.logger.debug(f'calling method {meth} with params {msg_params}')
             meth(**msg_params)
 
-    def parse_params(self, token_l):
-        """Parse `token_l` into a dict
-        
-        Iterates over strings in token_l, parses them as KEY=VALUE=DTYPE,
-        and stores in a dict to return. Raises ValueError if unparseable.
-        
-        TODO: replace this with json
-        
-        token_l : list
-            Each entry should be a str, '{KEY}={VALUE}={DTYPE}'
-            where KEY is the key, VALUE is the value, and DTYPE is
-            either 'int', 'float', or 'str'
-        
-        Returns : dict d
-            d[KEY] will be VALUE of type DTYPE
-        """
-        # Parse each token
-        params = {}
-        for tok in token_l:
-            # Strip
-            strip_tok = tok.strip()
-            split_tok = strip_tok.split('=')
-            
-            # Skip if empty
-            if strip_tok == '':
-                # This happens if the message ends with a semicolon,
-                # which is fine
-                continue
-            
-            # Error if it's not KEY=VAL=DTYP
-            try:
-                key, val, dtyp = split_tok
-            except ValueError:
-                raise ValueError('unparseable token: {}'.format(tok))
-            
-            # Convert value
-            if dtyp == 'int':
-                conv_val = int(val)
-            elif dtyp == 'float':
-                conv_val = float(val)
-            elif dtyp == 'str':
-                conv_val = val
-            elif dtyp == 'bool':
-                conv_val = bool(val)
-            else:
-                # Error if DTYP unrecognized
-                raise ValueError('unrecognized dtyp: {}'.format(dtyp))
-            
-            # Store
-            params[key] = conv_val
-        
-        return params
-    
     def add_identity_to_connected(self, identity_str, message_str):
         # This better be a hello message
         if not message_str.startswith('hello'):
@@ -463,7 +465,7 @@ class PiNetworkCommunicator(object):
         
         # Get the params
         # This will always run, but could return {}
-        msg_params = self.parse_params(tokens[1:])
+        msg_params = parse_params(tokens[1:])
         
         # Find associated method
         meth = None
@@ -479,59 +481,6 @@ class PiNetworkCommunicator(object):
         if meth is not None:
             self.logger.debug(f'calling method {meth} with params {msg_params}')
             meth(**msg_params)
-
-    def parse_params(self, token_l):
-        """Parse `token_l` into a dict
-        
-        Iterates over strings in token_l, parses them as KEY=VALUE=DTYPE,
-        and stores in a dict to return. Raises ValueError if unparseable.
-        
-        TODO: replace this with json
-        
-        token_l : list
-            Each entry should be a str, '{KEY}={VALUE}={DTYPE}'
-            where KEY is the key, VALUE is the value, and DTYPE is
-            either 'int', 'float', or 'str'
-        
-        Returns : dict d
-            d[KEY] will be VALUE of type DTYPE
-        """
-        # Parse each token
-        params = {}
-        for tok in token_l:
-            # Strip
-            strip_tok = tok.strip()
-            split_tok = strip_tok.split('=')
-            
-            # Skip if empty
-            if strip_tok == '':
-                # This happens if the message ends with a semicolon,
-                # which is fine
-                continue
-            
-            # Error if it's not KEY=VAL=DTYP
-            try:
-                key, val, dtyp = split_tok
-            except ValueError:
-                raise ValueError('unparseable token: {}'.format(tok))
-            
-            # Convert value
-            if dtyp == 'int':
-                conv_val = int(val)
-            elif dtyp == 'float':
-                conv_val = float(val)
-            elif dtyp == 'str':
-                conv_val = val
-            elif dtyp == 'bool':
-                conv_val = bool(val)
-            else:
-                # Error if DTYP unrecognized
-                raise ValueError('unrecognized dtyp: {}'.format(dtyp))
-            
-            # Store
-            params[key] = conv_val
-        
-        return params
 
     def send_goodbye(self):
         """Send goodbye message to GUI
