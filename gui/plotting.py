@@ -38,29 +38,24 @@ class ArenaWidget(QWidget):
         dispatcher : controllers.Dispatcher
             Gets data from here
         """
-        ## Superclass QWidget init
+        # Superclass QWidget init
         super(ArenaWidget, self).__init__(*args, **kwargs)
-
         
-        ## Creating the GUI widget to display the Pi signals
-        self.scene = QGraphicsScene(self)
-        self.view = QGraphicsView(self.scene)
-
-
-        ## Store the dispatcher
+        # Store the dispatcher
         self.dispatcher = dispatcher
-        
 
-        ## Add individual ports to the widget
-        self.init_nosepoke_circles(self.dispatcher.ports)
+        # Add individual ports to the widget
+        self.create_layout(self.dispatcher.ports)
         
-
-        ## Create timers
         # Create a timer and connect to self.update_time_elapsed
         self.timer_update = QTimer(self)
         self.timer_update.timeout.connect(self.update) 
 
-    def init_nosepoke_circles(self, port_names):
+    def create_layout(self, port_names):
+        # Create QGraphics
+        self.scene = QGraphicsScene(self)
+        self.view = QGraphicsView(self.scene)
+        
         # Create each
         self.nosepoke_circles = []
         for port_idx, port_name in enumerate(port_names):
@@ -90,6 +85,11 @@ class ArenaWidget(QWidget):
             
             # Save
             self.nosepoke_circles.append(ellipse)
+
+        # Arranging the previous layout horizontally with the session details
+        main_layout = QHBoxLayout(self)
+        main_layout.addWidget(self.view)  
+        self.setLayout(main_layout)
 
     def calculate_position(self, port_idx, n_ports):  
         """
