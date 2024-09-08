@@ -9,8 +9,8 @@ import time
 import pigpio
 import zmq
 from . import sound
-from . import networking
-from ..logging_utils.logging_utils import NonRepetitiveLogger
+from ..shared import networking
+from ..shared.logtools import NonRepetitiveLogger
 import logging
 import threading
 import numpy as np

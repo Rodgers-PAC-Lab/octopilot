@@ -17,8 +17,8 @@ import time
 import pigpio
 from . import hardware
 from . import sound
-from . import networking
-from ..logging_utils.logging_utils import NonRepetitiveLogger
+from ..shared import networking
+from ..shared.logtools import NonRepetitiveLogger
 
 class PiController(object):
     """Object to control the flow of behavioral sessions

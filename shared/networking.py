@@ -28,7 +28,7 @@ The pi can send the following messages to the GUI:
 """
 
 import zmq
-from ..logging_utils.logging_utils import NonRepetitiveLogger
+from ..shared.logtools import NonRepetitiveLogger
 import logging
 import datetime
 
