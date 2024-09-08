@@ -7,7 +7,7 @@ from . import agent
 
 
 ## LOADING PARAMETERS FOR THE PI 
-params = load_params.load_params_file(verbose=False)
+params = load_params.load_pi_params(verbose=False)
 pins = load_params.load_pins(verbose=False)
 
 
