@@ -14,6 +14,7 @@ parts of the code, this is why two network ports need to be used
 
 The pi can receive the following messages from the GUI:
     set_trial_parameters
+    start
     stop
     exit
     alive
@@ -168,6 +169,10 @@ class DispatcherNetworkCommunicator(object):
     
         self.logger.info(f'above message was sent to {self.connected_pis}')    
     
+    def send_start(self):
+        self.logger.info('sending start message to all connected pis')
+        self.send_message_to_all('start')
+    
     def send_trial_parameters(self, **kwargs):
         """Encode a set_trial_parameters message and send to all Pis
         
@@ -222,6 +227,10 @@ class DispatcherNetworkCommunicator(object):
     
     def handle_message(self, identity, message):
         """Handle a message received on poke_socket
+        
+        In the present design, it seems that these messages are handled
+        sequentially, so there is no need for a thread lock. To test,
+        put a time.sleep(10) in a handling function.
         
         Arguments
         ---------

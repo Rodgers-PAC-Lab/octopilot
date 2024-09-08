@@ -133,6 +133,10 @@ class Worker:
 
     def start_trial(self):
         ## Choose and broadcast reward_port
+        # Tell it to start
+        # TODO: wait for acknowledgement of start
+        self.network_communicator.send_start()
+        
         # Setting up a new set of possible choices after omitting 
         # the previously rewarded port
         poss_choices = [
