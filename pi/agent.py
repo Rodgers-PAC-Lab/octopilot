@@ -21,7 +21,7 @@ from . import sound
 from ..shared.networking import PiNetworkCommunicator
 from ..shared.logtools import NonRepetitiveLogger
 
-class PiController(object):
+class Agent(object):
     """Object to control the flow of behavioral sessions
     
     This object waits to be told what types of sound to play (e.g., rate,
@@ -37,7 +37,7 @@ class PiController(object):
     when to stop at the end of the trial.
     """
     def __init__(self, pins, params, start_networking=True, dummy_sound_queuer=False):
-        """Initialize a new HardwareController
+        """Initialize a new Agent
         
         Arguments
         ---------
