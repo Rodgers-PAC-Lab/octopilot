@@ -56,7 +56,9 @@ class PiController(object):
             TODO: document rest of keys
         start_networking : bool
             If False, don't use any networking
-            This was only for troubleshooting. TODO: remove?
+            This would mainly be useful in setting up a new task without
+            also having to figure out the networking and Dispatcher at the 
+            same time.
         dummy_sound_queuer : bool
             If True, use a dummy queuer that never provides any audio
             TODO: remove?
@@ -126,10 +128,10 @@ class PiController(object):
             )
         
         
-        ## Set up networking
+        ## Optionally set up networking
         if start_networking:
             # Instantiates self.network_communicator
-            # This will also connect to the GUI
+            # This will also connect to the Dispatcher
             self.network_communicator = PiNetworkCommunicator(
                 identity=self.params['identity'], 
                 pi_identity=self.params['identity'], 
@@ -139,17 +141,19 @@ class PiController(object):
                 )
             
             # Set up hooks
-            self.network_communicator.command2method['set_trial_parameters'] = (
-                self.set_trial_parameters)
-            self.network_communicator.command2method['stop'] = (
-                self.stop_session)
-            self.network_communicator.command2method['exit'] = (
-                self.exit)            
-            self.network_communicator.command2method['start'] = (
-                self.start_session)            
-        
-        else:
-            self.network_communicator = None
+            # These methods will be called when these commands are received
+            self.network_communicator.command2method = {
+                'set_trial_parameters': self.set_trial_parameters,
+                'stop': self.stop_session,
+                'exit': self.exit,
+                'start': self.start_session,
+                'alive': self.recv_alive,
+                }            
+            
+            # Set up aliver
+            alive_interval = 5
+            self.alive_timer = hardware.RepeatedTimer(
+                alive_interval, self.network_communicator.send_alive)
 
         
         ## Set up nosepokes
@@ -183,6 +187,14 @@ class PiController(object):
         # the session actually starts
         self.left_nosepoke.autopoke_start()
         self.right_nosepoke.autopoke_start()
+
+    def recv_alive(self):
+        """Log that we know the Dispatcher is out there
+        
+        Presently this does nothing useful. Eventually this might be used
+        to detect when the Dispatcher has crashed.
+        """
+        self.logger.info('received alive from dispatcher')
 
     def start_session(self):
         """Called whenever a new session is started by Dispatcher
@@ -307,6 +319,9 @@ class PiController(object):
         
         # Empty the queue of sound
         self.sound_queuer.empty_queue()
+        
+        # Stop running
+        self.session_running = False
 
     def exit(self):
         """Shut down objects"""
