@@ -92,6 +92,7 @@ class Agent(object):
         self.session_running = False
     
         # How long it's been since we received an alive request
+        self.alive_timer = None
         self.last_alive_request_received = datetime.datetime.now()
         self.critical_shutdown = False
         
@@ -358,7 +359,10 @@ class Agent(object):
     def exit(self):
         """Shut down objects"""
         # Shutdown alive timer
-        self.alive_timer.stop()
+        if self.alive_timer is not None:
+            self.alive_timer.stop()
+        else:
+            self.logger.info('exiting but no alive timer defined')
         
         # Deactivating the Sound Player before closing the program
         self.sound_player.client.deactivate()
