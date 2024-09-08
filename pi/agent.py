@@ -348,7 +348,10 @@ class Agent(object):
             self.logger.error('stop received but handle not in list')
         
         # Stop checking for alive requests
-        self.alive_timer.stop()
+        if self.alive_timer is None:
+            self.logger.error('stop received but alive_timer is None')
+        else:
+            self.alive_timer.stop()
         
         # Empty the queue of sound
         self.sound_queuer.empty_queue()
