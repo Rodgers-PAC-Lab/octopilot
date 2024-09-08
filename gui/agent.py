@@ -5,8 +5,8 @@ import zmq
 import time
 import random
 import datetime
-from ..logging_utils.logging_utils import NonRepetitiveLogger
 import logging
+from ..shared.logtools import NonRepetitiveLogger
 
 class NetworkCommunicator(object):
     """Handles communication with the Pis"""
