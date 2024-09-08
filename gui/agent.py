@@ -51,6 +51,13 @@ class Worker:
         self.params = params
         self.logger.info(f'Initializing worker with params: {params}')
         
+
+        ## Init instance variables
+        self.session_is_running = False
+
+        # Initializing variables and lists to store trial information 
+        self.reset_history()
+
         
         ## Set up port labels and indices
         # Keep track of which are actually active (mostly for debugging)
@@ -81,19 +88,23 @@ class Worker:
             'goodbye': self.handle_goodbye,
             'alive': self.recv_alive,
             }
-        
-        
-        ## Initializing variables and lists to store trial information 
-        # Keeping track of last rewarded port
-        self.last_rewarded_port = None 
 
-        # None is how it knows no session is running
+    def reset_history(self):
+        """Set all history variables to defaults
+        
+        This happens on init and on every stop_session
+        This is how you can tell no session is running
+        """
+        # Identity of last_rewarded_port (to avoid repeats)
+        self.previously_rewarded_port = None 
+
+        # Trial index (None if not running)
         self.current_trial = None
         
         # History
         self.poked_port_history = []
         self.reward_history = []
-
+    
     def recv_alive(self, identity):
         """Log that we know the Agent is out there
         
@@ -101,61 +112,48 @@ class Worker:
         """
         self.logger.info(f'received alive from agent {identity}')        
     
-    def check_if_running(self):
-        if self.current_trial is None:
-            return False
-        else:
-            return True
-    
     def start_session(self, verbose=True):
-        """Start a session
+        """Start a session"""
         
-        First we store the initial timestamp where the session was started in a 
-        variable. This used with the poketimes sent by the pi to calculate the 
-        time at which the pokes occured
-        
-        Flow
-        * Sets self.initial_time to now
-        * Resets self.timestamps and self.reward_ports to empty list
-        * Chooses a reward_port using self.choose
-        * Tell every pi which port is rewarded
-        * Sets self.ports, selef.label_to_index, self.index_to_label
-        * Sets color of nosepoke_circles to green
-        * Starts self.timer and connects it to self.update_Pi
-        """
-        
-        ## Set the initial_time to now
+        # Set the initial_time to now
         self.session_start_time = datetime.datetime.now() 
         self.logger.info(f'Starting session at {self.session_start_time}')
         
+        # Deal with case where the old sessions is still going
+        if self.session_is_running:
+            # Log
+            self.logger.error('session is started but session is running')
+            
+            # Reset history
+            self.reset_history()    
         
-        ## Resetting sequences when a new session is started 
-        self.reward_timestamps = []
-        self.poke_timestamps = []
-        self.prev_choice = None
+        # Flag that it has started
+        self.session_is_running = True
+
+        # Tell the agent to start the session
+        # TODO: wait for acknowledgement of start
+        self.network_communicator.send_start()
         
-        
-        ## Start the first trial
-        self.current_trial = 0
+        # Start the first trial
         self.start_trial()
 
     def start_trial(self):
         ## Choose and broadcast reward_port
-        # Tell it to start
-        # TODO: wait for acknowledgement of start
-        self.network_communicator.send_start()
-        
         # Setting up a new set of possible choices after omitting 
         # the previously rewarded port
-        poss_choices = [
-            choice for choice in self.ports if choice != self.prev_choice] 
+        possible_rewarded_ports = [
+            port for port in self.ports if port != self.previously_rewarded_port] 
         
         # Randomly choosing within the new set of possible choices
-        new_choice = random.choice(poss_choices) 
-        
         # Updating the previous choice that was made so the next choice 
         # can omit it 
-        self.prev_choice = new_choice          
+        self.previously_rewarded_port = random.choice(possible_rewarded_ports) 
+        
+        # Set up new trial index
+        if self.current_trial is None:
+            self.current_trial = 0
+        else:
+            self.current_trial += 1
         
         # TODO: choose acoustic params here
         acoustic_params = {
@@ -166,13 +164,13 @@ class Worker:
         
         self.logger.info(
             f'starting trial {self.current_trial}; '
-            f'rewarded port {new_choice}; '
+            f'rewarded port {self.previously_rewarded_port}; '
             f'acoustic params {acoustic_params}'
             )
         
         # Send start to each Pi
         self.network_communicator.send_trial_parameters(
-            rewarded_port=new_choice,
+            rewarded_port=self.previously_rewarded_port,
             **acoustic_params,
             )
 
@@ -189,7 +187,10 @@ class Worker:
         """Send a stop message to the pi"""
         # Send a stop message to each pi
         self.network_communicator.send_message_to_all('stop')
-    
+
+        # Reset history when a new session is started 
+        self.reset_history()    
+
     def main_loop(self, verbose=True):
         """Main loop of Worker
 
