@@ -498,6 +498,11 @@ class PiNetworkCommunicator(object):
         self.logger.info('sending goodbye')
         self.poke_socket.send_string(f"goodbye") 
     
+    def send_alive(self):
+        """Send alive message to Dispatcher"""
+        self.logger.debug('sending alive')
+        self.poke_socket.send_string('alive')
+    
     def close(self):
         """Close all sockets and contexts"""
         self.poke_socket.close()

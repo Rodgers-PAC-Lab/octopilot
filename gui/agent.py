@@ -79,6 +79,7 @@ class Worker:
             'sound': self.handle_sound,
             'alive': self.handle_alive,
             'goodbye': self.handle_goodbye,
+            'alive': self.recv_alive,
             }
         
         
@@ -92,6 +93,13 @@ class Worker:
         # History
         self.poked_port_history = []
         self.reward_history = []
+
+    def recv_alive(self, identity):
+        """Log that we know the Agent is out there
+        
+        This is useful in the case that the Dispatcher has been restarted
+        """
+        self.logger.info(f'received alive from agent {identity}')        
     
     def check_if_running(self):
         if self.current_trial is None:
