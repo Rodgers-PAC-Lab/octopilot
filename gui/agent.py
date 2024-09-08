@@ -110,7 +110,7 @@ class Worker:
         
         This is useful in the case that the Dispatcher has been restarted
         """
-        self.logger.info(f'received alive from agent {identity}')        
+        self.logger.info(f'received alive from agent {identity} at {datetime.datetime.now()}')        
     
     def start_session(self, verbose=True):
         """Start a session"""
