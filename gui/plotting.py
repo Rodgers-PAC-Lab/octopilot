@@ -12,7 +12,6 @@ import random
 import numpy as np
 import zmq
 import pyqtgraph as pg
-#~ from .worker import Worker
 
 
 from PyQt5 import QtWidgets
@@ -28,52 +27,75 @@ from PyQt5.QtCore import (
     QMetaObject, Qt,
     )
 from PyQt5.QtGui import QFont, QColor
-#~ from pyqttoast import Toast, ToastPreset
-#~ from .logging import print_out
 
-## VISUAL REPRESENTATION OF PORTS
-class NosepokeCircle(QGraphicsEllipseItem):
-    """Object to represent each individual nosepoke
-    
-    The ArenaWidget contains references to each of its individual NosepokeCircle.
-    Each NosepokeCircle can respond to
-    * calculate_position
-    * set_color
-    """
-    def __init__(self, index, total_ports, name):
-        # Setting the diameters of the ellipse while initializing the class
-        super(NosepokeCircle, self).__init__(0, 0, 38, 38) 
-        
-        # The location at which the different ports will be arranged (range from 0-7)
-        self.index = index 
-        
-        # Creating a variable for the total number of ports
-        self.total_ports = total_ports 
-        
-        # Setting the label for each port on the GUI
-        self.label = QGraphicsTextItem(name, self)
-        font = QFont()
-        
-        # Set the font size here (10 in this example)
-        font.setPointSize(8)  
-        self.label.setFont(font)
-        
-        # Positioning the labels within the ellipse
-        self.label.setPos(
-            19 - self.label.boundingRect().width() / 2, 
-            19 - self.label.boundingRect().height() / 2) 
-        
-        # Positioning the individual ports
-        self.setPos(self.calculate_position()) 
-        
-        # Setting the initial color of the ports to gray
-        self.setBrush(QColor("gray")) 
 
-    def calculate_position(self):  
+# ArenaWidget Class that represents all ports
+class ArenaWidget(QWidget):
+    """Displays a colored circle for each nosepoke indicating its status."""
+    def __init__(self, dispatcher, *args, **kwargs):
+        """Initialize an ArenaWidget
+        
+        dispatcher : controllers.Dispatcher
+            Gets data from here
+        """
+        ## Superclass QWidget init
+        super(ArenaWidget, self).__init__(*args, **kwargs)
+
+        
+        ## Creating the GUI widget to display the Pi signals
+        self.scene = QGraphicsScene(self)
+        self.view = QGraphicsView(self.scene)
+
+
+        ## Store the dispatcher
+        self.dispatcher = dispatcher
+        
+
+        ## Add individual ports to the widget
+        self.init_nosepoke_circles(self.dispatcher.ports)
+        
+
+        ## Create timers
+        # Create a timer and connect to self.update_time_elapsed
+        self.timer_update = QTimer(self)
+        self.timer_update.timeout.connect(self.update) 
+
+    def init_nosepoke_circles(self, port_names):
+        # Create each
+        self.nosepoke_circles = []
+        for port_idx, port_name in enumerate(port_names):
+            # Create an ellipse
+            ellipse = QGraphicsEllipseItem(0, 0, 38, 38) 
+            
+            # Setting the label for each port on the GUI
+            label = QGraphicsTextItem(port_name, ellipse)
+            font = QFont()
+            font.setPointSize(8)  
+            label.setFont(font)
+        
+            # Positioning the labels within the ellipse
+            label.setPos(
+                19 - label.boundingRect().width() / 2, 
+                19 - label.boundingRect().height() / 2,
+                )
+        
+            # Positioning the individual ports
+            ellipse.setPos(self.calculate_position(port_idx, len(port_names)))
+        
+            # Setting the initial color of the ports to gray
+            ellipse.setBrush(QColor("gray")) 
+
+            # Add it to the scene
+            self.scene.addItem(ellipse)
+            
+            # Save
+            self.nosepoke_circles.append(ellipse)
+
+    def calculate_position(self, port_idx, n_ports):  
         """
         Function to calculate the position of the ports and arrange them in a circle
         """
-        angle = 2 * math.pi * self.index / self.total_ports 
+        angle = 2 * math.pi * port_idx / n_ports
         radius = 62
         x = radius * math.cos(angle)
         y = radius * math.sin(angle)
@@ -82,104 +104,16 @@ class NosepokeCircle(QGraphicsEllipseItem):
         # calculated using the radius
         return QPointF(200 + x, 200 + y) 
 
-    def set_color(self, color):
-        """
-        Function used to change the color from the individual ports during a 
-        trial according to the pokes. 
-        The logic for when to change to color of the individual ports is 
-        mostly present in the worker class.
-        QColors currently used for ports: gray (default), green(reward port), 
-        red(incorrect port), blue(used previously but not currently)
-        """
-        if color == "green":
-            self.setBrush(QColor("green"))
-        elif color == "blue":
-            self.setBrush(QColor("blue"))
-        elif color == "red":
-            self.setBrush(QColor("red"))
-        elif color == "gray":
-            self.setBrush(QColor("gray"))
-        else:
-            print_out("Invalid color:", color)
+    def start(self):
+        # Start the timer
+        self.timer_update.start(50)
+    
+    def update(self):
+        """Update the colors of the circles"""
+        pass
 
-# ArenaWidget Class that represents all ports
-class ArenaWidget(QWidget):
-    """Displays nosepokes"""
-    def __init__(self, dispatcher, *args, **kwargs):
-        """Initialize an ArenaWidget"""
-        ## Superclass QWidget init
-        super(ArenaWidget, self).__init__(*args, **kwargs)
-
-
-        # Store
-        self.dispatcher = dispatcher
-        
-
-        ## Creating the GUI widget to display the Pi signals
-        self.scene = QGraphicsScene(self)
-        self.view = QGraphicsView(self.scene)
-
-
-        ## Add individual ports to the widget
-        self.total_ports = len(self.dispatcher.ports)
-        self.nosepoke_circles = []
-        for port_idx, port_name in enumerate(self.dispatcher.ports):
-            # Create the nosepoke circle
-            nosepoke_circle = NosepokeCircle(port_idx, self.total_ports, port_name)
-            
-            # Store it
-            self.nosepoke_circles.append(nosepoke_circle)
-            
-            # Add it to the scene
-            self.scene.addItem(nosepoke_circle)
-        
-
-        ## Create timers
-        # Create a timer and connect to self.update_time_elapsed
-        #~ self.timer = QTimer(self)
-        
-        # Method to calculate and update elapsed time (can be replaced with date 
-        # time instead of current implementation if needed)
-        #~ self.timer.timeout.connect(self.update_time_elapsed) 
-
-        # Create timer and connect to update_last_poke_time
-        # Initializing QTimer for tracking time since last poke 
-        #~ # (resets when poke is detected)
-        #~ self.last_poke_timer = QTimer()
-        #~ self.last_poke_timer.timeout.connect(self.update_last_poke_time)
-
-        
-        ## Lay out all elements
-        # Create session progress metrics and labels
-        #~ self.set_up_session_progress_layout()
-        
-        # Put everything in the main layout
-        self.set_up_main_layout()
-
-    def set_up_main_layout(self):
-        """Add all elements to main layout.
-        
-        Flow
-        * Arranges self.start_button and self.stop_button in QHBoxLayout
-        * Arranges the above in QVBoxLayout with self.view
-        * Arranges the above in QHBoxLayout with self.details_layout
-        * Calls setLayout on the above
-        """
-
-        
-        # Creating a layout where the port window and buttons are arranged vertically
-        view_buttons_layout = QVBoxLayout()
-        view_buttons_layout.addWidget(self.view)  
-        #~ view_buttons_layout.addLayout(start_stop_layout)  
-
-        # Arranging the previous layout horizontally with the session details
-        main_layout = QHBoxLayout(self)
-        main_layout.addLayout(view_buttons_layout)  
-        #~ main_layout.addLayout(self.details_layout)  
-
-        # Set main_layout as the layout for this widget
-        self.setLayout(main_layout)
-        
+## Widget to display text performance metrics
+class PerformanceMetricDisplay(QWidget):
     def set_up_session_progress_layout(self):
         """Create a Session Progress layout"""
         # Create QVBoxLayout for session details 
@@ -219,61 +153,9 @@ class ArenaWidget(QWidget):
         self.details_layout.addWidget(self.blue_label)
         self.details_layout.addWidget(self.green_label)
         self.details_layout.addWidget(self.fraction_correct_label)
-        self.details_layout.addWidget(self.rcp_label)        
-
-    def emit_update_signal(self, poked_port_number, color):
-        """Called on poke. Updates metrics and emits updateSignal
-        
-        Arguments
-        ---------
-        poked_port_number - int?
-        color - str
-            If red: it was a non-rewarded poke
-            If blue: it was a rewarded poke, but not a correct trial
-            If green: it was a rewarded poke, and a correct trial
-        
-        TODO: The transmitted signal should be a type of poke, not a color
-        TODO: Why is self.updateSignal used just to repeat the signal?
-        
-        This method is to communicate with the plotting object to plot the 
-        different outcomes of each poke. 
-        This is also used to update the labels present in Pi Widget based on the
-        information received over the network by the Worker class
-        Some of this logic is already present in the worker class for CSV saving
-        but that was implemented after I implemented the initial version here
-        
-        Flow
-        ----
-        * Emits updateSignal with poked_port_number and color
-        * Stores self.last_poke_timestamp as datetime.now()
-        * Updates the number of pokes and trials
-        * Updates the performance metric labels
-        """
-        ## Continue the signal
-        # TODO: Why do we need another signal just to repeat the same thing
-        # Emit the updateSignal with the received poked_port_number and color 
-        # (used for plotting)
-        self.updateSignal.emit(poked_port_number, color)
-        
-        # This timer was present before I changed timing implementation. 
-        # Did not try to change it 
-        self.last_poke_timestamp = time.time() 
-
-
-        ## Update the counts
-        if color == "red":
-            self.red_count += 1
-        elif color == "blue":
-            self.blue_count += 1
-        elif color == "green":
-            self.green_count += 1
-        else:
-            # TODO: Define if this is actually possible, and what to do 
-            # in this case
-            return
-        
-
-        ## Update the metrics
+        self.details_layout.addWidget(self.rcp_label)       
+    
+    def update(self):
         # Updating the number of pokes (red + green + blue)
         n_pokes = self.red_count + self.green_count + self.blue_count
         self.red_label.setText(f"Number of Pokes: {(n_pokes)}")
@@ -299,41 +181,8 @@ class ArenaWidget(QWidget):
                 f"Fraction Correct (FC): NA")    
         else:
             self.fraction_correct_label.setText(
-                f"Fraction Correct (FC): {self.fraction_correct:.3f}")
-
-    def start(self):
-        # Start the timer
-        self.start_time.start()
-        
-        # Update every second
-        self.timer.start(10)  
-
-    def save_results_to_csv(self):
-        """Save results
-        
-        Tells worker to stop
-        Tells worker to save results to csv
-        Sets a toast notification
-        """
-        # Tell worker to stop
-        self.worker.stop_message()
-        
-        # Tell worker to save
-        self.worker.save_results_to_csv()
-        
-        # Send toast notification
-        toast = Toast(self) # Initializing a toast message
-        toast.setDuration(5000)  # Hide after 5 seconds
-        toast.setTitle('Results Saved') # Printing acknowledgement in terminal
-        
-        # Setting text for the toast message
-        toast.setText('Log saved to /home/mouse/dev/paclab_sukrith/logs') 
-        toast.applyPreset(ToastPreset.SUCCESS)  # Apply style preset
-        toast.show()
-
-
-## Widget to display text performance metrics
-class PerformanceMetricDisplay(QWidget):
+                f"Fraction Correct (FC): {self.fraction_correct:.3f}")        
+    
     @pyqtSlot() 
     def update_time_elapsed(self):
         """Updates self.time_label with time elapsed
