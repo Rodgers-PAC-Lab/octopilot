@@ -114,116 +114,14 @@ class ArenaWidget(QWidget):
     Most of the work is done by self.worker. 
     This class is just for plotting.
     
-    Class variables
-    ---------------
-    startButtonClicked - pyqtSignal
-        Emitted when start button is pressed
-    updateSignal - pyqtSignal
-        This is emitted by self.emit_update_signal, which in turn
-        is connected to self.worker.pokedport.signal
-        This will be emitted whenever a port is poked
-        It is connected to poke_plot_widget.handle_update_signal
-        by MainWindow
-    
-    Attributes
-    ----------
-    main_window : MainWindow
-    scene : QGraphicsScene
-        Displays the arena
-    view : QGraphicsView
-        Displays the arena
-    total_ports : int
-    nosepoke_circles : list
-        List of NosepokeCircle, one for each port
-    poked_port_numbers
-    start_button : QPushButton
-        Connected to self.start_sequence
-    stop_button : QPushButton
-        Connected to self.stop_sequence and self.save_results_to_csv
-    timer : QTimer
-        Connected to self.update_time_elapsed
-    start_time : QTime
-    poke_time : QTime
-    red_count, blue_count, green_count: int
-    details_layout : QVBoxLayout
-        Contains metrics about session progress
-    last_poke_timer : QTimer
-        Connects to update_last_poke_time
-    worker : Worker
-        Does something in its own thread
-    thread : QThread
-        Thread for `worker`
-    
-    Methods
-    -------
-    set_up_start_button : Init start button and connect to start_sequence
-    set_up_stop_button : Init stop button and connect to stop_sequence and
-        to save_results_to_csv
-    set_up_main_layout : Arranges all widgets in a layout
-    set_up_session_progress_layout : Creates session progress QLabels
-    emit_update_signal : Called on poke, updates metrics, emits updateSignal
-        Connected to self.worker.pokedportsignal
-        Emits self.updateSignal
-        Updates number of pokes and trials
-        Updates performance metric labels
-    reset_last_poke_time : Stop and start self.last_poke_timer after each poke
-        Connected to self.worker.pokedportsignal
-    update_last_poke_time : Update the time since last poke
-        Connected to self.last_poke_timer.timeout
-    calc_and_update_avg_unique_ports : Updates displayed rcp
-        Connected to self.worker.pokedportsignal
-    start_sequence : Starts the session
-        Connected to self.start_button_clicked
-        Emits startButtonClicked
-        Starts the worker and the plot
-    stop_seqeunce: Stops the session
-        Connected to self.stop_button_clicked
-        Stops the worker and the plot
-    update_time_elapsed : Updates self.time_label with time elapsed
-        Connected to self.timer.timeout
-    save_results_to_csv : Tell worker to save results and sets notification
-    
-    
-    Some methods that are connected to slots are decorated with @pyqtSlot
-    so that they can be invoked with QMetaObject.invokeMethod
-    https://stackoverflow.com/questions/45841843/function-of-pyqtslot
+
+
     
     """
-    ## Define signals as class variables
-    # Signals that communicate with the Worker class
-    # TODO: update, these no longer communicate only with Worker, I'm not sure
-    # they communicate with Worker at all
-    
-    #~ # Signal that is emitted whenever the start button is pressed 
-    #~ startButtonClicked = pyqtSignal() 
-    
-    #~ # Signal to emit the id and outcome of the current poke
-    #~ updateSignal = pyqtSignal(int, str) 
-    
     def __init__(self, dispatcher, *args, **kwargs):
         """Initialize an ArenaWidget
         
-        Arguments
-        ---------
-        main_window : MainWindow
-            This is used to call start_plot and stop_plot for the MainWindow.
-            TODO: The MainWindow should call those functions, not this widget
-        
-        params : sent to NosepokeCircle
-        
-        Flow
-        ----
-        * Create `self.scene` and `self.view` to plot arena
-        * Create `self.worker` to run task
-        * Connect self.worker.pokedportsignal to emit_update_signal,
-          reset_last_poke_time, and calc_and_update_avg_unique_ports
-        * Init 8 NosepokeCircle objects and add to scene
-        * Create start and stop buttons and connect to start_sequence,
-          stop_sequence, and save_results_to_csv
-        * Create `self.timer` and connect to self.update_time_elapsed
-        * Create `self.last_poke_timer` and connect to self.update_last_poke_time
-        * Create session progress layout
-        * Create main layout 
+
         """
         ## Superclass QWidget init
         super(ArenaWidget, self).__init__(*args, **kwargs)
@@ -251,39 +149,6 @@ class ArenaWidget(QWidget):
             # Add it to the scene
             self.scene.addItem(nosepoke_circle)
         
-        # This is used only by Worker
-        # TODO: Move this there
-        #~ self.poked_port_numbers = []
-        
-        
-        ## Create Worker
-        # Creating an instance of the Worker Class and a QThread to handle the logic
-        # in a separate thread from the GUI elements
-        # Worker relies on self.total_ports
-        #~ self.worker = Worker(params)
-
-
-        ## Connect pokedportsignal to methods in this class
-        # Connect the pokedportsignal from the Worker to slots that call some methods in Pi Widget
-        # Connect the pokedportsignal to the emit_update_signal function
-        #~ self.worker.pokedportsignal.connect(self.emit_update_signal)  
-        #~ self.worker.pokedportsignal.connect(self.reset_last_poke_time)
-        
-        # Used for RCP calculation (needs to be changed)
-        #~ self.worker.pokedportsignal.connect(self.calc_and_update_avg_unique_ports) 
-
-        
-        ## Create start and stop buttons and add to start_stop_layout
-        # Creating buttons to control the session 
-        # These may rely on logic in Worker class
-        
-        # Create self.start_button and connect it to self.start_sequence
-        #~ self.set_up_start_button()
-        
-        # Create self.start_button and connect it to self.stop_sqeuence
-        # and to self.save_results_to_csv
-        #~ self.set_up_stop_button()
-
 
         ## Create timers
         # Create a timer and connect to self.update_time_elapsed
@@ -307,31 +172,6 @@ class ArenaWidget(QWidget):
         # Put everything in the main layout
         self.set_up_main_layout()
 
-    def set_up_start_button(self):
-        """Create a start button and connect to self.start_sequence"""
-        # Create button
-        self.start_button = QPushButton("Start Session")
-        
-        # Set style
-        self.start_button.setStyleSheet(
-            "background-color : green; color: white;") 
-
-        # Connect the start button to the start_sequence function 
-        # (includes start logic from the worker class)
-        self.start_button.clicked.connect(self.start_sequence)
-    
-    def set_up_stop_button(self):
-        """Create stop button and connect to stop_sequence and save_results_to_csv"""
-        # Create a stop button
-        self.stop_button = QPushButton("Stop Session")
-        
-        # Set style
-        self.stop_button.setStyleSheet("background-color : red; color: white;") 
-
-        # Connect the stop button to stop_sequence and save_results_to_csv
-        self.stop_button.clicked.connect(self.stop_sequence)  
-        self.stop_button.clicked.connect(self.save_results_to_csv)          
-
     def set_up_main_layout(self):
         """Add all elements to main layout.
         
@@ -341,10 +181,7 @@ class ArenaWidget(QWidget):
         * Arranges the above in QHBoxLayout with self.details_layout
         * Calls setLayout on the above
         """
-        # Creating horizontal layout for start and stop buttons
-        start_stop_layout = QHBoxLayout()
-        #~ start_stop_layout.addWidget(self.start_button)
-        #~ start_stop_layout.addWidget(self.stop_button)
+
         
         # Creating a layout where the port window and buttons are arranged vertically
         view_buttons_layout = QVBoxLayout()
@@ -839,8 +676,6 @@ class PokePlotWidget(QWidget):
             #~ symbolPen=None,
         )
 
-
-
     def start_plot(self):
         """Activates plot updates.
         
@@ -995,21 +830,22 @@ class PokePlotWidget(QWidget):
 
     def update_plot(self):
         """Plot `timestamps` and `signal` as `line`"""
-        return
         # Extract x and y vals
         xvals = []
         yvals = []
         for port_name, poke_time in self.dispatcher.poked_port_history:
-            xvals.append(3)
+            yvals.append(3)
             tdelta = (
                 datetime.fromisoformat(poke_time) - 
                 self.dispatcher.session_start_time
                 )
-            yvals.append(tdelta.total_seconds())
+            xvals.append(tdelta.total_seconds())
         
         # Update plot with timestamps and signals
         self.line.setData(
             x=xvals,
             y=yvals,
             )
+        
+        print('plotting: {} {}'.format(xvals, yvals))
 

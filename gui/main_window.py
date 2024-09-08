@@ -12,36 +12,16 @@ from . import plotting
 
 # Qt imports
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QAction, QWidget, QVBoxLayout, QHBoxLayout
+from PyQt5.QtWidgets import QAction, QWidget, QVBoxLayout, QHBoxLayout, QPushButton
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget
 from PyQt5.QtCore import QObject, pyqtSignal, QThread, QTimer
 
 from . import controllers
 
+
 ## TODO: find a way to not hardcode this
 GIT_PATH = '/home/mouse/dev/paclab_sukrith'
 
-
-#~ ## Define a Worker who will execute the Dispatcher.main_loop in its own thread
-#~ # https://realpython.com/python-pyqt-qthread/
-#~ class Worker(QObject):
-    #~ finished = pyqtSignal()
-    #~ progress = pyqtSignal(int)
-
-    #~ def __init__(self, box_params, task_params, mouse_params):
-        #~ super(Worker, self).__init__()
-        #~ self.dispatcher = controllers.Dispatcher(box_params, task_params, mouse_params)
-
-    #~ def run(self):
-        #~ try:
-            #~ while True:
-                #~ self.dispatcher.network_communicator.check_for_messages()
-        #~ except:
-            #~ (typ, val, trcbk) = sys.exc_info()
-            #~ print('exception: typ')
-            #~ sys.excepthook(typ, val, trcbk)
-        #~ finally:
-            #~ self.finished.emit()
 
 ## MAIN GUI WINDOW
 class MainWindow(QtWidgets.QMainWindow):
@@ -51,91 +31,28 @@ class MainWindow(QtWidgets.QMainWindow):
     the widgets. We also connect the signals defined earlier to slots defined 
     in other classes to make them be able to share information.
 
-    Functions of the signals used in the Main Window:
-    -------------------------------------------------
-    pokedportsignal - Defined in Worker
-    This is a signal that is emitted whenever a poke is 
-    completed. The port id at which the poke occured is sent to be plotted. 
-    This signal is connected to handle_update_signal in the plotting
-    widget. This method takes the id of the port that has been poked and 
-    appends the timestamp at which the message was received to the list used
-    for plotting. The update_plot function is then called to plot an item at
-    the particular port id (y-axis) at the timestamp it was received (x-axis)
-    
-    updateSignal - Defined in ArenaWidget
-    This signal is sent from the arena_widget to plot_widget 
-    the color of the item that needs to be plotted based on the oucome of the poke.
-    This signal contains the port id at which the poke happened and the outcome 
-    of the pokein the form of the color associated with that outcome (red - 
-    any non-reward poke, blue - completed trial, green - rewarded poke).
-    The item will be plotted according to the timestamp and id sent by
-    pokedportsignal
-    
-    startButtonClicked - Defined in ArenaWidget
-    This signal is emitted whenver the start button is 
-    pressed in arena_widget. This connected to config list to display a warning
-    if there is no config selected before starting the session 
     
     Methods
     -------
     __init__ : Initalizes
-    
-    load_params : Helper function to load the gui config JSON
-    
-    plot_poked_port : Not sure this is being used anymore
-    
     closeEvent : Called on close, and tells each worker to exit
     """
     def __init__(self, box_params, task_params, mouse_params):
         """Initialize a new MainWindow
         
-        Arguments
-        ---------
-        json_filename : name of params file for this box
-        
-        
-        Order of events
-        ---------------
-        * Load the parameters file.
-        * Instantiate the following widgets:
-            * ArenaWidget - in the middle, displays each port as a circle and
-            arranges them with respect to each other
-            * ConfigurationList - on the left, allows choosing task params
-            * PokePlotWidget - on the right, shows progress over time
-        * Add a menu bar with one entry: File > Load Config Directory
-            * Connect that entry to self.config_list.load_configurations
-        * Create containers for each widget and lay them out
-        * Connect signals
-            * arena_widget.worker.pokedportsignal to poke_plot_widget.handle_update_signal
-            * widget.updateSignal to poke_plot_widget.handle_update_signal
-            * arena_widget.startButtonClicked to config_list.on_start_button_clicked
         """
         ## Superclass QMainWindow init
         super().__init__()
         
         
-        ## Load params
-        #~ self.params = self.load_params(json_filename)
+        ## Create the Dispatcher that will run the task
+        self.dispatcher = controllers.Dispatcher(
+            box_params, task_params, mouse_params)
 
-        self.dispatcher = controllers.Dispatcher(box_params, task_params, mouse_params)
-
-        #~ self.worker = Worker(box_params, task_params, mouse_params)
-        #~ self.thread = QThread()
-        #~ self.worker.moveToThread(self.thread)
         
-        #~ # Step 5: Connect signals and slots
-        #~ self.thread.started.connect(self.worker.run)
-        #~ self.worker.finished.connect(self.thread.quit)
-        #~ self.worker.finished.connect(self.worker.deleteLater)
-        #~ self.thread.finished.connect(self.thread.deleteLater)
-        #~ self.worker.progress.connect(self.reportProgress)
-
-        #~ self.thread.start()
-
-
-        #~ # Create a timer and connect to self.update_time_elapsed
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update)
+        ## Create a timer to update the Dispatcher
+        self.timer_dispatcher = QTimer(self)
+        self.timer_dispatcher.timeout.connect(self.dispatcher.update)
 
         ## Set up the graphical objects
         # Instantiate a ArenaWidget to show the ports
@@ -144,8 +61,7 @@ class MainWindow(QtWidgets.QMainWindow):
         #~ # Instatiate a ConfigurationList to choose the task
         #~ self.config_list = config_dialog.ConfigurationList(self.params)
 
-        #~ # Initializing PokePlotWidget to show the pokes
-        #~ # Note that it uses information from arena_widget
+        # Initializing PokePlotWidget to show the pokes
         self.poke_plot_widget = plotting.PokePlotWidget(self.dispatcher)
 
 
@@ -154,17 +70,9 @@ class MainWindow(QtWidgets.QMainWindow):
         menubar = self.menuBar()
         file_menu = menubar.addMenu('File')
 
-        #~ # Creating an action to change directory to load mice from 
-        #~ load_action = QAction('Load Config Directory', self)
-        #~ load_action.triggered.connect(self.config_list.load_configurations)
-
-        #~ # Adding that action to the file menu
-        #~ file_menu.addAction(load_action)
-
         
-        #~ ## Creating container widgets for each component 
-        #~ # These containers determine size and arrangment of widgets
-        
+        ## Creating container widgets for each component 
+        # These containers determine size and arrangment of widgets
         #~ # Container for each widget
         #~ config_list_container = QWidget()
         arena_widget_container = QWidget()
@@ -182,36 +90,41 @@ class MainWindow(QtWidgets.QMainWindow):
         arena_widget_container.layout().addWidget(self.arena_widget)
 
 
+        # Create self.start_button and connect it to self.start_sequence
+        self.set_up_start_button()
+        
+        # Create self.start_button and connect it to self.stop_sqeuence
+        # and to self.save_results_to_csv
+        self.set_up_stop_button()
+        
+        # Creating horizontal layout for start and stop buttons
+        start_stop_layout = QHBoxLayout()
+        start_stop_layout.addWidget(self.start_button)
+        start_stop_layout.addWidget(self.stop_button)        
+
+
         ## Create a layout for all containers
-        """
-        container_widget is the container for the main window which arranges the
-        previously defined widgets horizontally with respect to each other. You 
-        can arrange the widgets in the order you want them to be displayed and 
-        set the dimensions for the window that contains them
-        """
         container_widget = QWidget(self)
         
         # Horizontal layout because it will contain three things side by side
         container_layout = QtWidgets.QHBoxLayout(container_widget)
         
-        #~ # Add config_list_container, arena_widget_container, and poke_plot_widget
-        #~ """
-        #~ poke_plot_widget is handled separately because we are not creating a container
-        #~ for it. This means that its width and height will both change when resizing
-        #~ the main window. it does not have a fixed width like the other widgets
-        #~ """
+        # Add config_list_container, arena_widget_container, and poke_plot_widget
+        """
+        poke_plot_widget is handled separately because we are not creating a container
+        for it. This means that its width and height will both change when resizing
+        the main window. it does not have a fixed width like the other widgets
+        """
         #~ container_layout.addWidget(config_list_container)
         container_layout.addWidget(arena_widget_container)
         container_layout.addWidget(self.poke_plot_widget)
+        container_layout.addWidget(self.start_button)
         
         # Set this one as the central widget
         self.setCentralWidget(container_widget)
 
         
         ## Set the size and title of the main window
-        # Title
-        #~ self.setWindowTitle(f"GUI - {json_filename}")
-        
         # Size in pixels (can be used to modify the size of window)
         self.resize(2000, 270)
         
@@ -221,32 +134,39 @@ class MainWindow(QtWidgets.QMainWindow):
         
         ## Connecting signals to the respective slots/methods 
         # Wait till after the MainWindow is fully initialized
+        self.timer_dispatcher.start(50)
 
-        # Connect the pokedportsignal to handle_update_signal
-        #~ self.arena_widget.worker.pokedportsignal.connect(
-            #~ self.poke_plot_widget.handle_update_signal)
+    def set_up_start_button(self):
+        """Create a start button and connect to self.start_sequence"""
+        # Create button
+        self.start_button = QPushButton("Start Session")
         
-        # Connect the arena_widget updateSignal to the handle_update_signal
-        #~ self.arena_widget.updateSignal.connect(
-            #~ self.poke_plot_widget.handle_update_signal)
-        
-        #~ # Connect the startButtonClicked signal to 
-        #~ # config_list.on_start_button_clicked
-        #~ self.arena_widget.startButtonClicked.connect(
-            #~ self.config_list.on_start_button_clicked)
-        
-        self.timer.start(100)
+        # Set style
+        self.start_button.setStyleSheet(
+            "background-color : green; color: white;") 
 
-    def update(self):
-        self.dispatcher.one_loop()
+        # Connect the start button to the start_sequence function 
+        # (includes start logic from the worker class)
+        #~ self.start_button.clicked.connect(self.start_sequence)
     
+    def set_up_stop_button(self):
+        """Create stop button and connect to stop_sequence and save_results_to_csv"""
+        # Create a stop button
+        self.stop_button = QPushButton("Stop Session")
+        
+        # Set style
+        self.stop_button.setStyleSheet("background-color : red; color: white;") 
+
+        # Connect the stop button to stop_sequence and save_results_to_csv
+        #~ self.stop_button.clicked.connect(self.stop_sequence)  
+        #~ self.stop_button.clicked.connect(self.save_results_to_csv)       
+
     def closeEvent(self, event):
         """Executes when the window is closed
         
         Send 'exit' signal to all IP addresses bound to the GUI
         """
         # Iterate through identities and send 'exit' message
-        self.timer.stop()
+        self.timer_dispatcher.stop()
         self.dispatcher.stop_session()
-        #~ self.thread.quit()
         event.accept()

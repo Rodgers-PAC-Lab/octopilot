@@ -237,12 +237,17 @@ class Dispatcher:
         
         self.network_communicator.send_alive_request()
 
-    def one_loop(self):
+    def update(self):
         # Check for messages
         self.network_communicator.check_for_messages()
         
         # Check if we're all connected
-        if not self.network_communicator.check_if_all_pis_connected():
+        if self.network_communicator.check_if_all_pis_connected():
+            # Start if it needs to start
+            # TODO: this should be started by a button
+            if self.current_trial is None:
+                self.start_session()
+        else:
             # We're not all connnected
             self.logger.info(
                 'waiting for {} to connect; only {} connected'.format(
