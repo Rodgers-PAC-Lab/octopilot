@@ -422,7 +422,7 @@ class PiNetworkCommunicator(object):
         ## Set up sockets
         self.socket_is_open = False
         self.init_socket()
-
+        
         # Creating a poller object for both sockets that will be used to 
         # continuously check for incoming messages
         self.poller = zmq.Poller()
@@ -467,12 +467,14 @@ class PiNetworkCommunicator(object):
         self.router_ip = "tcp://" + f"{self.gui_ip}" + f"{self.poke_port}" 
         self.poke_socket.connect(self.router_ip) 
 
-        # Send the identity of the Raspberry Pi to the server
-        self.poke_socket.send_string(f"hello") 
-
         # Print acknowledgment
         self.socket_is_open = True
         print(f"Connected to router at {self.router_ip}")  
+
+    def send_hello(self):
+        # Send the identity of the Raspberry Pi to the server
+        self.logger.debug('sending hello')
+        self.poke_socket.send_string(f"hello") 
 
     def check_socket(self):
         # Get time

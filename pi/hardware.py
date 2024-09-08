@@ -166,7 +166,7 @@ class Nosepoke(object):
         else:
             self.pig.callback(self.poke_pin, pigpio.FALLING_EDGE, self.poke_in) 
     
-    def autopoke_start(self, rate=0.5, interval=0.1):
+    def autopoke_start(self, rate=0, interval=0.1):
         """Create spurious pokes at a rate of `rate` per second.
         
         rate : float
