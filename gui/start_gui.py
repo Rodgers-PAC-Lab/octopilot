@@ -19,6 +19,7 @@ from ..shared import load_params
 from PyQt5.QtWidgets import QApplication
 
 # For getting info from the command line
+import threading
 import argparse
 import sys
 
@@ -58,6 +59,9 @@ if __name__ == '__main__':
     
     # Instantiate a MainWindow
     dispatcher = controllers.Dispatcher(box_params, task_params, mouse_params)
+    thread = threading.Thread(target=dispatcher.main_loop)
+    thread.start()
+    
     this_main_window = main_window.MainWindow(dispatcher)
     
     """
@@ -65,3 +69,7 @@ if __name__ == '__main__':
     the GUI until it is closed (which is when sys.exit() is called)
     """
     sys.exit(app.exec())
+
+    
+    thread.join()
+    

@@ -841,10 +841,10 @@ class PokePlotWidget(QWidget):
         self.start_time = datetime.now()  
         
         # Start the timer to update every 10 ms 
-        self.timer.start(10)  
+        self.timer.start(1000)  
 
         # Start the timer for updating the time bar when the plot starts
-        self.time_bar_timer.start(50)  # Update every 50 ms
+        self.time_bar_timer.start(500)  # Update every 50 ms
 
     def stop_plot(self):
         """Deactivates plot updates
@@ -989,6 +989,8 @@ class PokePlotWidget(QWidget):
         for port_name, poke_time in self.dispatcher.poked_port_history:
             xvals.append(3)
             yvals.append(poke_time)
+        
+        print("plotting: {} {}".format(xvals, yvals))
         
         
         # Update plot with timestamps and signals
