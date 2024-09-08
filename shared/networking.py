@@ -32,8 +32,277 @@ from ..shared.logtools import NonRepetitiveLogger
 import logging
 import datetime
 
+## Instantiated by Dispatcher
+class DispatcherNetworkCommunicator(object):
+    """Handles communication with the Pis"""
+    def __init__(self, worker_port, expected_identities):
+        """Initialize object to communicate with the Pis.
+        
+        Arguments
+        ---------
+        worker_port : str
+            Taken from params['worker_port']
+        expected_identies : list of str
+            Each entry is the identity of a Pi
+            The session can't start until all expected identities connect
+        
+        Flow
+        ----
+        * Create context and socket using zmq.ROUTER
+        * Bind to tcp://*{worker_port}
+        * Initialize empty self.connected_pis
+        """
+        ## Init logger
+        self.logger = NonRepetitiveLogger("test")
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
+        self.logger.addHandler(sh)
+        self.logger.setLevel(logging.DEBUG)
+
+
+        # Store provided params
+        # This is who we expect to connect
+        self.expected_identities = expected_identities
+
+        # Set of identities of all pis connected to that instance of ther GUI 
+        self.connected_pis = set() 
+        
+        # Set up the method to call on each command
+        self.command2method = {}
+        
+        # Set up sockets
+        self.init_socket(worker_port)
+    
+    def init_socket(self, worker_port):
+        ## Set up ZMQ
+        # Setting up a ZMQ socket to send and receive information about 
+        # poked ports 
+        # (the DEALER socket on the Pi initiates the connection and then 
+        # the ROUTER 
+        # manages the message queue from different dealers and sends 
+        # acknowledgements)
+        self.context = zmq.Context()
+        self.zmq_socket = self.context.socket(zmq.ROUTER)
+        
+        # Making it bind to the port used for sending poke related information
+        self.zmq_socket.bind(f"tcp://*{worker_port}")
+    
+    def check_if_all_pis_connected(self):
+        """"Returns True if all pis in self.expected_identies are connected"""
+        # Iterate over identies
+        # Return False if any is missing
+        all_connected = True
+        for identity in self.expected_identities:
+            if identity not in self.connected_pis:
+                all_connected = False
+                break
+        
+        return all_connected
+    
+    def send_message_to_all(self, msg):
+        """"Send msg to all identities in self.connected_pis"""
+        self.logger.info(f'sending message to all connecting pis: {msg}')
+        
+        # Convert to bytes
+        msg_bytes = bytes(msg, 'utf-8')
+        
+        # Send to all
+        for identity in self.connected_pis:
+            identity_bytes = bytes(identity, 'utf-8')
+            self.zmq_socket.send_multipart([identity_bytes, msg_bytes])
+    
+        self.logger.info(f'above message was sent to {self.connected_pis}')    
+    
+    def send_trial_parameters(self, **kwargs):
+        """Encode a set_trial_parameters message and send to all Pis
+        
+        The message will begin with "set_trial_parameters;"
+        Each keyword argument will be converted into "{key}={value}={dtyp}"
+        (dtyp is inferred from value)
+        
+        TODO: do this with json instead
+        
+        Then it is sent to all Pis.
+        """
+        msg = "set_trial_parameters;"
+        for key, value in kwargs.items():
+            # Infer dtyp
+            if hasattr(value, '__len__'):
+                dtyp = 'str'
+            elif isinstance(value, bool):
+                # Note that bool is an instance of int
+                dtyp = 'bool'
+            elif isinstance(value, int):
+                # https://stackoverflow.com/a/48940855/1676378
+                dtyp = 'int'
+            else:
+                dtyp = 'float'
+            
+            # Append
+            msg += f"{key}={value}={dtyp};"
+        
+        self.logger.info(msg)
+        
+        self.send_message_to_all(msg)
+    
+    def check_for_messages(self):
+        """Check self.zmq_socket for messages.
+        
+        If a message is available: return identity, messages
+        Otherwise: return None
+        """
+        ## Check for messages
+        message_received = True
+        try:
+            # Without NOBLOCK, this will hang until a message is received
+            # TODO: use Poller here?
+            identity, message = self.zmq_socket.recv_multipart(
+                flags=zmq.NOBLOCK)
+        except zmq.error.Again:
+            message_received = False
+
+        # If there's no message received, there is nothing to do
+        if message_received:
+            self.handle_message(identity, message)
+    
+    def handle_message(self, identity, message):
+        """Handle a message received on poke_socket
+        
+        Arguments
+        ---------
+        msg : str
+            A ';'-separated list of strings
+            The first string is the "command"
+            The remaining strings should be in the format {KEY}={VALUE}={DTYP}
+            The method self.command2method[command] is called with a dict
+            of arguments formed from the remaining strings.
+        """        
+        # Debug print identity and message
+        self.logger.debug(f'received from {identity}: {message}')
+        
+        # Decode the message
+        # TODO: in the future support bytes
+        identity_str = identity.decode('utf-8')
+        message_str = message.decode('utf-8')
+
+        # Keep track of the identities
+        if identity_str not in self.connected_pis:
+            self.add_identity_to_connected(identity_str, message_str)
+
+        # Split on semicolon
+        tokens = message_str.strip().split(';')
+        
+        # The command is the first token
+        # This will always run, but command could be ''
+        command = tokens[0]
+        
+        # Get the params
+        # This will always run, but could return {}
+        msg_params = self.parse_params(tokens[1:])
+        
+        # Insert identity into msg_params
+        msg_params['identity'] = identity_str
+        
+        # Find associated method
+        meth = None
+        try:
+            meth = self.command2method[command]
+        except KeyError:
+            self.logger.error(
+                f'unrecognized command: {command}. '
+                f'I only recognize: {list(self.command2method.keys())}'
+                )
+        
+        # Call the method
+        if meth is not None:
+            self.logger.debug(f'calling method {meth} with params {msg_params}')
+            meth(**msg_params)
+
+    def parse_params(self, token_l):
+        """Parse `token_l` into a dict
+        
+        Iterates over strings in token_l, parses them as KEY=VALUE=DTYPE,
+        and stores in a dict to return. Raises ValueError if unparseable.
+        
+        TODO: replace this with json
+        
+        token_l : list
+            Each entry should be a str, '{KEY}={VALUE}={DTYPE}'
+            where KEY is the key, VALUE is the value, and DTYPE is
+            either 'int', 'float', or 'str'
+        
+        Returns : dict d
+            d[KEY] will be VALUE of type DTYPE
+        """
+        # Parse each token
+        params = {}
+        for tok in token_l:
+            # Strip
+            strip_tok = tok.strip()
+            split_tok = strip_tok.split('=')
+            
+            # Skip if empty
+            if strip_tok == '':
+                # This happens if the message ends with a semicolon,
+                # which is fine
+                continue
+            
+            # Error if it's not KEY=VAL=DTYP
+            try:
+                key, val, dtyp = split_tok
+            except ValueError:
+                raise ValueError('unparseable token: {}'.format(tok))
+            
+            # Convert value
+            if dtyp == 'int':
+                conv_val = int(val)
+            elif dtyp == 'float':
+                conv_val = float(val)
+            elif dtyp == 'str':
+                conv_val = val
+            elif dtyp == 'bool':
+                conv_val = bool(val)
+            else:
+                # Error if DTYP unrecognized
+                raise ValueError('unrecognized dtyp: {}'.format(dtyp))
+            
+            # Store
+            params[key] = conv_val
+        
+        return params
+    
+    def add_identity_to_connected(self, identity_str, message_str):
+        # This better be a hello message
+        if not message_str.startswith('hello'):
+            self.logger.warn(
+                f'warning: first message from new identity {identity_str} '
+                f'was not hello but rather {message_str}'
+                )
+        
+        else:
+            self.logger.info(
+                f'first message from new identity {identity_str} '
+                f'is {message_str}')
+        
+        # Check whether it's expected
+        if identity_str in self.expected_identities:
+            # Keep track of it
+            self.connected_pis.add(identity_str)
+        
+        else:
+            self.logger.warn(
+                f'warning: {identity_str} is not in expected_identities '
+                'but it attempted to connect'
+                )
+    
+    def remove_identity_from_connected(self, identity):
+        if identity not in self.connected_pis:
+            self.logger.error(f'{identity} said goodbye but it was not connected')
+        
+        self.connected_pis.remove(identity)
+
 ## This class is instantiated by HardwareController
-class NetworkCommunicator(object):
+class PiNetworkCommunicator(object):
     """Handles communication with GUI
     
     This object sets up sockets to communicate with GUI, receives messages
