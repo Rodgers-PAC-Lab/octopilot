@@ -199,7 +199,7 @@ class PiController(object):
         """
         self.logger.debug('received alive from dispatcher; will respond')
         self.last_alive_request_received = datetime.datetime.now()
-        self.networking_communicator.send_alive()
+        self.network_communicator.send_alive()
 
     def start_session(self):
         """Called whenever a new session is started by Dispatcher
@@ -345,6 +345,9 @@ class PiController(object):
             self.right_nosepoke.handles_reward.remove(self.report_reward)
         except ValueError:
             self.logger.error('stop received but handle not in list')
+        
+        # Stop checking for alive requests
+        self.alive_timer.stop()
         
         # Empty the queue of sound
         self.sound_queuer.empty_queue()
