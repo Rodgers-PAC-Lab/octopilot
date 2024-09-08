@@ -85,6 +85,9 @@ class PiController(object):
         self.left_port_name = f'{self.identity}_L'
         self.right_port_name = f'{self.identity}_R'
 
+        # Whether the session is running
+        self.session_running = False
+        
 
         ## Initialize sound_chooser
         # This object generates frames of audio
@@ -142,6 +145,8 @@ class PiController(object):
                 self.stop_session)
             self.network_communicator.command2method['exit'] = (
                 self.exit)            
+            self.network_communicator.command2method['start'] = (
+                self.start_session)            
         
         else:
             self.network_communicator = None
@@ -172,10 +177,19 @@ class PiController(object):
             green_pin=self.pins['right_led_green'], 
             blue_pin=self.pins['right_led_blue'], 
             )            
-
+    
+    def start_session(self, autopoke=False):
+        """Called whenever a new session is started by Dispatcher
+        
+        Currently there is no explicit "start" message. Instead, we use
+        the first set_trial_parameters call if self.session_running is False
+        as the trigger to know a session has started. 
+        """
+        # Log
+        self.logger.info('starting session')
+        
+        # Add handles to report pokes and rewards
         # Hook up the poke in and reward callbacks
-        # TODO: add these to a start_session() method that is called upon
-        # set_trial_parameters(), and add the reverse to a stop_session()
         # TODO: add a callback that terminates the audio upon reward
         # TODO: add a callback that plays an error sound upon incorrect poke
         self.left_nosepoke.handles_poke_in.append(self.report_poke)
@@ -183,16 +197,28 @@ class PiController(object):
         self.right_nosepoke.handles_poke_in.append(self.report_poke)
         self.right_nosepoke.handles_reward.append(self.report_reward)
         
-        
-        ## Autopoke
-        self.left_nosepoke.autopoke_start()
-        self.right_nosepoke.autopoke_start()
+        # Autopoke
+        if autopoke:
+            self.left_nosepoke.autopoke_start()
+            self.right_nosepoke.autopoke_start()
+    
+        # Set session_running
+        self.session_running = True
     
     def set_trial_parameters(self, **msg_params):
         """Called upon receiving set_trial_parameters from GUI
         
         """
-        self.logger.debug(f'setting trial parametesr: {msg_params}')
+        # Log
+        self.logger.debug(f'setting trial parameters: {msg_params}')
+        
+        # If not running, issue error
+        # Because this might indicate that something has gone wrong
+        if not self.session_running:
+            self.logger.error(
+                f'received trial parameters but session is not running')
+            return
+        
         # Split into left_params and right_params
         left_params = {}
         right_params = {}
@@ -258,7 +284,25 @@ class PiController(object):
         * stops playing sound,
         * and empties the queue.
         """
-        # TODO: disable nosepokes here
+        try:
+            self.left_nosepoke.handles_poke_in.remove(self.report_poke)
+        except ValueError:
+            self.logger.error('stop received but handle not in list')
+        
+        try:
+            self.left_nosepoke.handles_reward.remove(self.report_reward)
+        except ValueError:
+            self.logger.error('stop received but handle not in list')
+        
+        try:
+            self.right_nosepoke.handles_poke_in.remove(self.report_poke)
+        except ValueError:
+            self.logger.error('stop received but handle not in list')
+        
+        try:
+            self.right_nosepoke.handles_reward.remove(self.report_reward)
+        except ValueError:
+            self.logger.error('stop received but handle not in list')
         
         # Empty the queue of sound
         self.sound_queuer.empty_queue()
