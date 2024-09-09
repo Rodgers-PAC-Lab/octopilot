@@ -2,7 +2,7 @@
 
 import os
 from . import daemons
-from shared import load_params
+from ..shared import load_params
 from . import agent
 
 
