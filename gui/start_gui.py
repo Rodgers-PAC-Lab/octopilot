@@ -23,6 +23,7 @@ from PyQt5.QtCore import QObject, pyqtSignal, QThread
 import threading
 import argparse
 import sys
+import signal
 
 
 ## Use argparse to identify the box that we are controlling
@@ -99,6 +100,11 @@ if __name__ == '__main__':
     # https://stackoverflow.com/questions/27940378/why-do-i-need-sys-argv-to-start-a-qapplication-in-pyqt
     app = QApplication([])#sys.argv)
     
+    # https://stackoverflow.com/questions/4938723/what-is-the-correct-way-to-make-my-pyqt-application-quit-when-killed-from-the-co
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    #~ signal.signal(signal.SIGINT, lambda *a: app.exit(-2))
+
+
     # Instantiate a MainWindow
     win = main_window.MainWindow(box_params, task_params, mouse_params)
     win.show()
