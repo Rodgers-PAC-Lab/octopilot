@@ -219,7 +219,10 @@ class Dispatcher:
         # can assign a trial number to pokes that come back
         acoustic_params = {
             'left_silenced': False,
-            'left_amplitude': 0.0001,
+            'left_amplitude': 0.1,
+            'left_center_frequency': 8000,
+            'left_rate': 1,
+            'left_temporal_std': .001,
             'right_silenced': True,
             }
         
@@ -288,18 +291,16 @@ class Dispatcher:
         # Check for messages
         self.network_communicator.check_for_messages()
         
-        # Check if we're all connected
-        if self.network_communicator.check_if_all_pis_connected():
-            pass
-
-        else:
-            # We're not all connnected
+        # Print status if not all connected
+        if not self.network_communicator.check_if_all_pis_connected():
             self.logger.info(
                 'waiting for {} to connect; only {} connected'.format(
                 ', '.join(self.network_communicator.expected_identities),
                 ', '.join(self.network_communicator.connected_agents),
             ))
-                    
+        
+        # TODO: test if "start_next_trial" datetime flag set
+        
     def main_loop(self, verbose=True):
         """Main loop of Worker
 
