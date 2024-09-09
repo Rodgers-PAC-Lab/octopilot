@@ -353,6 +353,12 @@ class Agent(object):
             self.logger.error('stop received but alive_timer is None')
         else:
             self.alive_timer.stop()
+
+        # Silence sound generation
+        self.sound_chooser.set_audio_parameters(
+            left_params={'silenced': True},
+            right_params={'silenced': True},
+            )
         
         # Empty the queue of sound
         self.sound_queuer.empty_queue()
