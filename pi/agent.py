@@ -361,11 +361,7 @@ class Agent(object):
 
     def exit(self):
         """Shut down objects"""
-        # Shutdown alive timer
-        if self.alive_timer is not None:
-            self.alive_timer.stop()
-        else:
-            self.logger.info('exiting but no alive timer defined')
+        self.stop_session()
         
         # Deactivating the Sound Player before closing the program
         self.sound_player.client.deactivate()
