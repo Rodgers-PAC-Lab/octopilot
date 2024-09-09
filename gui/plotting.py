@@ -119,9 +119,9 @@ class ArenaWidget(QWidget):
                 nosepoke_circle.setBrush(QColor("white"))
             elif port_name in self.dispatcher.ports_poked_this_trial:
                 if port_name == self.dispatcher.rewarded_port:
-                    nosepoke_circle.setBrush(QColor("red"))
-                else:
                     nosepoke_circle.setBrush(QColor("green"))
+                else:
+                    nosepoke_circle.setBrush(QColor("red"))
             else:
                 nosepoke_circle.setBrush(QColor("gray"))
 
