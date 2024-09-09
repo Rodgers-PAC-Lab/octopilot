@@ -131,7 +131,7 @@ class Nosepoke(object):
     def _autopoke(self, prob=1):
         self.logger.debug('autopoke')
         if np.random.random() < prob:
-            self.poke_in()
+            self.poke_in(pin=self.poke_pin, level=pigpio.HIGH, tick=0)
     
     def reward(self, duration=.050):
         """Open the solenoid valve for port to deliver reward
@@ -144,7 +144,7 @@ class Nosepoke(object):
         #self.pig.write(valve_l, 0) # Closing valve
         self.logger.info('reward delivered')
     
-    def poke_in(self):
+    def poke_in(self, pin, level, tick):
         # Get time right away
         dt_now = datetime.datetime.now()
         
@@ -175,9 +175,10 @@ class Nosepoke(object):
         if len(self.handles_poke_in) == 0:
             self.logger.info('poke detected but nothing to do about it')
         else:
-            self.logger.info('poke detected')
+            self.logger.info(
+                f'poke detected pin={pin} level={level} tick={tick}')
 
-    def poke_out(self):
+    def poke_out(self, pin, level, tick):
         # Handle the pokes
         for handle in self.handles_poke_out:
             handle(self.name, dt_now)        
