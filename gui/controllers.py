@@ -217,14 +217,26 @@ class Dispatcher:
         # TODO: choose acoustic params here
         # TODO: also send the current_trial number, so that the Agent
         # can assign a trial number to pokes that come back
-        acoustic_params = {
-            'left_silenced': False,
-            'left_amplitude': 0.1,
-            'left_center_frequency': 8000,
-            'left_rate': 1,
-            'left_temporal_std': .001,
-            'right_silenced': True,
-            }
+        # TODO: actually use task_params to choose instead of hardcoding
+        # TODO: send different acoustic_params to each pi
+        if np.random.random() < 0.5:
+            acoustic_params = {
+                'left_silenced': False,
+                'left_amplitude': 0.01,
+                'left_center_frequency': 8000,
+                'left_rate': 1,
+                'left_temporal_std': .001,
+                'right_silenced': True,
+                }
+        else:
+            acoustic_params = {
+                'right_silenced': False,
+                'right_amplitude': 0.01,
+                'right_center_frequency': 8000,
+                'right_rate': 1,
+                'right_temporal_std': .001,
+                'left_silenced': True,
+                }            
         
         self.logger.info(
             f'starting trial {self.current_trial}; '
@@ -264,7 +276,7 @@ class Dispatcher:
         self.reset_history()    
 
         # Flag that it has started
-        self.session_is_running = True
+        self.session_is_running = False
         
         #~ # Close ssh proc to agent
         #~ self.proc_ssh_to_agent.terminate()
