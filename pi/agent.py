@@ -69,7 +69,7 @@ class Agent(object):
         sh = logging.StreamHandler()
         sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
         self.logger.addHandler(sh)
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(logging.DEBUG)
         
         
         ## Set attributes
@@ -162,8 +162,8 @@ class Agent(object):
         # Autopoke
         # This simulates the presence of a mouse, which may be poking before
         # the session actually starts
-        self.left_nosepoke.autopoke_start()
-        self.right_nosepoke.autopoke_start()
+        self.left_nosepoke.autopoke_start(rate=0)
+        self.right_nosepoke.autopoke_start(rate=0)
 
         
         ## Optionally set up networking
@@ -253,6 +253,7 @@ class Agent(object):
         
         """
         # Log
+        # TODO: why is this message never showing up in the log?
         self.logger.debug(f'setting trial parameters: {msg_params}')
         
         # If not running, issue error

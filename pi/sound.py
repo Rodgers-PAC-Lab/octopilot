@@ -635,7 +635,7 @@ class SoundPlayer(object):
         self.client.outports[0].connect(target_ports[0])
         self.client.outports[1].connect(target_ports[1])
     
-    def process(self, frames, verbose=False):
+    def process(self, frames, verbose=True):
         """Write a frame of audio from self.sound_queue to self.client.outports
         
         This function is called by self.client every 5 ms or whenever new
@@ -651,8 +651,8 @@ class SoundPlayer(object):
         * Each column of frame is written to the outports
         """
         # Optional debug message
-        if verbose:
-            print('process called')
+        #~ if verbose:
+            #~ print('process called')
         
         # Try to get audio data from self.sound_queue
         queue_is_empty = False
@@ -695,6 +695,10 @@ class SoundPlayer(object):
         
         # Ensure it is the correct dtype
         data = data.astype('float32')
+        
+        if verbose:
+            if data.std() > 1e-9:
+                print(f'non zero data with std {data.std()}')
         
         # Write one column to each channel
         self.client.outports[0].get_array()[:] = data[:, 0]

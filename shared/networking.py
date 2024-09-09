@@ -114,7 +114,12 @@ def parse_params(token_l):
         elif dtyp == 'str':
             conv_val = val
         elif dtyp == 'bool':
-            conv_val = bool(val)
+            if val == 'True':
+                conv_val = True
+            elif val == 'False':
+                conv_val = False
+            else:
+                raise ValueError(f'cannot convert {val} to bool')
         else:
             # Error if DTYP unrecognized
             raise ValueError('unrecognized dtyp: {}'.format(dtyp))
