@@ -101,23 +101,23 @@ class Dispatcher:
             }
         
         
-        ## Start Agent
-        # https://stackoverflow.com/questions/76665310/python-run-subprocess-popen-with-timeout-and-get-stdout-at-runtime
-        self.proc_ssh_to_agent = subprocess.Popen(
-            ['ssh', 'pi@192.168.0.101', 'bash', '-i', 'start_cli.sh'], 
-            stdin=subprocess.PIPE, 
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            universal_newlines=True,
-            )
+        #~ ## Start Agent
+        #~ # https://stackoverflow.com/questions/76665310/python-run-subprocess-popen-with-timeout-and-get-stdout-at-runtime
+        #~ self.proc_ssh_to_agent = subprocess.Popen(
+            #~ ['ssh', 'pi@192.168.0.101', 'bash', '-i', 'start_cli.sh'], 
+            #~ stdin=subprocess.PIPE, 
+            #~ stdout=subprocess.PIPE,
+            #~ stderr=subprocess.PIPE,
+            #~ text=True,
+            #~ universal_newlines=True,
+            #~ )
         
-        def capture_output():
-            for line in iter(self.proc_ssh_to_agent.stderr.readline, ''):
-                print('from ssh: ' + line.strip())
+        #~ def capture_output():
+            #~ for line in iter(self.proc_ssh_to_agent.stderr.readline, ''):
+                #~ print('from ssh: ' + line.strip())
         
-        self.thread_ssh_to_agent = threading.Thread(target=capture_output)
-        self.thread_ssh_to_agent.start()
+        #~ self.thread_ssh_to_agent = threading.Thread(target=capture_output)
+        #~ self.thread_ssh_to_agent.start()
 
     def reset_history(self):
         """Set all history variables to defaults
@@ -263,11 +263,11 @@ class Dispatcher:
         # Flag that it has started
         self.session_is_running = True
         
-        # Close ssh proc to agent
-        self.proc_ssh_to_agent.terminate()
-        self.proc_ssh_to_agent.communicate()
-        self.thread_ssh_to_agent.join()
-        self.logger.debug('done joining/terminating/communicating')
+        #~ # Close ssh proc to agent
+        #~ self.proc_ssh_to_agent.terminate()
+        #~ self.proc_ssh_to_agent.communicate()
+        #~ self.thread_ssh_to_agent.join()
+        #~ self.logger.debug('done joining/terminating/communicating')
 
     def send_alive_request(self):
         # Warn if it's been too long
