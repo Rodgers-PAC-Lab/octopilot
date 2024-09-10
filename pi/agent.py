@@ -90,6 +90,10 @@ class Agent(object):
 
         # Whether the session is running
         self.session_running = False
+        
+        # It will keep running until this is set by self.exit() and then 
+        # it is noticed by self.mainloop()
+        self.shutdown = False
     
         # How long it's been since we received an alive request
         self.alive_timer = None
@@ -328,6 +332,7 @@ class Agent(object):
         * stops playing sound,
         * and empties the queue.
         """
+        self.logger.info('beginning stop_session')
         try:
             self.left_nosepoke.handles_poke_in.remove(self.report_poke)
         except ValueError:
@@ -366,8 +371,15 @@ class Agent(object):
         # Stop running
         self.session_running = False
 
+        # Mark as shutdown for next mainloop
+        self.shutdown = True
+
     def exit(self):
-        """Shut down objects"""
+        """Shut down objects
+        
+        This is in a finally in the mainloop
+        """
+        self.logger.info('beginning exit')
         self.stop_session()
         
         # Deactivating the Sound Player before closing the program
@@ -386,7 +398,9 @@ class Agent(object):
         # Close all sockets and contexts
         if self.network_communicator is not None:
             self.network_communicator.send_goodbye()
-            self.network_communicator.close()        
+            self.network_communicator.close()   
+        
+        self.logger.info('done exit')
 
     def handle_reward(self):
         # TODO: open valve here
@@ -421,6 +435,10 @@ class Agent(object):
                     self.logger.critical('critical shutdown')
                     raise ValueError('critical shutdown')
                 
+                if self.shutdown:
+                    self.logger.info('shutdown detected')
+                    break
+                
                 # If there's nothing in the main loop, not even a sleep,
                 # then for some reason this leads to XRun errors
                 # Perhaps the interpreter is optimizing away the mainloop
@@ -433,3 +451,4 @@ class Agent(object):
         finally:
             # Shut down all network, sound, and hardware
             self.exit()
+            self.logger.info('agent done')
