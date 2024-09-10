@@ -8,6 +8,7 @@ import threading
 import random
 import datetime
 import logging
+import numpy as np
 from ..shared.misc import RepeatedTimer
 from ..shared.logtools import NonRepetitiveLogger
 from ..shared.networking import DispatcherNetworkCommunicator
@@ -101,23 +102,37 @@ class Dispatcher:
             }
         
         
-        #~ ## Start Agent
-        #~ # https://stackoverflow.com/questions/76665310/python-run-subprocess-popen-with-timeout-and-get-stdout-at-runtime
-        #~ self.proc_ssh_to_agent = subprocess.Popen(
-            #~ ['ssh', 'pi@192.168.0.101', 'bash', '-i', 'start_cli.sh'], 
-            #~ stdin=subprocess.PIPE, 
-            #~ stdout=subprocess.PIPE,
-            #~ stderr=subprocess.PIPE,
-            #~ text=True,
-            #~ universal_newlines=True,
-            #~ )
+        ## Start Agent
+        # https://stackoverflow.com/questions/76665310/python-run-subprocess-popen-with-timeout-and-get-stdout-at-runtime
+        self.proc_ssh_to_agent = subprocess.Popen(
+            ['ssh', '-tt', 'pi@192.168.0.101', 'bash', '-i', 'start_cli.sh'], 
+            stdin=subprocess.PIPE, 
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            universal_newlines=True,
+            )
         
-        #~ def capture_output():
-            #~ for line in iter(self.proc_ssh_to_agent.stderr.readline, ''):
-                #~ print('from ssh: ' + line.strip())
+        # Functions to capture output
+        # I think these are thread-safe because we're just writing out
+        # not reading them
+        def capture_stdout():
+            with open('stdout.output', 'w') as fi:
+                for line in iter(self.proc_ssh_to_agent.stdout.readline, ''):
+                    print('from ssh: ' + line.strip())
+                    fi.write(line)
         
-        #~ self.thread_ssh_to_agent = threading.Thread(target=capture_output)
-        #~ self.thread_ssh_to_agent.start()
+        def capture_stderr():
+            with open('stderr.output', 'w') as fi:
+                for line in iter(self.proc_ssh_to_agent.stderr.readline, ''):
+                    print('from ssh STDERR: ' + line.strip())
+                    fi.write(line)
+                    
+        # Start threads to capture output
+        self.thread_ssh_to_agent_stdout = threading.Thread(target=capture_stdout)
+        self.thread_ssh_to_agent_stdout.start()
+        self.thread_ssh_to_agent_stderr = threading.Thread(target=capture_stderr)
+        self.thread_ssh_to_agent_stderr.start()        
 
     def reset_history(self):
         """Set all history variables to defaults
@@ -278,11 +293,17 @@ class Dispatcher:
         # Flag that it has started
         self.session_is_running = False
         
-        #~ # Close ssh proc to agent
-        #~ self.proc_ssh_to_agent.terminate()
-        #~ self.proc_ssh_to_agent.communicate()
-        #~ self.thread_ssh_to_agent.join()
-        #~ self.logger.debug('done joining/terminating/communicating')
+        # Close ssh proc to agent
+        # TODO: 
+        self.proc_ssh_to_agent.poll()
+        if self.proc_ssh_to_agent.returncode is None:
+            self.logger.warning("proc_ssh_to_agent didn't end naturally, killing")
+            self.proc_ssh_to_agent.terminate()
+            # Time to kill
+            time.sleep(.5)
+        self.logger.info(
+            f'proc_ssh_to_agent returncode: {self.proc_ssh_to_agent.returncode}')
+        self.logger.info('done with stop_session')
 
     def send_alive_request(self):
         # Warn if it's been too long

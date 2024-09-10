@@ -44,6 +44,9 @@ import time
 # -tt is necessary to be able to read from stdout and stderr interactively
 # -tt is also necessary to have the process end if the proc is closed by CTRL+C 
 #    (and maybe if it's killed in other ways, not sure)
+# text=True and universal_newlines=True do the same thing, apparently
+# stdin must be PIPE or it will grab keyboard STDIN
+# stdout and stderr must be PIPE to capture them
 # "bash -i shell_script.sh" is necessary to have it be able to find the
 #    Python module, for some reason (setting "env" doesn't work, probably
 #    it's inside some kind of virtualenv)
