@@ -752,7 +752,7 @@ def poke_detectedL(pin, level, tick):
         print("Error sending nosepoke_id:", e)
 
     if task == "Poketrain":
-        if prev_reward != nosepoke_idL or prev_reward == None:
+        if prev_reward == None or prev_reward != nosepoke_idL:
             open_valve(int(nosepoke_idL))
             prev_reward = nosepoke_idL
 
@@ -771,8 +771,8 @@ def poke_detectedR(pin, level, tick):
     if params['nosepokeR_type'] == "901":
         pi.write(10, 0)
     elif params['nosepokeR_type'] == "903":
-        pi.write(10, 1)
-    
+         pi.write(10, 1)
+     
     # Get current datetime
     poke_time = datetime.now()
     
@@ -785,7 +785,7 @@ def poke_detectedR(pin, level, tick):
         print("Error sending nosepoke_id:", e)
 
     if task == "Poketrain":
-        if prev_reward != nosepoke_idR or prev_reward == None:
+        if  prev_reward == None or prev_reward != nosepoke_idR:
             open_valve(int(nosepoke_idR))
             prev_reward = nosepoke_idR
 
