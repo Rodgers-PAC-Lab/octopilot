@@ -689,6 +689,7 @@ left_poke_detected = False
 right_poke_detected = False
 current_port_poked = None
 poke_time = None
+prev_reward = None
 
 # Callback function for nosepoke pin (When the nosepoke is completed)
 def poke_inL(pin, level, tick):
@@ -740,7 +741,7 @@ def poke_detectedL(pin, level, tick):
         pi.write(17, 1)
     
     if task == "Poketrain":
-        if prev_reward != nosepoke_idL:
+        if prev_reward != nosepoke_idL or prev_reward == None:
             open_valve(int(nosepoke_idL))
         prev_reward = nosepoke_idL
 
@@ -773,7 +774,7 @@ def poke_detectedR(pin, level, tick):
         pi.write(10, 1)
     
     if task == "Poketrain":
-        if prev_reward != nosepoke_idR:
+        if prev_reward != nosepoke_idR or prev_reward == None:
             open_valve(int(nosepoke_idR))
         prev_reward = nosepoke_idR
     
