@@ -739,7 +739,7 @@ def poke_detectedL(pin, level, tick):
     elif params['nosepokeL_type'] == "903":
         pi.write(17, 1)
     
-    if task == "poke_train":
+    if task == "Poketrain":
         open_valve(int(nosepoke_idL))
         
     # Get current datetime
@@ -770,7 +770,7 @@ def poke_detectedR(pin, level, tick):
     elif params['nosepokeR_type'] == "903":
         pi.write(10, 1)
     
-    if task == "poke_train":
+    if task == "Poketrain":
         open_valve(int(nosepoke_idR))
     
     # Get current datetime
