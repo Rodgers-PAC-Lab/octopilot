@@ -738,6 +738,9 @@ def poke_detectedL(pin, level, tick):
         pi.write(17, 0)
     elif params['nosepokeL_type'] == "903":
         pi.write(17, 1)
+    
+    if task == "poke_train":
+        open_valve(int(nosepoke_idL))
         
     # Get current datetime
     poke_time = datetime.now()
@@ -766,6 +769,9 @@ def poke_detectedR(pin, level, tick):
         pi.write(10, 0)
     elif params['nosepokeR_type'] == "903":
         pi.write(10, 1)
+    
+    if task == "poke_train":
+        open_valve(int(nosepoke_idR))
     
     # Get current datetime
     poke_time = datetime.now()
@@ -981,10 +987,10 @@ try:
                 else:
                     last_msg2 = msg2
 
-        # Separate logic for Poketrain task
-        if task == 'Poketrain':
-            if left_poke_detected == True or right_poke_detected == True:
-                open_valve()
+        # # Separate logic for Poketrain task
+        # if task == 'Poketrain':
+        #     if left_poke_detected == True or right_poke_detected == True:
+        #         open_valve()
         
         ## Check for incoming messages on poke_socket
         # TODO: document the types of messages that can be sent on poke_socket 
