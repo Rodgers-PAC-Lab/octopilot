@@ -739,11 +739,6 @@ def poke_detectedL(pin, level, tick):
         pi.write(17, 0)
     elif params['nosepokeL_type'] == "903":
         pi.write(17, 1)
-    
-    if task == "Poketrain":
-        if prev_reward != nosepoke_idL or prev_reward == None:
-            open_valve(int(nosepoke_idL))
-        prev_reward = nosepoke_idL
 
     # Get current datetime
     poke_time = datetime.now()
@@ -755,6 +750,11 @@ def poke_detectedL(pin, level, tick):
         poke_socket.send_string(f"Poke Time: {poke_time}")
     except Exception as e:
         print("Error sending nosepoke_id:", e)
+
+    if task == "Poketrain":
+        if prev_reward != nosepoke_idL or prev_reward == None:
+            open_valve(int(nosepoke_idL))
+            prev_reward = nosepoke_idL
 
 def poke_detectedR(pin, level, tick): 
     global a_state, count, right_poke_detected, current_port_poked, poke_time 
@@ -773,11 +773,6 @@ def poke_detectedR(pin, level, tick):
     elif params['nosepokeR_type'] == "903":
         pi.write(10, 1)
     
-    if task == "Poketrain":
-        if prev_reward != nosepoke_idR or prev_reward == None:
-            open_valve(int(nosepoke_idR))
-        prev_reward = nosepoke_idR
-    
     # Get current datetime
     poke_time = datetime.now()
     
@@ -789,6 +784,10 @@ def poke_detectedR(pin, level, tick):
     except Exception as e:
         print("Error sending nosepoke_id:", e)
 
+    if task == "Poketrain":
+        if prev_reward != nosepoke_idR or prev_reward == None:
+            open_valve(int(nosepoke_idR))
+            prev_reward = nosepoke_idR
 
 def open_valve(port):
     """Open the valve for port
