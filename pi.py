@@ -740,8 +740,10 @@ def poke_detectedL(pin, level, tick):
         pi.write(17, 1)
     
     if task == "Poketrain":
-        open_valve(int(nosepoke_idL))
-        
+        if prev_reward != nosepoke_idL:
+            open_valve(int(nosepoke_idL))
+        prev_reward = nosepoke_idL
+
     # Get current datetime
     poke_time = datetime.now()
         
@@ -771,7 +773,9 @@ def poke_detectedR(pin, level, tick):
         pi.write(10, 1)
     
     if task == "Poketrain":
-        open_valve(int(nosepoke_idR))
+        if prev_reward != nosepoke_idR:
+            open_valve(int(nosepoke_idR))
+        prev_reward = nosepoke_idR
     
     # Get current datetime
     poke_time = datetime.now()
