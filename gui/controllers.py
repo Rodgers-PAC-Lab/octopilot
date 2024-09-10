@@ -282,8 +282,6 @@ class Dispatcher:
         else:
             self.alive_timer.stop()
         
-        self.network_communicator.command2method = {}
-        
         # Send a stop message to each pi
         self.network_communicator.send_message_to_all('stop')
 
@@ -294,7 +292,8 @@ class Dispatcher:
         self.session_is_running = False
         
         # Close ssh proc to agent
-        # TODO: 
+        # Wait until it's had time to shut down naturally
+        time.sleep(1)
         self.proc_ssh_to_agent.poll()
         if self.proc_ssh_to_agent.returncode is None:
             self.logger.warning("proc_ssh_to_agent didn't end naturally, killing")
@@ -304,6 +303,10 @@ class Dispatcher:
         self.logger.info(
             f'proc_ssh_to_agent returncode: {self.proc_ssh_to_agent.returncode}')
         self.logger.info('done with stop_session')
+
+        # We want to be able to process the final goodbye so commenting this 
+        # out. But what if it keeps sending poke messages?
+        #~ self.network_communicator.command2method = {}
 
     def send_alive_request(self):
         # Warn if it's been too long
@@ -431,7 +434,7 @@ class Dispatcher:
         self.network_communicator.remove_identity_from_connected(identity)
         
         # TODO: stop the session if we've lost quorum
-        if not self.network_communicator.check_if_all_pis_connected():
+        if self.session_is_running and not self.network_communicator.check_if_all_pis_connected():
             self.logger.error('session stopped due to early goodbye')
             self.stop_session()
         
