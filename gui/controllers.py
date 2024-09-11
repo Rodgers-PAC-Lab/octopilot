@@ -247,6 +247,11 @@ class Dispatcher:
             'goodbye': self.handle_goodbye,
             'alive': self.recv_alive,
             }
+        
+        
+        ## Start the Agents
+        # TODO: add IP addresses here from box_params
+        self.marshaller = PiMarshaller(agent_names=self.expected_identities)
 
     def reset_history(self):
         """Set all history variables to defaults
