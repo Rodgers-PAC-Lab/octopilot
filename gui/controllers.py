@@ -13,6 +13,153 @@ from ..shared.misc import RepeatedTimer
 from ..shared.logtools import NonRepetitiveLogger
 from ..shared.networking import DispatcherNetworkCommunicator
 
+class PiMarshaller(object):
+    """Connects to each Pi over SSH and starts the Agent.
+    
+    """
+    def __init__(self, agent_names, ip_addresses, shell_script='start_cli.sh'):
+        """Init a new PiMarshaller to connect to each in `ip_addresses`.
+        
+        agent_names : list of str
+            Each entry should be the name of an Agent
+        ip_addresses : list of str
+            Each entry should be an IP address of a Pi
+            This list should be the same length and correspond one-to-one
+            with `agent_names`.
+        """
+        # Init logger
+        self.logger = NonRepetitiveLogger("test")
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
+        self.logger.addHandler(sh)
+        self.logger.setLevel(logging.INFO)
+        
+        # Save arguments
+        self.agent_names = agent_names
+        self.ip_addresses = ip_addresses
+        self.shell_script = shell_script
+    
+    def start(self):
+        """Open an ssh connection each Agent in self.agent_names
+        
+        Flow
+        * For each agent:
+            * A Popen is used to maintain the ssh connection in the background
+            * That ssh connection is used to run `start_cli.sh` on the Pi,
+              which starts the Agent
+            * A thread is used to collect data from each of stdout and stderr
+            * That data is also written to a logger, prepended with agent name
+        """
+        # This function is used only as a thread target
+        def capture(buff, buff_name, agent_name, logger, output_filename):
+            """Thread target: read from `buff` and write out
+            
+            Read lines from `buff`. Write them to `logger` and to
+            `output_filename`. This is blocking so it has to happen in 
+            a thread. I think these operations are all thread-safe, even
+            the logger.
+            
+            buff : a process's stdout or stderr
+                Lines of text will be read from this
+            buff_name : str, like 'stdout' or 'stderr'
+                Prepended to the line in the log
+            agent_name : str
+                Prepended to the line in the log
+            logger : Logger
+                Lines written to here, with agent_name and buff_name prepended
+            output_filname: path
+                Lines written to here
+            """
+            # Open output filename
+            with open(output_filename, 'w') as fi:
+                # Iterate through the lines in buff, with '' indicating
+                # that buff has closed
+                for line in iter(buff, ''):
+                    # Log the line
+                    # TODO: make the loglevel configurable
+                    logger.debug(
+                        f'  from {agent_name} {buff_name}: {line.strip()}')
+                    
+                    # Write the line to the file
+                    fi.write(line)  
+        
+        # Iterate over agents
+        for agent_name, ip_address in zip(self.agent_names, self.ip_addresses):
+            self.logger.info(
+                f'starting ssh proc to {agent_name} at {ip_address}')
+            # Create the ssh process
+            # https://stackoverflow.com/questions/76665310/python-run-subprocess-popen-with-timeout-and-get-stdout-at-runtime
+            # -tt is used to make it interactive, and to ensure it closes
+            #    the remote process when the ssh ends.
+            # PIPE is used to collect data in threads
+            # text, universal_newlines ensures we get text back
+            proc = subprocess.Popen(
+                ['ssh', '-tt', f'pi@{ip_address}', 
+                'bash', '-i', self.shell_script], 
+                stdin=subprocess.PIPE, 
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                universal_newlines=True,
+                )
+            
+            # Start threads to capture output
+            thread_stdout = threading.Thread(
+                target=capture, 
+                kwargs={
+                'buff': proc.stdout, 
+                'buff_name': 'stdout',
+                'agent_name': agent_name,
+                'logger': self.logger,
+                'output_filename': f'{agent}_stdout.output',
+                )
+            
+            thread_stderr = threading.Thread(
+                target=capture, 
+                kwargs={
+                'buff': proc.stderr, 
+                'buff_name': 'stderr',
+                'agent_name': agent_name,
+                'logger': self.logger,
+                'output_filename': f'{agent}_stderr.output',
+                )
+            
+            # Start
+            thread_stdout.start()
+            thread_stderr.start()      
+            
+            # Store
+            self.agent2proc[agent_name] = proc
+            self.agent2thread_stdout[agent_name] = thread_stdout
+            self.agent2thread_stderr[agent_name] = thread_stderr
+    
+    def stop(self):
+        """Close ssh proc to agent"""
+        # Wait until it's had time to shut down naturally because we probably
+        # just sent the stop command
+        time.sleep(1)
+        
+        # Iterate over agents
+        for agent, proc in self.agent2proc.items():
+            # Poll to see if done
+            # TODO: do this until returncode
+            proc.poll()
+            
+            # Kill if needed
+            if proc.returncode is None:
+                self.logger.warning(
+                    f"ssh proc to {agent} didn't end naturally, killing")
+                
+                # Kill
+                proc.terminate()
+                
+                # Time to kill
+                time.sleep(.5)
+            
+            # Log
+            self.logger.info(
+                f'proc_ssh_to_agent returncode: {proc.returncode}')
+
 class Dispatcher:
     """Handles task logic
     
@@ -100,39 +247,6 @@ class Dispatcher:
             'goodbye': self.handle_goodbye,
             'alive': self.recv_alive,
             }
-        
-        
-        ## Start Agent
-        # https://stackoverflow.com/questions/76665310/python-run-subprocess-popen-with-timeout-and-get-stdout-at-runtime
-        self.proc_ssh_to_agent = subprocess.Popen(
-            ['ssh', '-tt', 'pi@192.168.0.101', 'bash', '-i', 'start_cli.sh'], 
-            stdin=subprocess.PIPE, 
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            universal_newlines=True,
-            )
-        
-        # Functions to capture output
-        # I think these are thread-safe because we're just writing out
-        # not reading them
-        def capture_stdout():
-            with open('stdout.output', 'w') as fi:
-                for line in iter(self.proc_ssh_to_agent.stdout.readline, ''):
-                    print('from ssh: ' + line.strip())
-                    fi.write(line)
-        
-        def capture_stderr():
-            with open('stderr.output', 'w') as fi:
-                for line in iter(self.proc_ssh_to_agent.stderr.readline, ''):
-                    print('from ssh STDERR: ' + line.strip())
-                    fi.write(line)
-                    
-        # Start threads to capture output
-        self.thread_ssh_to_agent_stdout = threading.Thread(target=capture_stdout)
-        self.thread_ssh_to_agent_stdout.start()
-        self.thread_ssh_to_agent_stderr = threading.Thread(target=capture_stderr)
-        self.thread_ssh_to_agent_stderr.start()        
 
     def reset_history(self):
         """Set all history variables to defaults
@@ -291,17 +405,7 @@ class Dispatcher:
         # Flag that it has started
         self.session_is_running = False
         
-        # Close ssh proc to agent
-        # Wait until it's had time to shut down naturally
-        time.sleep(1)
-        self.proc_ssh_to_agent.poll()
-        if self.proc_ssh_to_agent.returncode is None:
-            self.logger.warning("proc_ssh_to_agent didn't end naturally, killing")
-            self.proc_ssh_to_agent.terminate()
-            # Time to kill
-            time.sleep(.5)
-        self.logger.info(
-            f'proc_ssh_to_agent returncode: {self.proc_ssh_to_agent.returncode}')
+
         self.logger.info('done with stop_session')
 
         # We want to be able to process the final goodbye so commenting this 
