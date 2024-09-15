@@ -74,7 +74,7 @@ class PiMarshaller(object):
             with open(output_filename, 'w') as fi:
                 # Iterate through the lines in buff, with '' indicating
                 # that buff has closed
-                for line in iter(buff, ''):
+                for line in iter(buff.readline(), ''):
                     # Log the line
                     # TODO: make the loglevel configurable
                     logger.debug(
@@ -84,6 +84,9 @@ class PiMarshaller(object):
                     fi.write(line)  
         
         # Iterate over agents
+        self.agent2proc = {}
+        self.agent2thread_stdout = {}
+        self.agent2thread_stderr = {}
         for agent_name, ip_address in zip(self.agent_names, self.ip_addresses):
             self.logger.info(
                 f'starting ssh proc to {agent_name} at {ip_address}')
@@ -94,7 +97,7 @@ class PiMarshaller(object):
             # PIPE is used to collect data in threads
             # text, universal_newlines ensures we get text back
             proc = subprocess.Popen(
-                ['ssh', '-tt', f'pi@{ip_address}', 
+                ['ssh', '-tt', '-o', 'ConnectTimeout=2', f'pi@{ip_address}', 
                 'bash', '-i', self.shell_script], 
                 stdin=subprocess.PIPE, 
                 stdout=subprocess.PIPE,
@@ -102,6 +105,12 @@ class PiMarshaller(object):
                 text=True,
                 universal_newlines=True,
                 )
+            
+            time.sleep(.1)
+            proc.poll()
+            if proc.returncode is not None:
+                print(f'error, cannot start proc to {agent_name}')
+                continue
             
             # Start threads to capture output
             thread_stdout = threading.Thread(
@@ -111,7 +120,7 @@ class PiMarshaller(object):
                     'buff_name': 'stdout',
                     'agent_name': agent_name,
                     'logger': self.logger,
-                    'output_filename': f'{agent}_stdout.output',
+                    'output_filename': f'{agent_name}_stdout.output',
                     },
                 )
             
@@ -122,7 +131,7 @@ class PiMarshaller(object):
                     'buff_name': 'stderr',
                     'agent_name': agent_name,
                     'logger': self.logger,
-                    'output_filename': f'{agent}_stderr.output',
+                    'output_filename': f'{agent_name}_stderr.output',
                     },
                 )
             
@@ -261,6 +270,7 @@ class Dispatcher:
             agent_names=self.pi_names,
             ip_addresses=self.pi_ip_addresses,
             )
+        self.marshaller.start()
 
     def reset_history(self):
         """Set all history variables to defaults
