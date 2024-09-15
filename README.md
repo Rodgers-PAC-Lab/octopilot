@@ -1,44 +1,59 @@
 # Introduction
-This software controls the sound-seeking behavior used in the Rodgers PAC Lab. The user runs a GUI on the desktop computer to start the task and monitor progress. Each behavior box has four raspberry pis. The GUI connects to these pis over a wireless network. Generally, the GUI specifies the overall task parameters and logs the experimental results, while the individual pis control the task hardware.
+`octopilot` controls the sound-seeking behavior used in the Rodgers PAC Lab. 
 
-These are the main scripts that run the task
-* gui.py - Runs the GUI on the desktop computer
-* pi.py - Runs the task on each individual pi
-* gui/configs - Configuration files specifying the parameters of each box
-* pi/configs/pis - Configuration files for each pi
-* pi/configs/tasks - Configuration files for each task
-* pi/pokes, pi/sound - TODO Sukrith what are these files? - These were old toy example scripts that I left in the wrong directory. I shifted them to the old directory and made a separate branch that will have them in case we need them
-* pi/*.py - Old pi.py copy that I used for doc before making this branch. The one outside the directory in main is more recent. Merged some of the changes I made while docing in main 
-* old/ - TODO remove this (Done)
-* logs/ - Experimental logs TODO move these out of the repository
-* pi2/ - chris' version of scripts to run on pi, work in progress
+To use this software, `octopilot` must be running on a desktop PC and also on Rasperry Pis on the same wifi network. Each physical arena is controlled by four Raspberry Pis, and there can be multiple such arenas on the network. For each arena, the desktop PC instantiates an object called a `Dispatcher` which is controlled by either a GUI or a CLI. Each Pi instantiates an object called an `Agent` which is controlled by a CLI. The `Dispatcher` and `Agent` communicate over the wireless network to control the task for that arena. 
+
+# Structure of the repository
+These are the files within this repository.
+* gui/ - Python scripts to run the `Dispatcher` on the desktop PC. TODO: Rename this dispatcher, or similar.
+* pi/ - Python scripts to run the `Agent` on each Pi. TODO: rename this agent, or similar.
+* shared/ - Python scripts that are used by both `Dispatcher` and `Agent`
+* tests/ - Python scripts that test individual components
+* configs/ - JSON configuration files
+* logs/ - Log files for each session. TODO: move these out of the repository
+
+For further documentation on the files within these directories, see the __init__.py within each directory.
+
+For further documentation on the config files, see below.
 
 # Installation
-TODO add more detail here
+`octopilot` must be installed separately on the desktop and on each Pi.
 
 ## Requirements for GUI
-conda create --name paclab_sukrith
-conda activate paclab_sukrith
-conda install pyqt pyzmq pyqtgraph numpy pandas ipython
-pip install pyqt-toast-notification
+
+    conda create --name octopilot
+    conda activate octopilot
+    conda install pyqt pyzmq pyqtgraph numpy pandas ipython
+    pip install pyqt-toast-notification
 
 ## Requirements for Pi
-source ~/.venv/py3/bin/activate
-pip install pyzmq pigpio numpy pandas ipython
 
+    source ~/.venv/py3/bin/activate
+    pip install pyzmq pigpio numpy pandas ipython
+
+TODO: document jack installation better
 Jack Installation: https://jackclient-python.readthedocs.io/en/0.5.4/installation.html#requirements
 
-## Documentation for config files (pi/configs/pis/BOXNAME.json)
-Parameters for each pi in the behavior box
-* identity: The name of the pi (set according to its hostname)
-* gui_ip: The IP address of the computer that runs the GUI 
-* poke_port: The network port dedicated to receiving information about pokes
-* config_port: The network port used to send all the task parameters for any saved mouse
-  nosepoke_type (L/R): This parameter is to specify the type of nosepoke sensor. 
-  Nosepoke sensors are of two types OPB901L55 and OPB903L55 - 903 has an 
-  inverted rising edge/falling edge which means that the functions being 
-  called back to on the triggers need to be inverted.
-* nosepoke_id (L/R): The number assigned to the left and right ports of each pi 
+# Running `octopilot`
+On the desktop:
 
-## Documentation for pins (pi/configs/pins.json)
-* TODO
+    conda activate octopilot
+    python3 -m octopilot.gui.start_gui
+
+The present version will automatically connect to each Pi and start `octopilot` on each Pi. Alternatively you can start it on the Pi like this:
+
+    source ~/.venv/py3/bin/activate
+    python3 -m octopilot.pi.start_cli
+
+# Documentation for config files
+
+To run an experiment, you must specify the box, mouse, and task. In addition, the box specifies the four individual Pis that are connected.
+
+* The config file for the box named BOXNAME is located in `config/box/BOXNAME.json`. Example: the identity of the connected Pis and their orientation.
+* The config file for the mouse named MOUSENAME is located in `config/mouse/MOUSENAME.json`. Example: reward duration. 
+* The config file for the Pi named PINAME is located in `config/pi/PINAME.json`. Example: pin numbers and hardware parameters.
+* The config file for the task named TASKNAME is located in `config/task/TASKNAME.json`. Example: the range of possible sounds.
+
+TODO: move the information in pins.json into the individual pi config files.
+TODO: remove defaults.json
+
