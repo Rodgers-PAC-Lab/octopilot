@@ -179,20 +179,20 @@ class Dispatcher:
         
         Arguments
         ---------
-        box_params : dict
-            'worker_port': what zmq port to bind
-            'config_port': no longer used (?)
-            'save_directory'
-            'pi_defaults'
-            'task_configs'
-            'connected_pis' : list. Each item is a dict:
-                'name'
-                'left_port_name' : str
-                'right_port_name' : str
-                'left_port_position' : float (in degrees)
-                'right_port_position' : float (in degrees)
+        box_params : dict, parameters of the box
         task_params : dict, parameters of the task
         mouse_params : dict, parameters of the mouse
+        
+        Instance variables
+        ------------------
+        ports : list of port names (e.g., 'rpi27_L'
+        port positions: list of port angular positions (e.g., 90 for East)
+        pi_ip_addresses: list of Pi IP addresses
+        pi_names: list of Pi names (e.g., 'rpi27')
+        
+        The length of self.port_names and self.port_positions is double that
+        of self.pi_names and self.pi_ip_addresses, because each Pi has two 
+        ports.
         """
         ## Init logger
         self.logger = NonRepetitiveLogger("test")
@@ -219,16 +219,21 @@ class Dispatcher:
         self.task_params = task_params
 
         
-        ## Set up port labels and indices
-        # Keep track of which are actually active (mostly for debugging)
-        self.expected_identities = [
-            pi['name'] for pi in box_params['connected_pis']]
-        
-        # List of the connected port names
-        self.ports = []
+        ## Extrat the port names, pi names, and ip addresses from box_params
+        self.port_names = []
+        self.port_positions = []
+        self.pi_names = []
+        self.pi_ip_addresses = []
         for pi in box_params['connected_pis']:
-            self.ports.append(pi['left_port_name'])
-            self.ports.append(pi['right_port_name'])
+            # Name and position of each port
+            self.port_names.append(pi['left_port_name'])
+            self.port_names.append(pi['right_port_name'])
+            self.port_positions.append(pi['left_port_position'])
+            self.port_positions.append(pi['right_port_position'])
+            
+            # Name and IP address of each Pi
+            self.pi_ip_addresses.append(pi['ip_address'])
+            self.pi_names.append(pi['name'])
 
         # Initialize trial history (requires self.ports)
         self.reset_history()
@@ -236,8 +241,7 @@ class Dispatcher:
 
         ## Initialize network communicator and tell it what pis to expect
         self.network_communicator = DispatcherNetworkCommunicator(
-            box_params['worker_port'],
-            expected_identities=self.expected_identities,
+            pi_names=self.pi_names,
             )
         
         # What to do on each command
@@ -252,8 +256,10 @@ class Dispatcher:
         
         
         ## Start the Agents
-        # TODO: add IP addresses here from box_params
-        self.marshaller = PiMarshaller(agent_names=self.expected_identities)
+        self.marshaller = PiMarshaller(
+            agent_names=self.pi_names,
+            ip_addresses=self.pi_ip_addresses,
+            )
 
     def reset_history(self):
         """Set all history variables to defaults
@@ -272,7 +278,7 @@ class Dispatcher:
         self.history_of_pokes = {}
         self.history_of_rewarded_correct_pokes = {}
         self.history_of_rewarded_incorrect_pokes = {}
-        for port in self.ports:
+        for port in self.port_names:
             self.history_of_pokes[port] = []
             self.history_of_rewarded_correct_pokes[port] = []
             self.history_of_rewarded_incorrect_pokes[port] = []
@@ -333,7 +339,7 @@ class Dispatcher:
         # Setting up a new set of possible choices after omitting 
         # the previously rewarded port
         possible_rewarded_ports = [
-            port for port in self.ports 
+            port for port in self.port_names 
             if port != self.previously_rewarded_port] 
         
         # Randomly choosing within the new set of possible choices
@@ -442,7 +448,7 @@ class Dispatcher:
         if not self.network_communicator.check_if_all_pis_connected():
             self.logger.info(
                 'waiting for {} to connect; only {} connected'.format(
-                ', '.join(self.network_communicator.expected_identities),
+                ', '.join(self.network_communicator.pi_names),
                 ', '.join(self.network_communicator.connected_agents),
             ))
         
@@ -469,7 +475,7 @@ class Dispatcher:
                     # We're not all connnected
                     self.logger.info(
                         'waiting for {} to connect; only {} connected'.format(
-                        ', '.join(self.network_communicator.expected_identities),
+                        ', '.join(self.network_communicator.pi_names),
                         ', '.join(self.network_communicator.connected_agents),
                     ))
                     time.sleep(.2)

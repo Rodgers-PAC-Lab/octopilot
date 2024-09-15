@@ -27,7 +27,20 @@ def simple_json_loader(path):
     return params
 
 def load_box_params(box):
-    """Loads box params from `box.json` and returns"""
+    """Loads box params from `box.json` and returns
+    
+    The JSON has the following keys:
+    * connected_pis : list of dict with info about each connected Pi
+      Each entry has the following keys:
+        * name (str): Name of the Pi. Example: 'rpi26'
+        * ip_address (str): IP address of the Pi. Example: '192.168.0.101'
+        * left_port_name (str): Name of the Pi's left port. Example: rpi26_L
+        * right_port_name (str): Name of the Pi's right port. Example: rpi26_R
+        * left_port_position (numeric): Angular location in degrees of the 
+          left port within the box. Example: 90 means east, 270 means west
+        * right_port_position (numeric): Angular location in degrees of the 
+          right port within the box. Example: 90 means east, 270 means west
+    """
     # Constructing the full path to the config file
     full_path = os.path.join(config_path, 'box', box + '.json')
 

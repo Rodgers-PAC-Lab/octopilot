@@ -45,7 +45,7 @@ class ArenaWidget(QWidget):
         self.dispatcher = dispatcher
 
         # Add individual ports to the widget
-        self.create_layout(self.dispatcher.ports)
+        self.create_layout(self.dispatcher.port_names)
         
         # Create a timer and connect to self.update_time_elapsed
         self.timer_update = QTimer(self)
@@ -110,7 +110,7 @@ class ArenaWidget(QWidget):
     
     def update(self):
         """Update the colors of the circles"""
-        for port_idx, port_name in enumerate(self.dispatcher.ports):
+        for port_idx, port_name in enumerate(self.dispatcher.port_names):
             # Get circle
             nosepoke_circle = self.nosepoke_circles[port_idx]
             
@@ -335,10 +335,10 @@ class PokePlotWidget(QWidget):
         self.plot_widget.showGrid(x=True, y=True) 
         
         # Setting the range for the Y axis
-        self.plot_widget.setYRange(-0.5, len(self.dispatcher.ports))
+        self.plot_widget.setYRange(-0.5, len(self.dispatcher.port_names))
         
         # Set the ticks
-        ticks = list(enumerate(self.dispatcher.ports))
+        ticks = list(enumerate(self.dispatcher.port_names))
         self.plot_widget.getPlotItem().getAxis('left').setTicks([ticks, []])
 
     def initalize_plot_handles(self):
@@ -414,7 +414,7 @@ class PokePlotWidget(QWidget):
         yvals = []
         
         # Iterate over ports and get poke times from each
-        for n_port, port_name in enumerate(self.dispatcher.ports):
+        for n_port, port_name in enumerate(self.dispatcher.port_names):
             # Get poke times for this port
             this_poke_times = self.dispatcher.history_of_pokes[port_name]
             

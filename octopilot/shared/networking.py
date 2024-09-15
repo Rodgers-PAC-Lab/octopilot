@@ -132,16 +132,16 @@ def parse_params(token_l):
 ## Instantiated by Dispatcher
 class DispatcherNetworkCommunicator(object):
     """Handles communication with the Pis"""
-    def __init__(self, worker_port, expected_identities):
+    def __init__(self, pi_names):
         """Initialize object to communicate with the Pis.
         
         Arguments
         ---------
-        worker_port : str
-            Taken from params['worker_port']
         expected_identies : list of str
             Each entry is the identity of a Pi
             The session can't start until all expected identities connect
+        worker_port : int
+            The port to be used in initializing the socket.
         
         Flow
         ----
@@ -159,7 +159,7 @@ class DispatcherNetworkCommunicator(object):
 
         # Store provided params
         # This is who we expect to connect
-        self.expected_identities = expected_identities
+        self.pi_names = pi_names
 
         # Set of identities of all pis connected to that instance of ther GUI 
         self.connected_agents = set() 
@@ -168,28 +168,23 @@ class DispatcherNetworkCommunicator(object):
         self.command2method = {}
         
         # Set up sockets
-        self.init_socket(worker_port)
+        self.init_socket()
     
-    def init_socket(self, worker_port):
-        ## Set up ZMQ
-        # Setting up a ZMQ socket to send and receive information about 
-        # poked ports 
-        # (the DEALER socket on the Pi initiates the connection and then 
-        # the ROUTER 
-        # manages the message queue from different dealers and sends 
-        # acknowledgements)
+    def init_socket(self, port=5555):
+        """Initialize a ZMQ socket on port `port`.
+        
+        The ZMQ socket is a ROUTER on the desktop and a DEALER on the pi.
+        """
         self.context = zmq.Context()
         self.zmq_socket = self.context.socket(zmq.ROUTER)
-        
-        # Making it bind to the port used for sending poke related information
-        self.zmq_socket.bind(f"tcp://*{worker_port}")
+        self.zmq_socket.bind(f"tcp://*:{port}")
     
     def check_if_all_pis_connected(self):
         """"Returns True if all pis in self.expected_identies are connected"""
         # Iterate over identies
         # Return False if any is missing
         all_connected = True
-        for identity in self.expected_identities:
+        for identity in self.pi_names:
             if identity not in self.connected_agents:
                 all_connected = False
                 break
@@ -351,7 +346,7 @@ class DispatcherNetworkCommunicator(object):
         """
         if identity_str not in self.connected_agents:
             # A new Agent has made contact
-            if identity_str in self.expected_identities:
+            if identity_str in self.pi_names:
                 # It was expected, add it
                 self.logger.info(
                     f'received hello from {identity_str}, '
@@ -362,7 +357,7 @@ class DispatcherNetworkCommunicator(object):
                 self.logger.error(
                     f'received hello from {identity_str}, '
                     f'ignore because I only expect to connect to: '
-                    ' '.join(self.expected_identities))
+                    ' '.join(self.pi_names))
         
         else:
             # This Agent has already made contact
@@ -378,7 +373,7 @@ class DispatcherNetworkCommunicator(object):
         If it is from an expected agent: error
         Otherwise: error
         """
-        if identity_str in self.expected_identities:
+        if identity_str in self.pi_names:
             # This is a known agent, but it's not connected
             # TODO: call received_message_without_hello here
             self.logger.error(
