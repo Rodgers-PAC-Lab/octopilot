@@ -107,21 +107,23 @@ class PiMarshaller(object):
             thread_stdout = threading.Thread(
                 target=capture, 
                 kwargs={
-                'buff': proc.stdout, 
-                'buff_name': 'stdout',
-                'agent_name': agent_name,
-                'logger': self.logger,
-                'output_filename': f'{agent}_stdout.output',
+                    'buff': proc.stdout, 
+                    'buff_name': 'stdout',
+                    'agent_name': agent_name,
+                    'logger': self.logger,
+                    'output_filename': f'{agent}_stdout.output',
+                    },
                 )
             
             thread_stderr = threading.Thread(
                 target=capture, 
                 kwargs={
-                'buff': proc.stderr, 
-                'buff_name': 'stderr',
-                'agent_name': agent_name,
-                'logger': self.logger,
-                'output_filename': f'{agent}_stderr.output',
+                    'buff': proc.stderr, 
+                    'buff_name': 'stderr',
+                    'agent_name': agent_name,
+                    'logger': self.logger,
+                    'output_filename': f'{agent}_stderr.output',
+                    },
                 )
             
             # Start
