@@ -1,7 +1,9 @@
 """Functions to load parameters for this pi
 
-load_params : Load the configuration parameters
-load_pins : Load the pin numbers
+load_box_params : Load parameters for a box
+load_mouse_params : Load parameters for a mouse
+load_task_params : Load parameters for a task
+load_pi_params : Load parameters for a pi
 """
 
 import socket
@@ -31,10 +33,12 @@ def load_box_params(box):
     
     The JSON has the following keys:
     * port (int): The port number to connect to
+    * desktop_ip (str): IP address of the desktop PC running the GUI
+    * camera (str): name of the connected camera
     * connected_pis : list of dict with info about each connected Pi
       Each entry has the following keys:
         * name (str): Name of the Pi. Example: 'rpi26'
-        * ip_address (str): IP address of the Pi. Example: '192.168.0.101'
+        * ip (str): IP address of the Pi. Example: '192.168.0.101'
         * left_port_name (str): Name of the Pi's left port. Example: rpi26_L
             If missing, it will be replaced with `name` + '_L'
         * right_port_name (str): Name of the Pi's right port. Example: rpi26_R
@@ -82,26 +86,37 @@ def load_task_params(task):
     return simple_json_loader(full_path)
 
 def load_mouse_params(mouse):
-    """Loads mouse params from `mouse.json` and returns"""
+    """Loads mouse params from `mouse.json` and returns
+    
+    The JSON has the following keys:
+    * reward_value (numeric): The fraction of a default reward size that this
+        mouse should receive.
+    """
     # Constructing the full path to the config file
     full_path = os.path.join(config_path, 'mouse', mouse + '.json')
 
     # Load the parameters from the specified JSON file
     return simple_json_loader(full_path)
 
-def load_pi_params(verbose=False):
+def load_pi_params():
     """Loads pi params for this hostname and returns
     
     scoket.gethostname is used to get the hostname of this device, and then
     a matching json file for that hostname is sought.
     
     Returns: dict of parameters with keys
-        identity : str, name of rpi
-        gui_ip : str, IP address of GUI
-        poke_port : str, like ':5555'
-        config_port : str, like ':5556'
-        nosepokeL_type and nosepokeR_type : str, '901' or '903'
-        nosepokeL_id and nosepokR_id : int, nosepoke number (TODO: what is this?)    
+        box (str): Name of the box it's connected to (example: 'box1')
+            This must match a JSON file in octopilot/config/box/boxname.json
+            This is how the Pi knows what IP and port to connect to
+        left_nosepoke_type and right_nosepoke_type : str, '901' or '903'
+        left_nosepoke : pin number
+        right_nosepoke : pin number
+        left_solenoid : pin number
+        right_solenoid : pin number
+        left_led_red : pin number (similar for _green and _blue)
+        right_led_red : pin number (similar for _green and _blue)
+    
+    TODO: add defaults for some of the pins that never change.
     """
     # Get the hostname of this pi and use that as its name
     pi_name = socket.gethostname()
@@ -112,38 +127,4 @@ def load_pi_params(verbose=False):
     # Load the parameters from the specified JSON file
     params = simple_json_loader(full_path)
 
-    # verbose
-    if verbose:
-        dt_now = datetime.datetime.now().isoformat()
-        print('{} load_params.load_params_file: Loaded params:'.format(dt_now))
-        print(params)
-
     return params
-
-def load_pins(verbose=False):
-    """Load pin numbers
-
-    Returns : dict of pin numbers with the following keys
-        nosepoke_l
-        nosepoke_r
-        led_red_l
-        led_red_r
-        led_green_l
-        led_green_r
-        led_blue_l
-        led_blue_r
-        solenoid_l
-        solenoid_r
-    
-    Each value is an int
-    """
-    pin_directory = f"/home/pi/dev/paclab_sukrith/config/pins.json"
-    with open(pin_directory, "r") as n:
-        pins = json.load(n)
-
-    if verbose:
-        dt_now = datetime.datetime.now().isoformat()
-        print('{} load_params.load_pins: Loaded pins:'.format(dt_now))
-        print(pins)
-
-    return pins

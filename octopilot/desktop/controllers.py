@@ -232,7 +232,7 @@ class Dispatcher:
             self.port_positions.append(pi['right_port_position'])
             
             # Name and IP address of each Pi
-            self.pi_ip_addresses.append(pi['ip_address'])
+            self.pi_ip_addresses.append(pi['ip'])
             self.pi_names.append(pi['name'])
 
         # Initialize trial history (requires self.ports)

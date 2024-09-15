@@ -55,7 +55,4 @@ To run an experiment, you must specify the box, mouse, and task. In addition, th
 * The config file for the Pi named PINAME is located in `config/pi/PINAME.json`. Example: pin numbers and hardware parameters.
 * The config file for the task named TASKNAME is located in `config/task/TASKNAME.json`. Example: the range of possible sounds.
 
-TODO: move the information in pins.json into the individual pi config files.
-
-TODO: remove defaults.json
-
+The params in each of these files are documented in octopilot/shared/load_params.py
