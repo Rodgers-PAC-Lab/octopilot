@@ -12,7 +12,7 @@ These are the files within this repository.
 * configs/ - JSON configuration files
 * logs/ - Log files for each session. TODO: move these out of the repository
 
-For further documentation on the files within these directories, see the __init__.py within each directory.
+For further documentation on the files within these directories, see the `__init__.py` within each directory.
 
 For further documentation on the config files, see below.
 
@@ -32,6 +32,7 @@ For further documentation on the config files, see below.
     pip install pyzmq pigpio numpy pandas ipython
 
 TODO: document jack installation better
+
 Jack Installation: https://jackclient-python.readthedocs.io/en/0.5.4/installation.html#requirements
 
 # Running `octopilot`
@@ -55,5 +56,6 @@ To run an experiment, you must specify the box, mouse, and task. In addition, th
 * The config file for the task named TASKNAME is located in `config/task/TASKNAME.json`. Example: the range of possible sounds.
 
 TODO: move the information in pins.json into the individual pi config files.
+
 TODO: remove defaults.json
 
