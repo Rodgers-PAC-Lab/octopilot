@@ -1,6 +1,0 @@
-Experiment Started!
-Reward Port: 3
-Connected to Raspberry Pi: rpi27
-Unknown message: rpi27
-Connected to Raspberry Pi: rpi26
-Unknown message: rpi26
