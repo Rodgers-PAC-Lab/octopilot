@@ -4,10 +4,16 @@
     "camera": "",
     "connected_pis" : [
         {
-        "name": "rpi26",
-        "ip": "192.168.0.101",
-        "left_port_position": 270,
-        "right_port_position": 90
+            "name": "rpi27",
+            "ip": "192.168.0.101",
+            "left_port_position": 180,
+            "right_port_position": 270
+        },
+        {
+            "name": "rpi28",
+            "ip": "192.168.0.102",
+            "left_port_position": 0,
+            "right_port_position": 90
         }
     ]    
 }
