@@ -30,12 +30,15 @@ def load_box_params(box):
     """Loads box params from `box.json` and returns
     
     The JSON has the following keys:
+    * port (int): The port number to connect to
     * connected_pis : list of dict with info about each connected Pi
       Each entry has the following keys:
         * name (str): Name of the Pi. Example: 'rpi26'
         * ip_address (str): IP address of the Pi. Example: '192.168.0.101'
         * left_port_name (str): Name of the Pi's left port. Example: rpi26_L
+            If missing, it will be replaced with `name` + '_L'
         * right_port_name (str): Name of the Pi's right port. Example: rpi26_R
+            If missing, it will be replaced with `name` + '_R'
         * left_port_position (numeric): Angular location in degrees of the 
           left port within the box. Example: 90 means east, 270 means west
         * right_port_position (numeric): Angular location in degrees of the 
@@ -45,7 +48,30 @@ def load_box_params(box):
     full_path = os.path.join(config_path, 'box', box + '.json')
 
     # Load the parameters from the specified JSON file
-    return simple_json_loader(full_path)
+    params = simple_json_loader(full_path)
+    
+    # Ensure 'connected_pis' is present
+    if 'connected_pis' not in params:
+        raise IOError(
+            f'box params at {full_path} is missing entry "connected_pis"')
+    
+    # Set defaults
+    for pi_params in params['connected_pis']:
+        # Ensure 'name' is present
+        if 'name' not in pi_params:
+            raise IOError(
+                f'box params at {full_path} is missing entry "name" '
+                f'in pi {pi_params}')
+        
+        # Set default left_port_name
+        if 'left_port_name' not in pi_params:
+            pi_params['left_port_name'] = pi_params['name'] + '_L'
+        
+        # Set default right_port_name
+        if 'right_port_name' not in pi_params:
+            pi_params['right_port_name'] = pi_params['name'] + '_R'
+    
+    return params
 
 def load_task_params(task):
     """Loads task params from `task.json` and returns"""

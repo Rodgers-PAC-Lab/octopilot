@@ -242,6 +242,7 @@ class Dispatcher:
         ## Initialize network communicator and tell it what pis to expect
         self.network_communicator = DispatcherNetworkCommunicator(
             pi_names=self.pi_names,
+            port=box_params['port'],
             )
         
         # What to do on each command

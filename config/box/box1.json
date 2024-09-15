@@ -1,12 +1,11 @@
 {
+    "port": 5551,
     "connected_pis" : [
         {
         "name": "rpi26",
         "ip_address": "192.168.0.101",
-        "left_port_name": "rpi26_L",
-        "right_port_name": "rpi26_R",
-        "right_port_position": 90,
-        "left_port_position": 270
+        "left_port_position": 270,
+        "right_port_position": 90
         }
     ]    
 }

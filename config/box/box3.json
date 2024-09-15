@@ -1,18 +1,32 @@
 {
-    "worker_port" : ":5557",
-    "config_port" : ":5558",
-    "active_nosepokes" : ["1", "2", "3", "4", "5", "6", "7", "8"],
-    "save_directory" : "/home/mouse/dev/paclab_sukrith/logs",
-    "pi_defaults" : "/home/mouse/dev/paclab_sukrith/pi/configs/defaults.json",
-    "task_configs" : "/home/mouse/dev/paclab_sukrith/pi/configs/tasks",
-    "ports": [
-        {"index": 0, "label": "4"},
-        {"index": 1, "label": "5"},
-        {"index": 2, "label": "6"},
-        {"index": 3, "label": "7"},
-        {"index": 4, "label": "8"},
-        {"index": 5, "label": "1"},
-        {"index": 6, "label": "2"},
-        {"index": 7, "label": "3"}
-    ]
+    "port": 5553,
+    "camera": "e3v8303",
+    "connected_pis" : [
+        {
+        "name": "rpi09",
+        "ip_address": "192.168.11.209",
+        "left_port_position": 315,
+        "right_port_position": 0
+        },
+        {
+        "name": "rpi10",
+        "ip_address": "192.168.11.210",
+        "left_port_position": 45,
+        "right_port_position": 90
+        },
+        {
+        "name": "rpi11",
+        "ip_address": "192.168.11.211",
+        "left_port_position": 135,
+        "right_port_position": 180
+        },
+        {
+        "name": "rpi12",
+        "ip_address": "192.168.11.212",
+        "left_port_position": 225,
+        "right_port_position": 270
+        }
+    ]    
 }
+
+

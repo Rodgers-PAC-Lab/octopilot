@@ -132,7 +132,7 @@ def parse_params(token_l):
 ## Instantiated by Dispatcher
 class DispatcherNetworkCommunicator(object):
     """Handles communication with the Pis"""
-    def __init__(self, pi_names):
+    def __init__(self, pi_names, port):
         """Initialize object to communicate with the Pis.
         
         Arguments
@@ -140,7 +140,7 @@ class DispatcherNetworkCommunicator(object):
         expected_identies : list of str
             Each entry is the identity of a Pi
             The session can't start until all expected identities connect
-        worker_port : int
+        port : int
             The port to be used in initializing the socket.
         
         Flow
@@ -168,9 +168,9 @@ class DispatcherNetworkCommunicator(object):
         self.command2method = {}
         
         # Set up sockets
-        self.init_socket()
+        self.init_socket(port)
     
-    def init_socket(self, port=5555):
+    def init_socket(self, port):
         """Initialize a ZMQ socket on port `port`.
         
         The ZMQ socket is a ROUTER on the desktop and a DEALER on the pi.
