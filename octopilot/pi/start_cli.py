@@ -9,6 +9,10 @@ from . import agent
 ## Loading parameters of this Pi
 params = load_params.load_pi_params()
 
+# Load params of the corresponding box, to get the desktop IP
+box_params = load_params.load_box_params(params['box'])
+params['gui_ip'] = box_params['desktop_ip']
+
 
 ## Handle daemons
 # Kill any pre-existing pigpiod and jackd
