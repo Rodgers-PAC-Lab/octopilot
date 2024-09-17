@@ -6,9 +6,8 @@ from ..shared import load_params
 from . import agent
 
 
-## LOADING PARAMETERS FOR THE PI 
-params = load_params.load_pi_params(verbose=False)
-pins = load_params.load_pins(verbose=False)
+## Loading parameters of this Pi
+params = load_params.load_pi_params()
 
 
 ## Handle daemons
@@ -23,7 +22,7 @@ jackd_proc = daemons.start_jackd(verbose=True)
 
 ## Start the main loop
 try:
-    hc = agent.Agent(pins=pins, params=params, start_networking=True)
+    hc = agent.Agent(params=params, start_networking=True)
     hc.main_loop()
 except:
     raise

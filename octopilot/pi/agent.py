@@ -36,25 +36,14 @@ class Agent(object):
     SoundQueuer at the beginning of each trial, and to tell SoundQueuer
     when to stop at the end of the trial.
     """
-    def __init__(self, pins, params, start_networking=True, dummy_sound_queuer=False):
+    def __init__(self, params, start_networking=True, dummy_sound_queuer=False):
         """Initialize a new Agent
         
         Arguments
         ---------
-        pins : dict
-            Data about pin numbers. Loaded from a pins json. 
-            Keys:
-                left_nosepoke, right_nosepoke : input pin for poke
-                left_led_{red|green|blue}, right_led_{red|green|blue}:
-                    LED output pins
-                left_solenoid, right_solenoid : solenoid output pins
-                TODO: are these BOARD or BCM?
         params : dict
-            Data about pi parameters. Loaded from a params json. 
-            Keys:
-                identity : str
-                    The name of this pi. Must match what the GUI is waiting for.
-            TODO: document rest of keys
+            Data about pi parameters. For documentation, see 
+            ..shared.load_params.load_pi_params
         start_networking : bool
             If False, don't use any networking
             This would mainly be useful in setting up a new task without
@@ -74,7 +63,6 @@ class Agent(object):
         
         ## Set attributes
         # Store received parameters
-        self.pins = pins
         self.params = params
 
         # Set up pigpio
@@ -143,24 +131,24 @@ class Agent(object):
         self.left_nosepoke = hardware.Nosepoke(
             name=self.left_port_name,
             pig=self.pig,
-            poke_pin=self.pins['left_nosepoke'], 
+            poke_pin=self.params['left_nosepoke'], 
             poke_sense=True, 
-            solenoid_pin=self.pins['left_solenoid'],
-            red_pin=self.pins['left_led_red'], 
-            green_pin=self.pins['left_led_green'], 
-            blue_pin=self.pins['left_led_blue'], 
+            solenoid_pin=self.params['left_solenoid'],
+            red_pin=self.params['left_led_red'], 
+            green_pin=self.params['left_led_green'], 
+            blue_pin=self.params['left_led_blue'], 
             )
         
         # Init right_nosepoke
         self.right_nosepoke = hardware.Nosepoke(
             name=self.right_port_name,
             pig=self.pig,
-            poke_pin=self.pins['right_nosepoke'], 
+            poke_pin=self.params['right_nosepoke'], 
             poke_sense=True, 
-            solenoid_pin=self.pins['right_solenoid'],
-            red_pin=self.pins['right_led_red'], 
-            green_pin=self.pins['right_led_green'], 
-            blue_pin=self.pins['right_led_blue'], 
+            solenoid_pin=self.params['right_solenoid'],
+            red_pin=self.params['right_led_red'], 
+            green_pin=self.params['right_led_green'], 
+            blue_pin=self.params['right_led_blue'], 
             )            
 
         # Autopoke
