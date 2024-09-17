@@ -3,7 +3,7 @@
 Presently the only agent that is defined is PiController. This object
 is instantiated on the Pi by either the CLI or GUI. Its job is to run
 the task on the Pi side. It contains objects to play sounds (SoundPlayer,
-SoundQueuer, SoundChooser, etc), to control hardware (Nosepoke, etc),
+SoundQueuer, SoundGenerator, etc), to control hardware (Nosepoke, etc),
 and to talk to the Dispatcher agent running on the desktop
 (NetworkCommunicator). 
 
@@ -91,17 +91,17 @@ class Agent(object):
         self.critical_shutdown = False
         
 
-        ## Initialize sound_chooser
+        ## Initialize sound_generator
         # This object generates frames of audio
         # We need to have it ready to go before initializing the sound queuer
         # TODO: tell daemons.py to use the params for this pi
-        self.sound_chooser = sound.SoundChooser_IntermittentBursts(
+        self.sound_generator = sound.SoundGenerator_IntermittentBursts(
             blocksize=1024,
             fs=192000,
             )
         
         # Set
-        self.sound_chooser.set_audio_parameters(
+        self.sound_generator.set_audio_parameters(
             left_params={'silenced': True}, 
             right_params={'silenced': True},
             )
@@ -110,7 +110,7 @@ class Agent(object):
         ## Initialize sound_queuer
         # This object uses those frames to top up sound_player
         self.sound_queuer = sound.SoundQueuer(
-            sound_chooser=self.sound_chooser)
+            sound_generator=self.sound_generator)
         
         # Fill the queue before we instantiate sound_player
         self.sound_queuer.append_sound_to_queue_as_needed()
@@ -286,7 +286,7 @@ class Agent(object):
         
         # Use those params to set the new sounds
         self.logger.info(f'setting audio parameters: {left_params} {right_params}')
-        self.sound_chooser.set_audio_parameters(left_params, right_params)
+        self.sound_generator.set_audio_parameters(left_params, right_params)
         
         # Empty and refill the queue with new sounds
         self.sound_queuer.empty_queue()
@@ -349,7 +349,7 @@ class Agent(object):
             self.alive_timer.stop()
 
         # Silence sound generation
-        self.sound_chooser.set_audio_parameters(
+        self.sound_generator.set_audio_parameters(
             left_params={'silenced': True},
             right_params={'silenced': True},
             )
@@ -395,7 +395,7 @@ class Agent(object):
         # TODO: open valve here
         
         # Silence sound generation
-        self.sound_chooser.set_audio_parameters(
+        self.sound_generator.set_audio_parameters(
             left_params={'silenced': True},
             right_params={'silenced': True},
             )
