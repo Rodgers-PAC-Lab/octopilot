@@ -96,8 +96,8 @@ class Agent(object):
         # We need to have it ready to go before initializing the sound queuer
         # TODO: tell daemons.py to use the params for this pi
         self.sound_chooser = sound.SoundChooser_IntermittentBursts(
-            blocksize=self.params['jack_blocksize'],
-            fs=self.params['jack_sample_rate'],
+            blocksize=1024,
+            fs=192000,
             )
         
         # Set
