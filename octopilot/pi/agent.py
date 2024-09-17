@@ -166,7 +166,6 @@ class Agent(object):
             # This will also connect to the Dispatcher
             self.network_communicator = PiNetworkCommunicator(
                 identity=self.identity, 
-                pi_identity=self.identity, 
                 gui_ip=self.params['gui_ip'], 
                 poke_port=self.params['poke_port'], 
                 config_port=self.params['config_port'],
