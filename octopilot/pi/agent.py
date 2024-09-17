@@ -14,6 +14,7 @@ object. Other objects should be mostly agnostic to the task rules.
 
 import datetime
 import logging
+import socket
 import time
 import pigpio
 from . import hardware
@@ -69,10 +70,11 @@ class Agent(object):
         # Initialize a pig to use
         self.pig = pigpio.pi()
 
+        # Name self by hostname
+        self.identity = socket.gethostname()
+
         # Name my ports
-        # Currently this is hardcoded. Otherwise it would have to be matched
-        # with the port names in the gui config
-        self.identity = self.params['identity']
+        # Currently this is hardcoded here and in load_params.load_box_params
         self.left_port_name = f'{self.identity}_L'
         self.right_port_name = f'{self.identity}_R'
 
