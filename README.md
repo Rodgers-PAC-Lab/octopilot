@@ -28,12 +28,26 @@ For further documentation on the config files, see below.
 
 ## Requirements for Pi
 
-    source ~/.venv/py3/bin/activate
-    pip install pyzmq pigpio numpy pandas ipython
+Create a virtual environment called `octopilot`.
 
-TODO: document jack installation better
+    mkdir ~/.venv
+    virtualenv ~/.venv/octopilot
 
-Jack Installation: https://jackclient-python.readthedocs.io/en/0.5.4/installation.html#requirements
+Activate that venv.
+
+    source ~/.venv/octopilot/bin/activate 
+
+Install dependencies
+
+    sudo apt install jackd # say yes if it asks about real-time priority
+    pip install pyzmq pigpio numpy pandas ipython scipy JACK-Client
+
+Reboot after install jackd. For more info about installing jack: https://jackclient-python.readthedocs.io/en/0.5.4/installation.html#requirements
+
+Install octopilot
+
+    cd ~/dev/octopilot
+    pip install -e .
 
 # Running `octopilot`
 On the desktop:
