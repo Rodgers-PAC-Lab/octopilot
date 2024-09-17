@@ -175,13 +175,24 @@ class Noise:
             padded_sound[start_sample:start_sample + self.blocksize, :] 
             for start_sample in start_samples]
 
-class SoundChooser_IntermittentBursts(object):
-    """Determines the sounds to play on this trial and loads a sound_cycle
+class SoundGenerator_IntermittentBursts(object):
+    """Creates the frames of audio to play, given acoustic parameters.
     
-    This object should know about the audio logic of the task (e.g.,
-    what center frequencies to play). It shouldn't have to worry about 
-    real-time issues like loading sounds into a queue. It just has to set
-    up sound_cycle once.
+    Upstream objects should decide the parameters of the sounds to play
+    (e.g., center frequency, repetition rate, etc). This object uses those
+    parameters to generate actual audio samples to play on left and right
+    channels. A downstream `SoundQueuer` object will pull frames of audio 
+    from this object using its `__next__` method. 
+    
+    Currently, this is implemented internally using an itertools.cycle object.
+    This allows us to generate a fixed duration of audio once, but to loop
+    through it forever. 
+    
+    This object will only generate audio that is a sequence of intermittent
+    bursts of bandpass-filtered white noise (the `Noise` object) separated
+    by gaps of silence. If other types of audio are desired, probably we
+    need to create a new `SoundGenerator`, but right now I'm not sure what
+    that would be.
     
     Methods
     -------
@@ -460,13 +471,13 @@ class SoundQueuer:
         Frames are taken from sound_cycle and put into sound_queue as needed,
         and then they are removed from sound_queue by jack.Client
     """
-    def __init__(self, sound_chooser):
+    def __init__(self, sound_generator):
         # This object must provide cycle_of_audio_frames
-        self.sound_chooser = sound_chooser
+        self.sound_generator = sound_generator
         
         # Initializing queue
         # This object will keep sound_queue topped up with frames from
-        # self.sound_chooser
+        # self.sound_generator
         self.sound_queue = collections.deque()
         
         # Each block/frame is about 5 ms
@@ -493,7 +504,7 @@ class SoundQueuer:
         # TODO: append 10 extra frames, for a bit of stickiness
         while qsize < self.target_qsize:
             # Add a frame from the sound cycle
-            frame = next(self.sound_chooser)
+            frame = next(self.sound_generator)
             self.sound_queue.appendleft(frame)
             
             # Update qsize
