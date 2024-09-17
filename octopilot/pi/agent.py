@@ -167,8 +167,7 @@ class Agent(object):
             self.network_communicator = PiNetworkCommunicator(
                 identity=self.identity, 
                 gui_ip=self.params['gui_ip'], 
-                poke_port=self.params['poke_port'], 
-                config_port=self.params['config_port'],
+                port=self.params['zmq_port'], 
                 )
             
             # Set up hooks

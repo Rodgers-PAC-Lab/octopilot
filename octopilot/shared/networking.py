@@ -132,7 +132,7 @@ def parse_params(token_l):
 ## Instantiated by Dispatcher
 class DispatcherNetworkCommunicator(object):
     """Handles communication with the Pis"""
-    def __init__(self, pi_names, port):
+    def __init__(self, pi_names, zmq_port):
         """Initialize object to communicate with the Pis.
         
         Arguments
@@ -140,13 +140,13 @@ class DispatcherNetworkCommunicator(object):
         expected_identies : list of str
             Each entry is the identity of a Pi
             The session can't start until all expected identities connect
-        port : int
+        zmq_port : int
             The port to be used in initializing the socket.
         
         Flow
         ----
         * Create context and socket using zmq.ROUTER
-        * Bind to tcp://*{worker_port}
+        * Bind to tcp://*{zmq_port}
         * Initialize empty self.connected_agents
         """
         ## Init logger
@@ -168,16 +168,16 @@ class DispatcherNetworkCommunicator(object):
         self.command2method = {}
         
         # Set up sockets
-        self.init_socket(port)
+        self.init_socket(zmq_port)
     
-    def init_socket(self, port):
-        """Initialize a ZMQ socket on port `port`.
+    def init_socket(self, zmq_port):
+        """Initialize a ZMQ socket on port `zmq_port`.
         
         The ZMQ socket is a ROUTER on the desktop and a DEALER on the pi.
         """
         self.context = zmq.Context()
         self.zmq_socket = self.context.socket(zmq.ROUTER)
-        self.zmq_socket.bind(f"tcp://*:{port}")
+        self.zmq_socket.bind(f"tcp://*:{zmq_port}")
     
     def check_if_all_pis_connected(self):
         """"Returns True if all pis in self.expected_identies are connected"""
@@ -416,7 +416,7 @@ class PiNetworkCommunicator(object):
         sockets with it
     set_up_poke_socket : Creates sockets and connects to the GUI
     """
-    def __init__(self, identity, gui_ip, poke_port, config_port):
+    def __init__(self, identity, gui_ip, zmq_port):
         """Init a new NetworkCommunicator
         
         This object will communicate with the GUI using a DEALER socket called
@@ -429,8 +429,7 @@ class PiNetworkCommunicator(object):
         identity : str
         gui_ip : str
             IP address of GUI
-        poke_port : str
-        config_port : str
+        zmq_port : int
         
         Flow
         ----
@@ -439,9 +438,8 @@ class PiNetworkCommunicator(object):
         """
         ## Store required arguments
         self.gui_ip = gui_ip
-        self.poke_port = poke_port
+        self.zmq_port = zmq_port
         self.identity = identity
-        self.config_port = config_port
         
 
         ## Init logger
@@ -498,7 +496,7 @@ class PiNetworkCommunicator(object):
 
         ## Connect to the server
         # Connecting to the GUI IP address stored in params
-        self.router_ip = "tcp://" + f"{self.gui_ip}" + f"{self.poke_port}" 
+        self.router_ip = f"tcp://{self.gui_ip}:{self.zmq_port}"
         self.poke_socket.connect(self.router_ip) 
 
         # Print acknowledgment

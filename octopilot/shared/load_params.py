@@ -39,6 +39,8 @@ def load_box_params(box):
       Each entry has the following keys:
         * name (str): Name of the Pi. Example: 'rpi26'
         * ip (str): IP address of the Pi. Example: '192.168.0.101'
+        * zmq_port (int) : What ZMQ port to connect to
+            All Pis should connect to the same ZMQ port
         * left_port_name (str): Name of the Pi's left port. Example: rpi26_L
             If missing, it will be replaced with `name` + '_L'
         * right_port_name (str): Name of the Pi's right port. Example: rpi26_R
@@ -107,7 +109,7 @@ def load_pi_params():
     Returns: dict of parameters with keys
         box (str): Name of the box it's connected to (example: 'box1')
             This must match a JSON file in octopilot/config/box/boxname.json
-            This is how the Pi knows what IP and port to connect to
+            This is how the Pi knows what IP to connect to
         left_nosepoke_type and right_nosepoke_type : str, '901' or '903'
         left_nosepoke : pin number
         right_nosepoke : pin number
