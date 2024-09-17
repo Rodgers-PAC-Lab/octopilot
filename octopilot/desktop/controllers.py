@@ -17,7 +17,9 @@ class PiMarshaller(object):
     """Connects to each Pi over SSH and starts the Agent.
     
     """
-    def __init__(self, agent_names, ip_addresses, shell_script='start_cli.sh'):
+    def __init__(
+        self, agent_names, ip_addresses, 
+        shell_script='/home/pi/dev/octopilot/octopilot/pi/start_cli.sh'):
         """Init a new PiMarshaller to connect to each in `ip_addresses`.
         
         agent_names : list of str
@@ -32,7 +34,7 @@ class PiMarshaller(object):
         sh = logging.StreamHandler()
         sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
         self.logger.addHandler(sh)
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(logging.DEBUG)
         
         # Save arguments
         self.agent_names = agent_names
@@ -74,7 +76,7 @@ class PiMarshaller(object):
             with open(output_filename, 'w') as fi:
                 # Iterate through the lines in buff, with '' indicating
                 # that buff has closed
-                for line in iter(buff.readline(), ''):
+                for line in iter(buff.readline, ''):
                     # Log the line
                     # TODO: make the loglevel configurable
                     logger.debug(
