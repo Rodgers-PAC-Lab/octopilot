@@ -416,7 +416,7 @@ class PiNetworkCommunicator(object):
         sockets with it
     set_up_poke_socket : Creates sockets and connects to the GUI
     """
-    def __init__(self, identity, pi_identity, gui_ip, poke_port, config_port):
+    def __init__(self, identity, gui_ip, poke_port, config_port):
         """Init a new NetworkCommunicator
         
         This object will communicate with the GUI using a DEALER socket called
@@ -427,8 +427,6 @@ class PiNetworkCommunicator(object):
         Arguments
         ---------
         identity : str
-        pi_identity : str
-            TODO: how does this differ from identity?
         gui_ip : str
             IP address of GUI
         poke_port : str
@@ -440,7 +438,6 @@ class PiNetworkCommunicator(object):
         * Set up self.poller and register the scokets.
         """
         ## Store required arguments
-        self.pi_identity = pi_identity
         self.gui_ip = gui_ip
         self.poke_port = poke_port
         self.identity = identity
@@ -473,8 +470,8 @@ class PiNetworkCommunicator(object):
         
         Flow
         * Create self.poke_context and self.poke_socket (a zmq.DEALER).
-          Identity of self.poke_socket is self.pi_identity
-          TODO: what does 'identity' of a socket do?
+          Identity of self.poke_socket is self.identity
+          The socket's "identity" will be reported to the ROUTER
         * Connect to the router IP by combining GUI IP with poke_port
         * Send our identity to the GUI, which also adds this pi to the GUI's
           list of known identities.
@@ -488,7 +485,7 @@ class PiNetworkCommunicator(object):
         self.poke_socket = self.poke_context.socket(zmq.DEALER)
 
         # Setting the identity of the socket in bytes
-        self.poke_socket.identity = bytes(f"{self.pi_identity}", "utf-8") 
+        self.poke_socket.identity = bytes(f"{self.identity}", "utf-8") 
 
         # Set LINGER to 100 ms
         # During context.term(), this is how long it will wait to send 

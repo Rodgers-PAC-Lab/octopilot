@@ -165,8 +165,8 @@ class Agent(object):
             # Instantiates self.network_communicator
             # This will also connect to the Dispatcher
             self.network_communicator = PiNetworkCommunicator(
-                identity=self.params['identity'], 
-                pi_identity=self.params['identity'], 
+                identity=self.identity, 
+                pi_identity=self.identity, 
                 gui_ip=self.params['gui_ip'], 
                 poke_port=self.params['poke_port'], 
                 config_port=self.params['config_port'],
