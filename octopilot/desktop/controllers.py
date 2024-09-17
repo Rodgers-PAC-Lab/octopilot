@@ -176,6 +176,28 @@ class PiMarshaller(object):
             self.logger.info(
                 f'proc_ssh_to_agent returncode: {proc.returncode}')
 
+class TrialParameterChooser(object):
+    """Chooses the parameters of each trial.
+    
+    Methods
+    -------
+    * __init__ : Initialize with the range of parameters that are possible
+        on each trial.
+    * choose : Return the parameters for a single trial.
+    """
+    def __init__(self, param_ranges):
+        """Init new object that will choose from range `param_ranges`
+        
+        """
+        pass
+    
+    def choose(self):
+        """Return parameters for one trial
+        
+        """
+        pass
+    
+
 class Dispatcher:
     """Handles task logic
     
