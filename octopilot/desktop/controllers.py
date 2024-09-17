@@ -44,6 +44,9 @@ class PiMarshaller(object):
     def start(self):
         """Open an ssh connection each Agent in self.agent_names
         
+        TODO: provide a handle that is called whenever the ssh proc closes,
+        especially unexpectedly.
+        
         Flow
         * For each agent:
             * A Popen is used to maintain the ssh connection in the background
