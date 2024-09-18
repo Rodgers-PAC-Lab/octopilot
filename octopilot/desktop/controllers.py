@@ -185,6 +185,82 @@ class TrialParameterChooser(object):
         on each trial.
     * choose : Return the parameters for a single trial.
     """
+    @classmethod
+    def from_task_params(self, port_names, task_params):
+        """Construct from the kind of data in the task json
+        
+        This class method is a convenience method to initialize a 
+        TrialParameterChooser. For every parameter that can be ranged, it
+        identifies whether it's stored as a fixed value or a range in 
+        task_params. In either case it sets up the arguments for 
+        TrialParameterChooser in the expected format, a dict with the keys
+        min, max, and n_choices. 
+        
+        All other items in task_params are forwarded to TrialParameterChooser
+        unchanged. Generally, task_params should specify play_targets 
+        and play_distracters as True or False.
+        
+        Arguments
+        ---------
+        port_names: see __init__
+        task_params : dict from load_params.load_task_params
+        """
+        # Identify whether these have ranges
+        ranged_params = [
+            'target_rate',
+            'target_temporal_log_std',
+            'target_center_freq',
+            'target_log_amplitude',
+            'target_radius',
+            'distracter_rate',
+            'distracter_temporal_log_std',
+            'distracter_center_freq',
+            'distracter_log_amplitude',
+            'n_distracters',
+            ]
+        
+        # Iterate over ranged_params and extract each
+        kwargs = {}
+        for param in ranged_params:
+            rangeval = {}
+            
+            if param in task_params:
+                # It's fixed at this value
+                assert param + '_min' not in task_params
+                assert param + '_max' not in task_params
+                assert param + '_n_choices' not in task_params
+                
+                rangeval['min'] = task_params.pop(param)
+                rangeval['max'] = rangeval['min']
+                rangeval['n_choices'] = 1
+            
+            elif param + '_min' in task_params:
+                # It's specified as a range
+                assert param + '_max' in task_params
+                assert param + '_n_choices' in task_params
+                
+                rangeval['min'] = task_params.pop(param + '_min')
+                rangeval['max'] = task_params.pop(param + '_max')
+                rangeval['n_choices'] = task_params.pop(param + '_n_choices')
+        
+            else:
+                # It's not specified in task_params
+                # This is fine, it will be left blank in kwargs, and handled
+                # in TrialParameterChooser
+                continue
+        
+            # Store in kwargs
+            kwargs['range_' + param] = rangeval
+        
+        # Transfer any remaining items in task_params to kwargs
+        # This includes: play_targets, play_distracters, and reward_radius,
+        # none of which are ranged
+        for key, val in task_params.items():
+            kwargs[key] = val
+        
+        # Return
+        return TrialParameterChooser(port_names, **kwargs)
+    
     def __init__(self,
         port_names,
         reward_radius=0,
@@ -266,7 +342,7 @@ class TrialParameterChooser(object):
             'distracter_center_freq': range_distracter_center_freq,
             'distracter_log_amplitude': range_distracter_log_amplitude,
             'n_distracters': range_n_distracters,
-            ]
+            }
         
         # If play_target is False, remove the target ones
         if self.play_targets == False:
@@ -336,7 +412,8 @@ class TrialParameterChooser(object):
         * All target-related parameters are unset if not self.play_targets
         * All distracter-related params are unset if not self.play_distracters
         
-        Returns: trial_parameters, port_parameters
+        Returns: goal_port, trial_parameters, port_parameters
+            goal_port : str, the name of the goal port
             trial_parameters : dict, param name to param value
                 The same length as self.param2possible_values, so it will 
                 be missing params that are irrelevant (e.g., no params relating
@@ -440,7 +517,7 @@ class TrialParameterChooser(object):
     
         
         ## Return
-        return trial_parameters, port_params
+        return goal_port, trial_parameters, port_params
 
 class Dispatcher:
     """Handles task logic
@@ -495,11 +572,8 @@ class Dispatcher:
         self.last_alive_message_received = {}
         self.alive_timer = None
 
-        # Store parameters
-        self.task_params = task_params
-
         
-        ## Extrat the port names, pi names, and ip addresses from box_params
+        ## Extract the port names, pi names, and ip addresses from box_params
         self.port_names = []
         self.port_positions = []
         self.pi_names = []
@@ -517,6 +591,13 @@ class Dispatcher:
 
         # Initialize trial history (requires self.ports)
         self.reset_history()
+
+        
+        ## Use task_params to set TrialParameterChooser
+        self.trial_parameter_chooser = TrialParameterChooser.from_task_params(
+            port_names=self.port_names,
+            task_params=task_params,
+            )
 
 
         ## Initialize network communicator and tell it what pis to expect
@@ -612,67 +693,59 @@ class Dispatcher:
 
     def start_trial(self):
         ## Choose and broadcast reward_port
-        # Update which ports have been poked
-        self.ports_poked_this_trial = set()
-        
-        # Update the previously_rewarded_port
-        self.previously_rewarded_port = self.rewarded_port
-        
-        # Setting up a new set of possible choices after omitting 
-        # the previously rewarded port
-        possible_rewarded_ports = [
-            port for port in self.port_names 
-            if port != self.previously_rewarded_port] 
-        
-        # Randomly choosing within the new set of possible choices
-        # Updating the previous choice that was made so the next choice 
-        # can omit it 
-        self.rewarded_port = random.choice(possible_rewarded_ports) 
-        
-        # Keep track of which have been poked
-        self.ports_poked_this_trial = set()
-        
+        # Choose trial parameters
+        trial_parameters, port_parameters = (
+            self.trial_parameter_chooser.choose(self.previously_rewarded_port)
+            )
+
         # Set up new trial index
         if self.current_trial is None:
             self.current_trial = 0
         else:
             self.current_trial += 1
+
+        # Add trial number to trial_parameters
+        # TODO: get Pi to store this with each poke
+        trial_parameters['trial_number'] = self.current_trial
+
+        # Update which ports have been poked
+        self.ports_poked_this_trial = set()
         
-        # TODO: choose acoustic params here
-        # TODO: also send the current_trial number, so that the Agent
-        # can assign a trial number to pokes that come back
-        # TODO: actually use task_params to choose instead of hardcoding
-        # TODO: send different acoustic_params to each pi
-        if np.random.random() < 0.5:
-            acoustic_params = {
-                'left_silenced': False,
-                'left_amplitude': 0.01,
-                'left_center_frequency': 8000,
-                'left_rate': 1,
-                'left_temporal_std': .001,
-                'right_silenced': True,
-                }
-        else:
-            acoustic_params = {
-                'right_silenced': False,
-                'right_amplitude': 0.01,
-                'right_center_frequency': 8000,
-                'right_rate': 1,
-                'right_temporal_std': .001,
-                'left_silenced': True,
-                }            
-        
+        # Set this to None until set
+        self.previously_rewarded_port = None
+
         self.logger.info(
             f'starting trial {self.current_trial}; '
             f'rewarded port {self.rewarded_port}; '
             f'acoustic params {acoustic_params}'
             )
         
-        # Send start to each Pi
-        self.network_communicator.send_trial_parameters(
-            rewarded_port=self.rewarded_port,
-            **acoustic_params,
-            )
+        # Send the parameters to each pi
+        for pi_name in self.pi_names:
+            # Make a copy
+            pi_params = trial_parameters.copy()
+            
+            # Add the parameters that can vary by port 
+            # from port_parameters to pi_params
+            for side in ['left', 'right']:
+                # Get port name (to index port_parameters)
+                if side == 'left':
+                    port_name = pi_name + '_L'
+                else:
+                    port_name = pi_name + '_R'
+            
+                # The parameters that can vary by port
+                pi_params[f'{side}_target_rate'] = (
+                    port_parameters.loc[port_name, 'target_rate']
+                pi_params[f'{side}_distracter_rate'] = (
+                    port_parameters.loc[port_name, 'distracter_rate']
+
+                 # Whether this port is rewarded
+                pi_params[f'{side}_reward'] = (
+                    port_parameters.loc[port_name, 'reward'])
+            
+            # Send start to each Pi
+            self.network_communicator.send_trial_parameters_to_pi(**pi_params)
 
     def stop_session(self):
         """Stop the session
