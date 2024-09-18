@@ -80,7 +80,21 @@ def load_box_params(box):
     return params
 
 def load_task_params(task):
-    """Loads task params from `task.json` and returns"""
+    """Loads task params from `task.json` and returns
+    
+    The JSON has some set of the following keys:
+    * target_amplitude : 
+    "amplitude_min": 0.05,
+    "amplitude_max": 0.05,
+    "rate_min": 4.0,
+    "rate_max": 4.0,
+    "irregularity_min": -1.5,
+    "irregularity_max": -1.5,
+    "center_freq_min": 5000.0,
+    "center_freq_max": 5000.0,
+    "bandwidth": 3000.0,
+    "reward_value": 0.5    
+    """
     # Constructing the full path to the config file
     full_path = os.path.join(config_path, 'task', task + '.json')
 
