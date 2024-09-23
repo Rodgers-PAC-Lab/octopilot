@@ -15,8 +15,7 @@ import queue
 import multiprocessing as mp
 import pandas as pd
 import scipy.signal
-import datetime
-import collections
+from datetime import datetime
 
 
 ## Killing previous pigpiod and jackd background processes
@@ -220,9 +219,6 @@ class SoundQueue:
         # Longer is more buffer against unexpected delays
         # Shorter is faster to empty and refill the queue
         self.target_qsize = 60
-
-        # Queue to hold frames of audio
-        self.sound_queue = collections.deque()
 
         # Some counters to keep track of how many sounds we've played
         self.n_frames = 0
@@ -463,7 +459,7 @@ class SoundQueue:
         # If we never end this function, then it won't respond to END
         #self.stage_block.set()
     
-    def append_sound_to_queue_as_needed(self, verbose=False):
+    def append_sound_to_queue_as_needed(self):
         """Dump frames from `self.sound_cycle` into queue
 
         The queue is filled until it reaches `self.target_qsize`
@@ -475,48 +471,42 @@ class SoundQueue:
         # between calls. If it's getting too close to zero, then target_qsize
         # needs to be increased.
         # Get the size of queue now
-        qsize = len(self.sound_queue)
-        start_qsize = qsize
+        qsize = sound_queue.qsize()
 
         # Add frames until target size reached
-        # TODO: append 10 extra frames, for a bit of stickiness
-        while qsize < self.target_qsize:
+        while self.running ==True and qsize < self.target_qsize:
+            #with qlock:
             # Add a frame from the sound cycle
             frame = next(self.sound_cycle)
-            self.sound_queue.appendleft(frame)
+            #frame = np.random.uniform(-.01, .01, (1024, 2)) 
+            sound_queue.put_nowait(frame)
+            
+            # Keep track of how many frames played
+            self.n_frames = self.n_frames + 1
             
             # Update qsize
-            qsize = len(self.sound_queue)
-        
-        if verbose:
-            if start_qsize != qsize:
-                print('topped up qsize: {} to {}'.format(start_qsize, qsize))
+            qsize = sound_queue.qsize()
             
-    def empty_queue(self, tosize=5):
-        """Empty queue
-        
-        Pop frames off the left side of sound_queue (that is, the newest
-        frames) until sound_queue has size `tosize`.
-        
-        tosize : int
-            This many frames of audio from before `empty_queue` was called
-            will still be played. 
-            As this gets larger, the sound takes longer to stop.
-            As this gets smaller, we risk running out of frames and
-            causing an xrun.
-        """
-        # Continue until we're at or below the target size
-        while len(self.sound_queue) > tosize:
+    def empty_queue(self, tosize=0):
+        """Empty queue"""
+        while True:
+            # I think it's important to keep the lock for a short period
+            # (ie not throughout the emptying)
+            # in case the `process` function needs it to play sounds
+            # (though if this does happen, there will be an artefact because
+            # we just skipped over a bunch of frames)
+            #with qlock:
             try:
-                self.sound_queue.popleft()
-            except IndexError:
-                # This shouldn't really happen as long as tosize is 
-                # significantly more than 0
-                print('warning: sound queue was prematurely emptied')
+                data = sound_queue.get_nowait()
+            except queue.Empty:
                 break
-
-    def __next__(self):
-        return self.sound_queue.pop()
+            
+            # Stop if we're at or below the target size
+            qsize = sound_queue.qsize()
+            if qsize < tosize:
+                break
+        
+        qsize = sound_queue.qsize()
     
     def set_channel(self, mode):
         """Controlling which channel the sound is played from """
@@ -533,162 +523,96 @@ class SoundQueue:
 # Define a JackClient, which will play sounds in the background
 # Rename to SoundPlayer to avoid confusion with jack.Client
 class SoundPlayer(object):
-    """Reads frames of audio from a queue and provides them to a jack.Client
-
-    This object must be initialized with a `sound_queue` argument that provides
-    a frame of audio via `sound_queue.get()`. It should also implement
-    `sound_queue.empty()`. The SoundQueue object provides this functionality. 
-    
-    The `process` method of this object may be provided to jack.Client, which
-    will call it every ~5 ms to request new audio. 
-    
-    Attributes
-    ----------
-    name : str
-        This is only passed to jack.Client, which requires it.
-    
-    """
-    def __init__(self, sound_queuer, name='jack_client', verbose=True):
+    """Object to play sounds"""
+    def __init__(self, name='jack_client'):
         """Initialize a new JackClient
-
-        This object has one job: get frames of audio out of sound_queue
-        and into jack.Client. All logic relating to the frames of audio that
-        go into the sound_queue should be handled by something else, such
-        as SoundQueuer.
 
         This object contains a jack.Client object that actually plays audio.
         It provides methods to send sound to its jack.Client, notably a 
         `process` function which is called every 5 ms or so.
         
-        Arguments
-        ----------
         name : str
             Required by jack.Client
-        
-        sound_queue : deque-like object
+        # 
+        audio_cycle : iter
             Should produce a frame of audio on request
         
-        Flow
-        ----
-        * Initialize self.client as a jack.Client 
-        * Register outports
-        * Set client's process callback to self.process
-        * Activate client
-        * Hook up outports to target ports
+        This object should focus only on playing sound as precisely as
+        possible.
         """
-        ## Store provided arguments
+        ## Store provided parameters
         self.name = name
-        self.sound_queuer = sound_queuer
-        self.verbose = verbose
-        
-        # Keep track of time of last warning
-        self.dt_last_warning = None
-        self.frame_rate_warning_already_issued = False
-        
         
         ## Create the contained jack.Client
         # Creating a jack client
         self.client = jack.Client(self.name)
 
+        # Pull these values from the initialized client
+        # These come from the jackd daemon
+        # `blocksize` is the number of samples to provide on each `process`
+        # call
+        self.blocksize = self.client.blocksize
+        
+        # `fs` is the sampling rate
+        self.fs = self.client.samplerate
+        
         # Debug message
-        if self.verbose:
-            print(
-                "New jack.Client initialized with blocksize " + 
-                "{} and samplerate {}".format(
-                self.client.blocksize, self.client.samplerate))
+        # TODO: add control over verbosity of debug messages
+        print("Received blocksize {} and fs {}".format(self.blocksize, self.fs))
 
-
-        ## Set up outports and register callbacks and activate client
-        # Set up outchannels
+        ## Set up outchannels
         self.client.outports.register('out_0')
         self.client.outports.register('out_1')
-
-        # Set up the process callback
+        
+        ## Set up the process callback
         # This will be called on every block and must provide data
         self.client.set_process_callback(self.process)
 
-        # Activate the client
-        # Strangely, this must be done before hooking up the outports
+        ## Activate the client
         self.client.activate()
 
+        ## Hook up the outports (data sinks) to physical ports
         # Get the actual physical ports that can play sound
         target_ports = self.client.get_ports(
             is_physical=True, is_input=True, is_audio=True)
         assert len(target_ports) == 2
 
-        # Hook up the outports (data sinks) to physical ports
+        # Connect virtual outport to physical channel
         self.client.outports[0].connect(target_ports[0])
         self.client.outports[1].connect(target_ports[1])
     
-    def process(self, frames, verbose=False):
-        """Write a frame of audio from self.sound_queue to self.client.outports
+    def process(self, frames):
+        """Process callback function (used to play sound)
         
-        This function is called by self.client every 5 ms or whenever new
-        audio is needed.
-        
-        Flow
-        * A frame of audio is popped from self.sound_queue
-        * If sound_queue is empty, a frame of zeros is generated. This should
-          not happen, so a warning is printed, but not more than once per
-          second.
-        * If the frame is not of shape (blocksize, 2), raises ValueError
-        * Frame is converted to float32
-        * Each column of frame is written to the outports
+        TODO: reimplement this to use a queue instead
+        The current implementation uses time.time(), but we need to be more
+        precise.
         """
-        # Optional debug message
-        if verbose:
-            print('process called')
-        
-        # Try to get audio data from self.sound_queue
-        queue_is_empty = False
-        try:
-            data = next(self.sound_queuer)
-        except IndexError:
-            # The queue is empty
-            # Play zeros and set the flag
-            queue_is_empty = True
-            data = np.zeros((self.client.blocksize, 2), dtype='float32')
-        
-        # Warn if the queue was empty
-        if queue_is_empty:
-            # Calculate how long it's been since the last warning
-            dt_now = datetime.datetime.now()
-            if self.dt_last_warning is not None:
-                warning_thresh = (self.dt_last_warning + 
-                    datetime.timedelta(seconds=1))
+        # Check if the queue is empty
+        if sound_queue.empty():
+            # No sound to play, so play silence 
+            # Although this shouldn't be happening
+
+            for n_outport, outport in enumerate(self.client.outports):
+                buff = outport.get_array()
+                buff[:] = np.zeros(self.blocksize, dtype='float32')
             
-            # If it's been long enough since the warning, or if warning
-            # has never been issued, warn now
-            if self.dt_last_warning is None or dt_now > warning_thresh:
-                # Set time of last warning
-                self.dt_last_warning = dt_now
-                
-                # Warn
-                # This is the last thing we check, so that verbose can be 
-                # changed and everything will still be up to date
-                if self.verbose:
-                    print(
-                        "warning: sound_queue is empty, playing silence and "
-                        "silencing warnings for 1 s")
-        
-        # Make sure audio data has the correct shape
-        if data.shape != (self.client.blocksize, 2):
-            raise ValueError(
-                "error: process received data of shape {} ".format(data.shape) + 
-                "but it should have been {}".format((self.client.blocksize, 2))
-                )
-        
-        # Ensure it is the correct dtype
-        data = data.astype('float32')
-        
-        # Write one column to each channel
-        self.client.outports[0].get_array()[:] = data[:, 0]
-        self.client.outports[1].get_array()[:] = data[:, 1]
+        else:
+            # Queue is not empty, so play data from it
+            data = sound_queue.get()
+            if data.shape != (self.blocksize, 2):
+                print(data.shape)
+            assert data.shape == (self.blocksize, 2)
+
+            # Write one column to each channel
+            for n_outport, outport in enumerate(self.client.outports):
+                buff = outport.get_array()
+                buff[:] = data[:, n_outport]
 
 # Defining a common queue to be used by both classes 
 # Initializing queues to be used by sound player
-sound_queue = collections.deque()
-nonzero_blocks = collections.deque()
+sound_queue = mp.Queue()
+nonzero_blocks = mp.Queue()
 
 # Lock for thread-safe set_channel() updates
 qlock = mp.Lock()
@@ -696,7 +620,7 @@ nb_lock = mp.Lock()
 
 # Define a client to play sounds
 sound_chooser = SoundQueue()
-sound_player = SoundPlayer(sound_queuer= sound_chooser, name='sound_player')
+sound_player = SoundPlayer(name='sound_player')
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 # TODO: what is the difference between pi_identity and pi_name? # They are functionally the same, this line is from before I imported 
@@ -765,6 +689,7 @@ left_poke_detected = False
 right_poke_detected = False
 current_port_poked = None
 poke_time = None
+prev_reward = None
 
 # Callback function for nosepoke pin (When the nosepoke is completed)
 def poke_inL(pin, level, tick):
@@ -799,7 +724,7 @@ def poke_inR(pin, level, tick):
 
 # Callback functions for nosepoke pin (When the nosepoke is detected)
 def poke_detectedL(pin, level, tick): 
-    global a_state, count, left_poke_detected, current_port_poked, poke_time
+    global a_state, count, left_poke_detected, current_port_poked, poke_time, prev_reward
     
     a_state = 1
     count += 1
@@ -814,9 +739,9 @@ def poke_detectedL(pin, level, tick):
         pi.write(17, 0)
     elif params['nosepokeL_type'] == "903":
         pi.write(17, 1)
-        
+
     # Get current datetime
-    poke_time = datetime.datetime.now()
+    poke_time = datetime.now()
         
     # Sending nosepoke_id wirelessly with datetime
     try:
@@ -826,8 +751,13 @@ def poke_detectedL(pin, level, tick):
     except Exception as e:
         print("Error sending nosepoke_id:", e)
 
+    if task == "Poketrain":
+        if prev_reward == None or prev_reward != nosepoke_idL:
+            open_valve(int(nosepoke_idL))
+            prev_reward = nosepoke_idL
+
 def poke_detectedR(pin, level, tick): 
-    global a_state, count, right_poke_detected, current_port_poked, poke_time 
+    global a_state, count, right_poke_detected, current_port_poked, poke_time, prev_reward 
     
     a_state = 1
     count += 1
@@ -841,10 +771,10 @@ def poke_detectedR(pin, level, tick):
     if params['nosepokeR_type'] == "901":
         pi.write(10, 0)
     elif params['nosepokeR_type'] == "903":
-        pi.write(10, 1)
-    
+         pi.write(10, 1)
+     
     # Get current datetime
-    poke_time = datetime.datetime.now()
+    poke_time = datetime.now()
     
     # Sending nosepoke_id wirelessly with datetime
     try:
@@ -854,6 +784,10 @@ def poke_detectedR(pin, level, tick):
     except Exception as e:
         print("Error sending nosepoke_id:", e)
 
+    if task == "Poketrain":
+        if  prev_reward == None or prev_reward != nosepoke_idR:
+            open_valve(int(nosepoke_idR))
+            prev_reward = nosepoke_idR
 
 def open_valve(port):
     """Open the valve for port
@@ -966,7 +900,7 @@ try:
                 sound_chooser.empty_queue()
 
                 # Setting sound to play 
-                sound_chooser.initialize_sounds(sound_player.client.blocksize, sound_player.client.samplerate, 
+                sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
                     sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
                 sound_chooser.set_sound_cycle()
                 sound_chooser.append_sound_to_queue_as_needed()
@@ -1011,7 +945,7 @@ try:
                 rate_min, rate_max, irregularity_min, irregularity_max, 
                 amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
             poke_socket.send_string(new_params)
-            sound_chooser.initialize_sounds(sound_player.client.blocksize, sound_player.client.samplerate, 
+            sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
                 sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
             sound_chooser.set_sound_cycle()
             
@@ -1028,10 +962,11 @@ try:
                     print("Decreasing the volume of the sound")
                     # Condition to start the task
                     sound_chooser.amplitude = 0.25 * sound_chooser.amplitude
+                    # Probably send a message here to the GUI 
                     sound_chooser.empty_queue()
 
                     # Setting sound to play 
-                    sound_chooser.initialize_sounds(sound_player.client.blocksize, sound_player.client.samplerate, 
+                    sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
                         sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
                     
                     sound_chooser.set_sound_cycle()
@@ -1048,7 +983,7 @@ try:
                     sound_chooser.empty_queue()
 
                     # Setting sound to play 
-                    sound_chooser.initialize_sounds(sound_player.client.blocksize, sound_player.client.samplerate, 
+                    sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
                         sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
                     
                     sound_chooser.set_sound_cycle()
@@ -1057,10 +992,10 @@ try:
                 else:
                     last_msg2 = msg2
 
-        # Separate logic for Poketrain task
-        if task == 'Poketrain':
-            if left_poke_detected == True or right_poke_detected == True:
-                open_valve()
+        # # Separate logic for Poketrain task
+        # if task == 'Poketrain':
+        #     if left_poke_detected == True or right_poke_detected == True:
+        #         open_valve()
         
         ## Check for incoming messages on poke_socket
         # TODO: document the types of messages that can be sent on poke_socket 
