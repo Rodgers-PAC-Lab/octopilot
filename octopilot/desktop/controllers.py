@@ -586,6 +586,7 @@ class Dispatcher:
         self.session_is_running = False
         self.last_alive_message_received = {}
         self.alive_timer = None
+        self.session_start_time = None
 
         
         ## Extract the port names, pi names, and ip addresses from box_params
@@ -680,6 +681,11 @@ class Dispatcher:
     
     def start_session(self, verbose=True):
         """Start a session"""
+        # Do not start if all pis not connected
+        if not self.network_communicator.check_if_all_pis_connected():
+            self.logger.warning(
+                'ignoring start_session because not all pis connected')
+            return
         
         # Set the initial_time to now
         self.session_start_time = datetime.datetime.now() 
