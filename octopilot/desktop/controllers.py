@@ -810,6 +810,12 @@ class Dispatcher:
         
         # TODO: test if "start_next_trial" datetime flag set
         
+        # Check if procs are running
+        for agent, proc in self.marshaller.agent2proc.items():
+            proc.poll()
+            if proc.returncode is not None:
+                self.logger.warning(f'ssh proc for {agent} is not running')
+        
     def main_loop(self, verbose=True):
         """Main loop of Worker
 
