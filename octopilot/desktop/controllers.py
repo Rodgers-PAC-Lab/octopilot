@@ -465,7 +465,8 @@ class TrialParameterChooser(object):
         ## Identify which ports to reward
         # Those within `reward_radius` of the goal
         port_params['reward'] = False
-        port_params.loc['absdist'] <= self.reward_radius, 'reward'] = True
+        port_params.loc[
+            port_params['absdist'] <= self.reward_radius, 'reward'] = True
         assert port_params['reward'].any()
         
         
@@ -736,9 +737,9 @@ class Dispatcher:
             
                 # The parameters that can vary by port
                 pi_params[f'{side}_target_rate'] = (
-                    port_parameters.loc[port_name, 'target_rate']
+                    port_parameters.loc[port_name, 'target_rate'])
                 pi_params[f'{side}_distracter_rate'] = (
-                    port_parameters.loc[port_name, 'distracter_rate']
+                    port_parameters.loc[port_name, 'distracter_rate'])
 
                  # Whether this port is rewarded
                 pi_params[f'{side}_reward'] = (
