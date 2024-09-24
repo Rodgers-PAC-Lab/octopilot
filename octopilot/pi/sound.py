@@ -226,21 +226,15 @@ class SoundGenerator_IntermittentBursts(object):
         ---------
         params : dict with the keys
             silenced : bool
-            duration
-            amplitude
-            center_frequency
-            bandwidth
+            duration : optional, default 0.010
+            amplitude : required
+            center_frequency : required
+            bandwidth : optional, default 3000
         
         Returns : Noise
         """
-        # Error check
-        try:
-            params['silenced']
-        except KeyError:
-            raise ValueError(f'received malformed params: {params}')
-        
         # Generate the sound
-        if params['silenced']:
+        if 'silenced' in params and params['silenced']:
             sound = None
         
         else:
