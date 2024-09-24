@@ -228,7 +228,7 @@ class SoundGenerator_IntermittentBursts(object):
             silenced : bool
             duration : optional, default 0.010
             amplitude : required
-            center_frequency : required
+            center_freq : required
             bandwidth : optional, default 3000
         
         Returns : Noise
@@ -243,13 +243,13 @@ class SoundGenerator_IntermittentBursts(object):
             bandwidth = params.get('bandwidth', 3000)
             
             try:
-                params['center_frequency']
+                params['center_freq']
                 params['amplitude']
             except KeyError:
                 raise ValueError(f'received malformed params: {params}')
             
-            lowpass = params['center_frequency'] - bandwidth / 2
-            highpass = params['center_frequency'] + bandwidth / 2
+            lowpass = params['center_freq'] - bandwidth / 2
+            highpass = params['center_freq'] + bandwidth / 2
             sound = Noise(
                 blocksize=self.blocksize,
                 fs=self.fs,
@@ -417,7 +417,7 @@ class SoundGenerator_IntermittentBursts(object):
                 If True, no sound will be played from that channel
             duration : float, duration of noise burst in seconds
             amplitude : float, amplitude of noise burst
-            center_frequency : float, center frequency in Hz
+            center_freq : float, center frequency in Hz
             bandwidth : float, bandwidth (not half-bandwidth) in Hz
             rate : float, rate of sounds in Hz
             temporal_std : float, standard deviation of inter-sound intervals
