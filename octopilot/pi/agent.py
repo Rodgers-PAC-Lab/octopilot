@@ -246,7 +246,6 @@ class Agent(object):
         
         """
         # Log
-        # TODO: why is this message never showing up in the log?
         self.logger.debug(f'setting trial parameters: {msg_params}')
         
         # If not running, issue error
@@ -255,6 +254,17 @@ class Agent(object):
             self.logger.error(
                 f'received trial parameters but session is not running')
             return
+        
+        # Pop reward out separately, with default False
+        if 'left_reward' in msg_params:
+            left_reward = msg_params.pop('left_reward')
+        else:
+            left_reward = False
+        
+        if 'right_reward' in msg_params:
+            right_reward = msg_params.pop('right_reward')
+        else:
+            right_reward = False
         
         # Split into left_params and right_params
         left_params = {}
@@ -271,7 +281,7 @@ class Agent(object):
         
         # Get rewarded port
         # TODO: replace with binary reward or not for several ports
-        if other_params['left_reward'] == self.left_nosepoke.name:
+        if left_reward:
             self.logger.info(f'arming left nosepoke for reward')
             self.left_nosepoke.reward_armed = True
         else:
@@ -279,7 +289,7 @@ class Agent(object):
             # the one that was rewarded
             self.left_nosepoke.reward_armed = False
 
-        if other_params['right_reward'] == self.right_nosepoke.name:
+        if right_reward:
             self.logger.info(f'arming right nosepoke for reward')
             self.right_nosepoke.reward_armed = True
         else:
