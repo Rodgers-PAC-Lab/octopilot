@@ -64,11 +64,11 @@ I'm not sure if messages can build up in the Dispatcher's queue when the
 Agent is not running.
 """
 
-import zmq
-from ..shared.logtools import NonRepetitiveLogger
 import logging
 import datetime
-
+import numpy as np
+import zmq
+from ..shared.logtools import NonRepetitiveLogger
 
 ## Shared methods
 def parse_params(token_l):
@@ -191,17 +191,23 @@ class DispatcherNetworkCommunicator(object):
         
         return all_connected
     
+    def send_message_to_pi(self, msg, identity):
+        """Send msg to identity"""
+        # Convert to bytes
+        self.logger.info(f'sending to {identity}: {msg}')
+        msg_bytes = bytes(msg, 'utf-8')
+        identity_bytes = bytes(identity, 'utf-8')
+        self.zmq_socket.send_multipart([identity_bytes, msg_bytes])
+    
     def send_message_to_all(self, msg):
         """"Send msg to all identities in self.connected_agents"""
-        self.logger.info(f'sending message to all connecting pis: {msg}')
-        
-        # Convert to bytes
-        msg_bytes = bytes(msg, 'utf-8')
+        self.logger.info(
+            f'sending message to all connected ({self.connected_agents})'
+            )
         
         # Send to all
         for identity in self.connected_agents:
-            identity_bytes = bytes(identity, 'utf-8')
-            self.zmq_socket.send_multipart([identity_bytes, msg_bytes])
+            self.send_message_to_pi(msg, identity)
     
         self.logger.info(f'above message was sent to {self.connected_agents}')    
     
@@ -213,23 +219,24 @@ class DispatcherNetworkCommunicator(object):
         self.logger.info('sending are_you_alive message to all connected pis')
         self.send_message_to_all('are_you_alive')
     
-    def send_trial_parameters(self, **kwargs):
-        """Encode a set_trial_parameters message and send to all Pis
+    def send_trial_parameters_to_pi(self, identity, **kwargs):
+        """Encode a set_trial_parameters message and send to `identity`
         
         The message will begin with "set_trial_parameters;"
         Each keyword argument will be converted into "{key}={value}={dtyp}"
         (dtyp is inferred from value)
         
         TODO: do this with json instead
-        
-        Then it is sent to all Pis.
         """
         msg = "set_trial_parameters;"
         for key, value in kwargs.items():
+            if key == 'left_reward':
+                print(f'the type of left_reward is {type(value)}')
+                
             # Infer dtyp
             if hasattr(value, '__len__'):
                 dtyp = 'str'
-            elif isinstance(value, bool):
+            elif isinstance(value, bool) or isinstance(value, np.bool_):
                 # Note that bool is an instance of int
                 dtyp = 'bool'
             elif isinstance(value, int):
@@ -243,7 +250,7 @@ class DispatcherNetworkCommunicator(object):
         
         self.logger.info(msg)
         
-        self.send_message_to_all(msg)
+        self.send_message_to_pi(msg, identity)
     
     def check_for_messages(self):
         """Check self.zmq_socket for messages.

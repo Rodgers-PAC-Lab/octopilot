@@ -769,7 +769,8 @@ class Dispatcher:
                             port_parameters.loc[port_name, pi_specific_param])
             
             # Send start to each Pi
-            self.network_communicator.send_trial_parameters_to_pi(**pi_params)
+            self.network_communicator.send_trial_parameters_to_pi(
+                pi_name, **pi_params)
 
     def stop_session(self):
         """Stop the session
