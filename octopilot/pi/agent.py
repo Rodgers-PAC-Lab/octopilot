@@ -271,17 +271,18 @@ class Agent(object):
         
         # Get rewarded port
         # TODO: replace with binary reward or not for several ports
-        if other_params['rewarded_port'] == self.left_nosepoke.name:
+        if other_params['left_reward'] == self.left_nosepoke.name:
             self.logger.info(f'arming left nosepoke for reward')
             self.left_nosepoke.reward_armed = True
+        else:
+            # TODO: disarm all nosepokes immediately upon reward, not just
+            # the one that was rewarded
+            self.left_nosepoke.reward_armed = False
 
-        elif other_params['rewarded_port'] == self.right_nosepoke.name:
+        if other_params['right_reward'] == self.right_nosepoke.name:
             self.logger.info(f'arming right nosepoke for reward')
             self.right_nosepoke.reward_armed = True
-        
         else:
-            self.logger.info(f'disarming all nosepokes')
-            self.left_nosepoke.reward_armed = False
             self.right_nosepoke.reward_armed = False
         
         # Use those params to set the new sounds
