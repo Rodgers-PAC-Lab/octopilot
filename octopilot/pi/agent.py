@@ -266,21 +266,7 @@ class Agent(object):
         else:
             right_reward = False
         
-        # Split into left_params and right_params
-        left_params = {}
-        right_params = {}
-        other_params = {}
-        
-        for key, val in msg_params.items():
-            if key.startswith('left'):
-                left_params[key.replace('left_', '')] = val
-            elif key.startswith('right'):
-                right_params[key.replace('right_', '')] = val
-            else:
-                other_params[key] = val
-        
         # Get rewarded port
-        # TODO: replace with binary reward or not for several ports
         if left_reward:
             self.logger.info(f'arming left nosepoke for reward')
             self.left_nosepoke.reward_armed = True
@@ -295,8 +281,35 @@ class Agent(object):
         else:
             self.right_nosepoke.reward_armed = False
         
+        
+        ## Split into left_params and right_params
+        # TODO: make this more flexible
+        # Right now it's hard coded that each port can only play one type
+        # of sound, which must be target or distracter
+        if msg_params['left_target_rate'] > 0:
+            left_params = {
+                'target_rate': msg_params['left_target_rate'],
+                'temporal_log_std': msg_params['target_temporal_log_std'],
+                'center_freq': msg_params['target_center_freq'],
+                'log_amplitude': msg_params['target_log_amplitude'],
+                }
+        else:
+            left_params = {}
+    
+        if msg_params['right_target_rate'] > 0:
+            right_params = {
+                'target_rate': msg_params['right_target_rate'],
+                'temporal_log_std': msg_params['target_temporal_log_std'],
+                'center_freq': msg_params['target_center_freq'],
+                'log_amplitude': msg_params['target_log_amplitude'],
+                }
+        else:
+            right_params = {}
+    
         # Use those params to set the new sounds
-        self.logger.info(f'setting audio parameters: {left_params} {right_params}')
+        self.logger.info(
+            'setting audio parameters. '
+            f'LEFT={left_params}. RIGHT={right_params}')
         self.sound_generator.set_audio_parameters(left_params, right_params)
         
         # Empty and refill the queue with new sounds
