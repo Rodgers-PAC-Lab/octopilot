@@ -61,6 +61,10 @@ class MainWindow(QtWidgets.QMainWindow):
         
         ## Create a timer to update the Dispatcher
         self.timer_dispatcher = QTimer(self)
+        
+        # Any error that happens in dispatcher.update will just crash the
+        # timer thread, not the main thread
+        # TODO: figure out how to capture those errors
         self.timer_dispatcher.timeout.connect(self.dispatcher.update)
 
 
