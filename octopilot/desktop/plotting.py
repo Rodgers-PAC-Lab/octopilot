@@ -106,7 +106,9 @@ class ArenaWidget(QWidget):
 
     def start(self):
         # Start the timer
-        self.timer_update.start(50)
+        # The faster this is, the more responsive it will be, but when an 
+        # error occurs it will spam the terminal
+        self.timer_update.start(250)
     
     def update(self):
         """Update the colors of the circles"""
