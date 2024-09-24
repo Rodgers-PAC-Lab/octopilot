@@ -219,13 +219,12 @@ class SoundGenerator_IntermittentBursts(object):
     def _make_sound(self, params):
         """Used to make a Noise according to params
         
-        If params['silenced'] is True: returns None
+        If len(params) == 0: returns None
         Otherwise, returns a Noise with the specified params.
         
         Arguments
         ---------
         params : dict with the keys
-            silenced : bool
             duration : optional, default 0.010
             amplitude : required
             center_freq : required
@@ -234,7 +233,7 @@ class SoundGenerator_IntermittentBursts(object):
         Returns : Noise
         """
         # Generate the sound
-        if 'silenced' in params and params['silenced']:
+        if len(params) == 0:
             sound = None
         
         else:
