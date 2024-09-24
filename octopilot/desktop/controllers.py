@@ -8,6 +8,7 @@ import threading
 import random
 import datetime
 import logging
+import pandas
 import numpy as np
 from ..shared.misc import RepeatedTimer
 from ..shared.logtools import NonRepetitiveLogger
@@ -638,6 +639,9 @@ class Dispatcher:
         # Trial index (None if not running)
         self.current_trial = None
         
+        # Keep track of which ports have been poked on this trial
+        self.ports_poked_this_trial = set()
+        
         # History (dict by port)
         self.history_of_pokes = {}
         self.history_of_rewarded_correct_pokes = {}
@@ -695,7 +699,7 @@ class Dispatcher:
     def start_trial(self):
         ## Choose and broadcast reward_port
         # Choose trial parameters
-        trial_parameters, port_parameters = (
+        goal_port, trial_parameters, port_parameters = (
             self.trial_parameter_chooser.choose(self.previously_rewarded_port)
             )
 
@@ -704,6 +708,9 @@ class Dispatcher:
             self.current_trial = 0
         else:
             self.current_trial += 1
+
+        # Store the goal port (to define correct trials)
+        self.goal_port = goal_port
 
         # Add trial number to trial_parameters
         # TODO: get Pi to store this with each poke
@@ -717,8 +724,9 @@ class Dispatcher:
 
         self.logger.info(
             f'starting trial {self.current_trial}; '
-            f'rewarded port {self.rewarded_port}; '
-            f'acoustic params {acoustic_params}'
+            f'goal port {goal_port}; '
+            f'trial parameters\n{trial_parameters}; '
+            f'port_parameters:\n{port_parameters}'
             )
         
         # Send the parameters to each pi
@@ -797,6 +805,7 @@ class Dispatcher:
         self.network_communicator.send_alive_request()
 
     def update(self):
+        """Called by timer_dispatcher in MainWindow"""
         # Check for messages
         self.network_communicator.check_for_messages()
         
