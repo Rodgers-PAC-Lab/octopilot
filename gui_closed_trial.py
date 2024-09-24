@@ -204,10 +204,22 @@ class Worker(QObject):
         
         # Randomly choose the initial reward port
         self.reward_port = self.choose()
+        
+        # Overwriting default trial information 
+        Trial.trial_number = 1
         Trial.reward_port = self.reward_port
+        Trial.volume_state = "normal"
+        Trial.volume_changes = 0
+        Trial.pokes = 0
+        Trial.correct_trial = False
+        Trial.reward_state = False
+        Trial.timestamp = datetime.now()
+
+        # Send the initial reward port to all connected Pis
         reward_message = f"Reward Port: {self.reward_port}"
         print_out(reward_message)
         
+        ## This needs to be changed if we are sending Trials as an Object       
         # Send the message to all connected Pis
         for identity in self.identities:
             self.socket.send_multipart([identity, bytes(reward_message, 'utf-8')])
@@ -234,6 +246,7 @@ class Worker(QObject):
             self.timer.timeout.disconnect(self.update_Pi)
         
         # Clear the recorded data and reset necessary attributes
+        Trial.trial_number = 0
         self.initial_time = None
         self.timestamps.clear()
         self.reward_ports.clear()
@@ -353,6 +366,11 @@ class Worker(QObject):
                     
 
                     if color == "green" or color == "blue":
+                        Trial.trial_number += 1
+                        Trial.volume_state = "normal"
+                        Trial.volume_changes = 0
+
+                        #
                         self.current_poke += 1
                         self.current_completed_trials += 1
                         for identity in self.identities:
