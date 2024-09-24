@@ -757,14 +757,16 @@ class Dispatcher:
                     port_name = pi_name + '_R'
             
                 # The parameters that can vary by port
-                pi_params[f'{side}_target_rate'] = (
-                    port_parameters.loc[port_name, 'target_rate'])
-                pi_params[f'{side}_distracter_rate'] = (
-                    port_parameters.loc[port_name, 'distracter_rate'])
-
-                 # Whether this port is rewarded
-                pi_params[f'{side}_reward'] = (
-                    port_parameters.loc[port_name, 'reward'])
+                pi_specific_params = [
+                    'target_rate', 'distracter_rate', 'reward']
+                
+                # Iterate over pi_specific_params
+                for pi_specific_param in pi_specific_params:
+                    # Add it only if it was specified
+                    if pi_specific_param in port_parameters.columns:
+                        # Add it, keyed by the side
+                        pi_params[f'{side}_{pi_specific_param}'] = (
+                            port_parameters.loc[port_name, pi_specific_param])
             
             # Send start to each Pi
             self.network_communicator.send_trial_parameters_to_pi(**pi_params)
