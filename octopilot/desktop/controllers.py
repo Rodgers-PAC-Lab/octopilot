@@ -246,9 +246,15 @@ class TrialParameterChooser(object):
         
             else:
                 # It's not specified in task_params
-                # This is fine, it will be left blank in kwargs, and handled
-                # in TrialParameterChooser
-                continue
+                # Assign a default here
+                if param == 'target_radius':
+                    default_value = 0
+                else:
+                    #raise ValueError(f'no default value specified for {param}')
+                    print (f'warning: no default value specified for {param}')
+                rangeval['min'] = default_value
+                rangeval['max'] = default_value
+                rangeval['n_choices'] = 1
         
             # Store in kwargs
             kwargs['range_' + param] = rangeval
@@ -368,6 +374,9 @@ class TrialParameterChooser(object):
         
         # Iterate over parameters
         for param_name, param_range in self.param2range.items():
+            if param_range is None:
+                print(f'{param_name} is None')
+            
             # Shortcuts
             param_min = param_range['min']
             param_max = param_range['max']
@@ -517,6 +526,10 @@ class TrialParameterChooser(object):
             port_params.loc[
                 chosen_distracter_idx, 'distracter_rate'] = stim_distracter_rate
     
+        
+        ## Index by port
+        port_params = port_params.set_index('port')
+        
         
         ## Return
         return goal_port, trial_parameters, port_params
