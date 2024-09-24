@@ -142,6 +142,8 @@ class MainWindow(QtWidgets.QMainWindow):
             "background-color : green; color: white;") 
 
         # Start the dispatcher and the updates
+        # TODO: Handle the case where the dispatcher doesn't actually start
+        # because it's not ready
         self.start_button.clicked.connect(self.dispatcher.start_session)
         self.start_button.clicked.connect(self.poke_plot_widget.start_plot)
         self.start_button.clicked.connect(self.arena_widget.start)
