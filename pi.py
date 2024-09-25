@@ -188,7 +188,7 @@ class Noise:
         oldlen = len(self.table)
         
         # Calculate how many blocks we need to contain the sound
-        n_blocks_needed = int(np.ceil(oldlen / self.blocksize))
+        n_blocks_needed = int(np.ceil(oldlen /Poke self.blocksize))
         
         # Calculate the new length
         newlen = n_blocks_needed * self.blocksize
@@ -674,6 +674,9 @@ nosepoke_pinL = 8
 nosepoke_pinR = 15
 nosepokeL_id = params['nosepokeL_id']
 nospokeR_id = params['nosepokeR_id']
+
+# Adding this state variable to keep track of whenever open_valve is called 
+reward_state = None 
 
 # Global variables for which nospoke was detected
 left_poke_detected = False
