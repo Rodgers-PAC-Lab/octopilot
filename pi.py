@@ -644,15 +644,6 @@ poke_socket.identity = bytes(f"{pi_identity}", "utf-8")
 json_context = zmq.Context()
 json_socket = json_context.socket(zmq.SUB)
 
-## Creating a ZeroMQ context and socket for communication with bonsai
-bonsai_context = zmq.Context()
-bonsai_socket = bonsai_context.socket(zmq.SUB)
-router_ip3 = "tcp://" + f"{params['gui_ip']}" + f"{params['bonsai_port']}"
-bonsai_socket.connect(router_ip3)
-
-# Subscribe to all incoming messages
-bonsai_socket.subscribe(b"")
-
 ## Connect to the server
 # Connecting to IP address (192.168.0.99 for laptop, 192.168.0.207 for seaturtle)
 router_ip = "tcp://" + f"{params['gui_ip']}" + f"{params['poke_port']}" 
@@ -845,7 +836,6 @@ pi.callback(nosepoke_pinR, pigpio.RISING_EDGE, poke_detectedR)
 poller = zmq.Poller()
 poller.register(poke_socket, zmq.POLLIN)
 poller.register(json_socket, zmq.POLLIN)
-poller.register(bonsai_socket, zmq.POLLIN)
 
 ## Initialize variables for sound parameters
 # These are not sound parameters .. TODO document
@@ -879,34 +869,12 @@ try:
     
     # Track prev_port
     prev_port = None
-
-    # Keeping track of the bonsai parameters to change the volume of the sound
-    msg2 = None
-    last_msg2 = None
     
     ## Loop forever
     while True:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
 
-        # Initial logic when bonsai is started
-        if last_msg2 == None:
-            if msg2 == "True":
-                # Reducing volume of the sound
-                #sound_chooser.running = False    
-                sound_chooser.amplitude = 0.25 * sound_chooser.amplitude
-            
-                # Emptying queue and setting sound to play
-                sound_chooser.empty_queue()
-
-                # Setting sound to play 
-                sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
-                    sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
-                sound_chooser.set_sound_cycle()
-                sound_chooser.append_sound_to_queue_as_needed()
-            elif msg2 == "False" or None:
-                sound_chooser.amplitude = sound_chooser.amplitude
-        
         # Appending sound to queue 
         sound_chooser.append_sound_to_queue_as_needed()
 
@@ -951,45 +919,6 @@ try:
             
             # Debug print
             print("Parameters updated")
-
-        # Logic to handle messages from the bonsai socket
-        if bonsai_socket in socks2 and socks2[bonsai_socket] == zmq.POLLIN:
-            msg2 = bonsai_socket.recv_string()  
-            
-            # Different messages have different effects
-            if msg2 == "True": 
-                if last_msg2 == "False" or last_msg2 == None:
-                    print("Decreasing the volume of the sound")
-                    # Condition to start the task
-                    sound_chooser.amplitude = 0.25 * sound_chooser.amplitude
-                    sound_chooser.empty_queue()
-
-                    # Setting sound to play 
-                    sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
-                        sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
-                    
-                    sound_chooser.set_sound_cycle()
-                    sound_chooser.append_sound_to_queue_as_needed()
-                    last_msg2 = msg2
-                else:
-                    last_msg2 = msg2
-
-            elif msg2 == "False":
-                # Testing amplitude
-                if last_msg2 == "True":
-                    print("Increasing the volume of the sound")
-                    sound_chooser.amplitude = 4 * sound_chooser.amplitude
-                    sound_chooser.empty_queue()
-
-                    # Setting sound to play 
-                    sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
-                        sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
-                    
-                    sound_chooser.set_sound_cycle()
-                    sound_chooser.append_sound_to_queue_as_needed()
-                    last_msg2 = msg2
-                else:
-                    last_msg2 = msg2
 
         # # Separate logic for Poketrain task
         # if task == 'Poketrain':
@@ -1138,12 +1067,6 @@ try:
                 # Opening Solenoid Valve
                 flash()
                 open_valve(prev_port)
-
-                # Verifying state from bonsai 
-                if last_msg2 == "True":
-                    sound_chooser.amplitude = 4 * sound_chooser.amplitude
-                elif last_msg2 == "False":
-                    sound_chooser.amplitude = sound_chooser.amplitude
                 
                 # Adding an inter trial interval
                 time.sleep(1)
