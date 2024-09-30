@@ -343,6 +343,14 @@ class TrialParameterChooser(object):
         target_radius : number of ports on each side of goal that play targets
         n_distracters : number of ports playing distracters at distracter_rate
         """
+        ## Init logger
+        self.logger = NonRepetitiveLogger("test")
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
+        self.logger.addHandler(sh)
+        self.logger.setLevel(logging.INFO)
+
+        
         ## Store the values that don't change with trial
         self.port_names = port_names
         self.reward_radius = reward_radius
@@ -458,6 +466,11 @@ class TrialParameterChooser(object):
             trial_parameters['target_rate'] sets the maximum value in 
             port_parameters['target_rate']
         """
+        ## Log
+        self.logger.info(
+            f'choosing parameters; excluding {previously_rewarded_port}')
+        
+        
         ## Choose the goal
         # Exclude previously rewarded port
         choose_from = [
@@ -491,8 +504,14 @@ class TrialParameterChooser(object):
         port_params['reward'] = False
         port_params.loc[
             port_params['absdist'] <= self.reward_radius, 'reward'] = True
-        assert port_params['reward'].any()
         
+        # Never reward the previously rewarded_port (if any)
+        port_params.loc[
+            port_params['port'] == previously_rewarded_port, 'reward'] = False
+        
+        # Error check
+        assert port_params['reward'].any()
+        print(port_params)
         
         ## Choose params for this trial
         trial_parameters = {}
@@ -752,9 +771,7 @@ class Dispatcher:
         # Update which ports have been poked
         self.ports_poked_this_trial = set()
         
-        # Set this to None until set
-        self.previously_rewarded_port = None
-
+        # Log
         self.logger.info(
             f'starting trial {self.current_trial}; '
             f'goal port {goal_port}; '
@@ -944,6 +961,9 @@ class Dispatcher:
         # This will be 1 if the trial was correct
         self.history_of_ports_poked_per_trial.append(
             len(not_including_current) + 1)
+
+        # Save the rewarded port as previously_rewarded_port
+        self.previously_rewarde_port = port_name
         
         # Start a new trial
         self.start_trial()
