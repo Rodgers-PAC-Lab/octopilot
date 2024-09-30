@@ -23,8 +23,12 @@ config_path = os.path.abspath(os.path.join(
 
 def simple_json_loader(path):
     """Simple loading function to return the JSON at `path`"""
-    with open(path, 'r') as p:
-        params = json.load(p)
+    try:
+        with open(path, 'r') as p:
+            params = json.load(p)
+    except json.decoder.JSONDecodeError as e:
+        raise IOError(f'cannot load JSON at {path}; original exception:\n{e}')
+        raise
     
     return params
 
