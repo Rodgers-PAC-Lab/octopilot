@@ -374,8 +374,8 @@ class Agent(object):
 
         # Silence sound generation
         self.sound_generator.set_audio_parameters(
-            left_params={'silenced': True},
-            right_params={'silenced': True},
+            left_params={},
+            right_params={},
             )
         
         # Empty the queue of sound
@@ -420,8 +420,8 @@ class Agent(object):
         
         # Silence sound generation
         self.sound_generator.set_audio_parameters(
-            left_params={'silenced': True},
-            right_params={'silenced': True},
+            left_params={},
+            right_params={},
             )
         
         # Empty the queue of already generated sound

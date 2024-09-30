@@ -226,7 +226,7 @@ class SoundGenerator_IntermittentBursts(object):
         ---------
         params : dict with the keys
             duration : optional, default 0.010
-            amplitude : required
+            log_amplitude : required
             center_freq : required
             bandwidth : optional, default 3000
 
@@ -248,7 +248,7 @@ class SoundGenerator_IntermittentBursts(object):
             
             try:
                 params['center_freq']
-                params['amplitude']
+                params['log_amplitude']
             except KeyError:
                 raise ValueError(f'received malformed params: {params}')
             
@@ -258,7 +258,7 @@ class SoundGenerator_IntermittentBursts(object):
                 blocksize=self.blocksize,
                 fs=self.fs,
                 duration=duration,
-                amplitude=params['amplitude'],
+                amplitude=(10 ** params['log_amplitude']),
                 channel=0,
                 lowpass=lowpass,
                 highpass=highpass,
@@ -424,12 +424,12 @@ class SoundGenerator_IntermittentBursts(object):
         """
         ## Generate the stimuli to use (one per channel)
         # Presently, exactly zero or one kind of Noise can be played from
-        # each speaker. These will be None if params['silenced'] is True
+        # each speaker. These will be None if len(params) == 0
         self.left_sound = self._make_sound(left_params)
         self.right_sound = self._make_sound(right_params)
    
         # Generate the times at which to play each Noise (one per channel)
-        # These will be empty arrays if params['silenced'] is True
+        # These will be empty arrays if len(params) == 0
         self.left_intervals = self._make_intervals(left_params)
         self.right_intervals = self._make_intervals(right_params)
 
