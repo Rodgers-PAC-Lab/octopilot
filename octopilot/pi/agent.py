@@ -80,6 +80,7 @@ class Agent(object):
 
         # Whether the session is running
         self.session_running = False
+        self.trial_number = None
         
         # It will keep running until this is set by self.exit() and then 
         # it is noticed by self.mainloop()
@@ -245,16 +246,19 @@ class Agent(object):
         """Called upon receiving set_trial_parameters from GUI
         
         """
-        # Log
+        ## Log
         self.logger.debug(f'setting trial parameters: {msg_params}')
         
-        # If not running, issue error
+        
+        ## If not running, issue error
         # Because this might indicate that something has gone wrong
         if not self.session_running:
             self.logger.error(
                 f'received trial parameters but session is not running')
             return
         
+        
+        ## Handle reward
         # Pop reward out separately, with default False
         if 'left_reward' in msg_params:
             left_reward = msg_params.pop('left_reward')
@@ -306,7 +310,8 @@ class Agent(object):
         else:
             right_params = {}
     
-        # Use those params to set the new sounds
+        
+        ## Use those params to set the new sounds
         self.logger.info(
             'setting audio parameters. '
             f'LEFT={left_params}. RIGHT={right_params}')
@@ -315,6 +320,11 @@ class Agent(object):
         # Empty and refill the queue with new sounds
         self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed()
+        
+        
+        ## Update trial number
+        # TODO: does it matter if this is done first or last?
+        self.trial_number = msg_params['trial_number']
     
     def report_poke(self, port_name, poke_time):
         """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
@@ -323,7 +333,11 @@ class Agent(object):
         self.logger.info(f'reporting poke on {port_name} at {poke_time}')
         # Send 'poke;poke_name' to GUI
         self.network_communicator.poke_socket.send_string(
-            f'poke;port_name={port_name}=str;poke_time={poke_time}=str')
+            f'poke;'
+            f'trial_number={self.trial_number};'
+            f'port_name={port_name}=str;'
+            f'poke_time={poke_time}=str'
+            )
     
     def report_reward(self, port_name, poke_time):
         """Called by Nosepoke upon reward. Reports to GUI by ZMQ.
@@ -333,7 +347,11 @@ class Agent(object):
         
         # Send 'reward;poke_name' to GUI
         self.network_communicator.poke_socket.send_string(
-            f'reward;port_name={port_name}=str;poke_time={poke_time}=str')
+            f'reward;'
+            f'trial_number={self.trial_number};'
+            f'port_name={port_name}=str;'
+            f'poke_time={poke_time}=str'
+            )            
     
     def stop_session(self):
         """Runs when a session is stopped
