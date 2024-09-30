@@ -229,6 +229,13 @@ class SoundGenerator_IntermittentBursts(object):
             amplitude : required
             center_freq : required
             bandwidth : optional, default 3000
+
+            duration : float, duration of noise burst in seconds
+            amplitude : float, amplitude of noise burst
+            center_freq : float, center frequency in Hz
+            bandwidth : float, bandwidth (not half-bandwidth) in Hz
+            rate : float, rate of sounds in Hz
+            temporal_std : float, standard deviation of inter-sound intervals
         
         Returns : Noise
         """
@@ -412,14 +419,8 @@ class SoundGenerator_IntermittentBursts(object):
         a list of params.
         
         left_params and right_params : dict with keys
-            silenced : bool
-                If True, no sound will be played from that channel
-            duration : float, duration of noise burst in seconds
-            amplitude : float, amplitude of noise burst
-            center_freq : float, center frequency in Hz
-            bandwidth : float, bandwidth (not half-bandwidth) in Hz
-            rate : float, rate of sounds in Hz
-            temporal_std : float, standard deviation of inter-sound intervals
+            See _make_sound for details
+            If this is empty, no sound is played
         """
         ## Generate the stimuli to use (one per channel)
         # Presently, exactly zero or one kind of Noise can be played from
