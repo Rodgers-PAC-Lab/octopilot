@@ -278,7 +278,7 @@ class SoundGenerator_IntermittentBursts(object):
         params : dict with the keys
             rate : float
                 Rate in Hz
-            temporal_std : float
+            temporal_log_std : float
                 Standard deviation of intervals in seconds
 
             rate : float, rate of sounds in Hz
@@ -293,7 +293,7 @@ class SoundGenerator_IntermittentBursts(object):
         else:
             # Change of basis
             mean_interval = 1 / params['rate']
-            var_interval = params['temporal_std'] ** 2
+            var_interval = (10 ** params['temporal_log_std']) ** 2
             gamma_shape = (mean_interval ** 2) / var_interval
             gamma_scale = var_interval / mean_interval
 

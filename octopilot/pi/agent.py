@@ -288,7 +288,7 @@ class Agent(object):
         # of sound, which must be target or distracter
         if msg_params['left_target_rate'] > 0:
             left_params = {
-                'target_rate': msg_params['left_target_rate'],
+                'rate': msg_params['left_target_rate'],
                 'temporal_log_std': msg_params['target_temporal_log_std'],
                 'center_freq': msg_params['target_center_freq'],
                 'log_amplitude': msg_params['target_log_amplitude'],
@@ -298,7 +298,7 @@ class Agent(object):
     
         if msg_params['right_target_rate'] > 0:
             right_params = {
-                'target_rate': msg_params['right_target_rate'],
+                'rate': msg_params['right_target_rate'],
                 'temporal_log_std': msg_params['target_temporal_log_std'],
                 'center_freq': msg_params['target_center_freq'],
                 'log_amplitude': msg_params['target_log_amplitude'],
