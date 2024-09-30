@@ -910,7 +910,7 @@ class Dispatcher:
         finally:
             self.stop_session()
     
-    def handle_poke(self, identity, port_name, poke_time, reward):
+    def handle_poke(self, identity, port_name, poke_time):
         ## Store results
         # TODO: store the raw datetime in the csv
 
@@ -928,7 +928,7 @@ class Dispatcher:
         self.history_of_pokes[port_name].append(poke_time_sec)
         
         # Log
-        self.log_poke(poke_time, identity, port_name, reward)
+        self.log_poke(poke_time, identity, port_name, reward=False)
 
     def handle_reward(self, identity, port_name, poke_time):
         # TODO: store the raw datetime in the csv
@@ -967,6 +967,9 @@ class Dispatcher:
 
         # Save the rewarded port as previously_rewarded_port
         self.previously_rewarded_port = port_name
+
+        # Log
+        self.log_poke(poke_time, identity, port_name, reward=True)
         
         # Start a new trial
         self.start_trial()
@@ -985,7 +988,7 @@ class Dispatcher:
             self.logger.error('session stopped due to early goodbye')
             self.stop_session()
     
-    def log_poke(self, poke_time, poked_port, rewarded):
+    def log_poke(self, poke_time, identity, poked_port, reward):
         """Record that a poke occurred"""
         with open('pokes.log', 'a') as fi:
-            fi.write(f'{poke_time},{poked_port},{rewarded}\n')
+            fi.write(f'{poke_time},{identity},{poked_port},{reward}\n')

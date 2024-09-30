@@ -323,7 +323,7 @@ class Agent(object):
         self.logger.info(f'reporting poke on {port_name} at {poke_time}')
         # Send 'poke;poke_name' to GUI
         self.network_communicator.poke_socket.send_string(
-            f'poke;port_name={port_name}=str;poke_time={poke_time}=str;reward=False=bool')
+            f'poke;port_name={port_name}=str;poke_time={poke_time}=str')
     
     def report_reward(self, port_name, poke_time):
         """Called by Nosepoke upon reward. Reports to GUI by ZMQ.
@@ -333,7 +333,7 @@ class Agent(object):
         
         # Send 'reward;poke_name' to GUI
         self.network_communicator.poke_socket.send_string(
-            f'reward;port_name={port_name}=str;poke_time={poke_time}=str;reward=True=bool')
+            f'reward;port_name={port_name}=str;poke_time={poke_time}=str')
     
     def stop_session(self):
         """Runs when a session is stopped
