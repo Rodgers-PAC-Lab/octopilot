@@ -194,18 +194,18 @@ class Noise:
         # Convert to float32
         self.table = self.table.astype(np.float32)
         
-        # Apply attenuation
-        if self.attenuation is not None:
-            # To make the attenuated sounds roughly match the original
-            # sounds in loudness, multiply table by np.sqrt(10) (10 dB)
-            # Better solution is to encode this into attenuation profile,
-            # or a separate "gain" parameter
-            self.table = self.table * np.sqrt(10)
+        # # Apply attenuation
+        # if self.attenuation is not None:
+        #     # To make the attenuated sounds roughly match the original
+        #     # sounds in loudness, multiply table by np.sqrt(10) (10 dB)
+        #     # Better solution is to encode this into attenuation profile,
+        #     # or a separate "gain" parameter
+        #     self.table = self.table * np.sqrt(10)
             
-            # Apply the attenuation to each column
-            for n_column in range(self.table.shape[1]):
-                self.table[:, n_column] = apply_attenuation(
-                    self.table[:, n_column], self.attenuation, self.fs)
+        #     # Apply the attenuation to each column
+        #     for n_column in range(self.table.shape[1]):
+        #         self.table[:, n_column] = apply_attenuation(
+        #             self.table[:, n_column], self.attenuation, self.fs)
         
         # Break the sound table into individual chunks of length blocksize
         self.chunk()
