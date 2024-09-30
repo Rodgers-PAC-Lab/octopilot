@@ -220,6 +220,21 @@ class TrialParameterChooser(object):
             'n_distracters',
             ]
         
+        # Default values
+        # TODO: handle defaults more sensibly
+        param2default = {
+            'target_rate': 0,
+            'target_temporal_log_std': -3,
+            'target_radius': 0,
+            'target_center_freq': 5000,
+            'target_log_amplitude': -3,
+            'distracter_rate': 0,
+            'distracter_temporal_log_std': -3,
+            'distracter_center_freq': 5000,
+            'distracter_log_amplitude': -3,
+            'n_distracters': 0,
+        }
+        
         # Iterate over ranged_params and extract each
         kwargs = {}
         for param in ranged_params:
@@ -247,11 +262,10 @@ class TrialParameterChooser(object):
             else:
                 # It's not specified in task_params
                 # Assign a default here
-                if param == 'target_radius':
-                    default_value = 0
+                if param in param2default:
+                    default_value = param2default[param]
                 else:
-                    #raise ValueError(f'no default value specified for {param}')
-                    print (f'warning: no default value specified for {param}')
+                    raise ValueError(f'no default value specified for {param}')
                 rangeval['min'] = default_value
                 rangeval['max'] = default_value
                 rangeval['n_choices'] = 1
