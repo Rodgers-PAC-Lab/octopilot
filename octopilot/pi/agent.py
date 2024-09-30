@@ -286,7 +286,7 @@ class Agent(object):
         # TODO: make this more flexible
         # Right now it's hard coded that each port can only play one type
         # of sound, which must be target or distracter
-        if msg_params['left_target_rate'] > 0:
+        if 'left_target_rate' in msg_params and msg_params['left_target_rate'] > 0:
             left_params = {
                 'rate': msg_params['left_target_rate'],
                 'temporal_log_std': msg_params['target_temporal_log_std'],
@@ -296,7 +296,7 @@ class Agent(object):
         else:
             left_params = {}
     
-        if msg_params['right_target_rate'] > 0:
+        if 'right_target_rate' in msg_params and msg_params['right_target_rate'] > 0:
             right_params = {
                 'rate': msg_params['right_target_rate'],
                 'temporal_log_std': msg_params['target_temporal_log_std'],
