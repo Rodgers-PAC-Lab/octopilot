@@ -334,7 +334,7 @@ class Agent(object):
         # Send 'poke;poke_name' to GUI
         self.network_communicator.poke_socket.send_string(
             f'poke;'
-            f'trial_number={self.trial_number};'
+            f'trial_number={self.trial_number}=int;'
             f'port_name={port_name}=str;'
             f'poke_time={poke_time}=str'
             )
@@ -348,7 +348,7 @@ class Agent(object):
         # Send 'reward;poke_name' to GUI
         self.network_communicator.poke_socket.send_string(
             f'reward;'
-            f'trial_number={self.trial_number};'
+            f'trial_number={self.trial_number}=int;'
             f'port_name={port_name}=str;'
             f'poke_time={poke_time}=str'
             )            
