@@ -139,9 +139,10 @@ class Nosepoke(object):
         *reward_value: how long the valve should be open (in seconds) [imported from task parameters sent to the pi] 
         """
         # TODO: thread this instead of sleeping
-        #self.pig.write(valve_l, 1) # Opening valve
+        self.logger.info(f'opening pin {self.solenoid_pin} for {duration}')
+        self.pig.write(self.solenoid_pin, 1) # Opening valve
         time.sleep(duration)
-        #self.pig.write(valve_l, 0) # Closing valve
+        self.pig.write(self.solenoid_pin, 0) # Closing valve
         self.logger.info('reward delivered')
     
     def poke_in(self, pin, level, tick):
