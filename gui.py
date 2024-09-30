@@ -163,7 +163,7 @@ class Worker(QObject):
         self.unique_ports_colors = {}  # Dictionary to store color for each unique port
         self.average_unique_ports = 0  # Variable to store the average number of unique ports visited
     
-    # Method to start the sequence
+       # Method to start the sequence
     @pyqtSlot()
     def start_sequence(self):
         # Reset data when starting a new sequence
@@ -181,14 +181,11 @@ class Worker(QObject):
         for identity in self.identities:
             self.socket.send_multipart([identity, bytes(reward_message, 'utf-8')])
         
-        # Creating a dictionary that takes the label of each port and matches it to the index on the GUI 
-        self.ports = params['ports']
-        self.label_to_index = {port['label']: port['index'] for port in self.ports}
-        self.index_to_label = {port['index']: port['label'] for port in self.ports}
-        self.index = self.label_to_index.get(str(self.reward_port))
-
+        port_data = params['ports'][int(self.reward_port)]
+        label_text = port_data['label']
+        
         # Set the color of the initial reward port to green
-        self.Pi_signals[self.index].set_color("green")
+        self.Pi_signals[self.reward_port - 1].set_color("green")
 
         # Start the timer loop
         self.timer = QTimer()
@@ -243,7 +240,7 @@ class Worker(QObject):
     @pyqtSlot()
     def update_Pi(self):
         current_time = datetime.now()
-        elapsed_time = current_time - self.initial_time
+        elapsed_time = None
 
         # Update the last poke timestamp whenever a poke event occurs
         self.last_poke_timestamp = current_time
@@ -291,6 +288,13 @@ class Worker(QObject):
                 self.current_center_freq = float(params.get("Center Frequency", "0").split()[0])
                 self.current_bandwidth = float(params.get("Bandwidth", "0"))
 
+            if  message_str.startswith("Poke Time:"): 
+                print(message_str)
+                label, poke_time_str = message_str.split(': ', 1)
+                poke_time = datetime.strptime(poke_time_str, "%Y-%m-%d %H:%M:%S.%f")
+                elapsed_time = poke_time - self.initial_time 
+                self.timestamps.append(elapsed_time)
+                
             else:
                 poked_port = int(message_str)
                 # Check if the poked port is the same as the last rewarded port
@@ -299,8 +303,7 @@ class Worker(QObject):
                         return
 
                 if 1 <= poked_port <= self.total_ports:
-                    poked_port_index = self.label_to_index.get(message_str)
-                    poked_port_signal = self.Pi_signals[poked_port_index]
+                    poked_port_signal = self.Pi_signals[poked_port - 1]
 
                     if poked_port == self.reward_port:
                         color = "green" if self.trials == 0 else "blue"
@@ -312,6 +315,7 @@ class Worker(QObject):
                         self.current_poke += 1
 
                     poked_port_signal.set_color(color)
+                    
                     self.poked_port_numbers.append(poked_port)
                     print_out("Sequence:", self.poked_port_numbers)
                     self.last_pi_received = identity
@@ -334,8 +338,6 @@ class Worker(QObject):
                             self.current_correct_trials += 1 
                             self.current_fraction_correct = self.current_correct_trials / self.current_completed_trials
 
-                        index = self.index_to_label.get(poked_port_index)
-                        
                         # Reset color of all non-reward ports to gray and reward port to green
                         for index, Pi in enumerate(self.Pi_signals):
                             if index + 1 == self.reward_port:
@@ -346,9 +348,7 @@ class Worker(QObject):
                         for identity in self.identities:
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
                             
-                    
                     self.pokes.append(self.current_poke)
-                    self.timestamps.append(elapsed_time)
                     self.amplitudes.append(self.current_amplitude)
                     self.target_rates.append(self.current_target_rate)
                     self.target_temporal_log_stds.append(self.current_target_temporal_log_std)
