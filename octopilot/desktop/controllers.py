@@ -910,7 +910,7 @@ class Dispatcher:
         finally:
             self.stop_session()
     
-    def handle_poke(self, identity, port_name, poke_time):
+    def handle_poke(self, identity, port_name, poke_time, reward):
         ## Store results
         # TODO: store the raw datetime in the csv
 
@@ -926,6 +926,9 @@ class Dispatcher:
         
         # Store
         self.history_of_pokes[port_name].append(poke_time_sec)
+        
+        # Log
+        self.log_poke(poke_time, identity, port_name, reward)
 
     def handle_reward(self, identity, port_name, poke_time):
         # TODO: store the raw datetime in the csv
@@ -981,4 +984,8 @@ class Dispatcher:
         if self.session_is_running and not self.network_communicator.check_if_all_pis_connected():
             self.logger.error('session stopped due to early goodbye')
             self.stop_session()
-        
+    
+    def log_poke(self, poke_time, poked_port, rewarded):
+        """Record that a poke occurred"""
+        with open('pokes.log', 'a') as fi:
+            fi.write(f'{poke_time},{poked_port},{rewarded}\n')
