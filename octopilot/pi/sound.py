@@ -234,8 +234,6 @@ class SoundGenerator_IntermittentBursts(object):
             amplitude : float, amplitude of noise burst
             center_freq : float, center frequency in Hz
             bandwidth : float, bandwidth (not half-bandwidth) in Hz
-            rate : float, rate of sounds in Hz
-            temporal_std : float, standard deviation of inter-sound intervals
         
         Returns : Noise
         """
@@ -271,23 +269,25 @@ class SoundGenerator_IntermittentBursts(object):
     def _make_intervals(self, params, n_intervals=100):
         """Generates sound_intervals according to params
         
-        If params['silenced'] is True: returns np.array([])
+        If len(params) == 0: returns np.array([])
         Otherwise, returns an array of intervals between sounds. Each
         entry in the array is drawn from the gamma distribution.
         
         Arguments
         ---------
         params : dict with the keys
-            silenced : bool
             rate : float
                 Rate in Hz
             temporal_std : float
                 Standard deviation of intervals in seconds
+
+            rate : float, rate of sounds in Hz
+            temporal_std : float, standard deviation of inter-sound intervals
         
         Returns : np.array of length `n_intervals`        
         """
         # Intervals for left
-        if params['silenced']:
+        if len(params) == 0:
             intervals = np.array([])
         
         else:
@@ -419,7 +419,7 @@ class SoundGenerator_IntermittentBursts(object):
         a list of params.
         
         left_params and right_params : dict with keys
-            See _make_sound for details
+            See _make_sound and _make_intervals for details
             If this is empty, no sound is played
         """
         ## Generate the stimuli to use (one per channel)
