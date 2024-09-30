@@ -963,7 +963,7 @@ class Dispatcher:
             len(not_including_current) + 1)
 
         # Save the rewarded port as previously_rewarded_port
-        self.previously_rewarde_port = port_name
+        self.previously_rewarded_port = port_name
         
         # Start a new trial
         self.start_trial()
