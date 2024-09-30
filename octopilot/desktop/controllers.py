@@ -620,6 +620,13 @@ class Dispatcher:
         self.last_alive_message_received = {}
         self.alive_timer = None
         self.session_start_time = None
+        self.session_name = None
+        
+        
+        ## Store
+        self.box_params = box_params
+        self.task_params = task_params
+        self.mouse_params = mouse_params
 
         
         ## Extract the port names, pi names, and ip addresses from box_params
@@ -723,6 +730,11 @@ class Dispatcher:
         # Set the initial_time to now
         self.session_start_time = datetime.datetime.now() 
         self.logger.info(f'Starting session at {self.session_start_time}')
+        
+        # Create and store the session name
+        self.session_name = (
+            self.session_start_time.strftime('%Y-%m-%d_%H-%M-%S') 
+            + '_' + self.mouse_params['name'])
         
         # Deal with case where the old sessions is still going
         if self.session_is_running:
@@ -992,6 +1004,15 @@ class Dispatcher:
         for key in sorted(self.trial_parameters.keys()):
             str_to_log += str(self.trial_parameters[key]) + ','
         str_to_log += str(reward_time)
+        
+        # Path to logfile
+        # TODO: hardcode this once, and write a header row, instead of
+        # recomputing each time
+        dt_now = datetime.datetime.now()
+        path = os.path.join(
+            os.path.expanduser('~/octopilot/logs'), 
+            dt_now.year, '{:02d}'.format(dt_now.month), 
+            self.session_name, 'trials.log')
         
         with open('trials.log', 'a') as fi:
             fi.write(str_to_log + '\n')

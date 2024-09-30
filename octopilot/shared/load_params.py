@@ -60,6 +60,9 @@ def load_box_params(box):
     # Load the parameters from the specified JSON file
     params = simple_json_loader(full_path)
     
+    # Store the name
+    params['name'] = box
+    
     # Ensure 'connected_pis' is present
     if 'connected_pis' not in params:
         raise IOError(
@@ -103,7 +106,13 @@ def load_task_params(task):
     full_path = os.path.join(config_path, 'task', task + '.json')
 
     # Load the parameters from the specified JSON file
-    return simple_json_loader(full_path)
+    params = simple_json_loader(full_path)
+
+    # Store the name
+    params['name'] = task
+
+    # Return
+    return params
 
 def load_mouse_params(mouse):
     """Loads mouse params from `mouse.json` and returns
@@ -117,6 +126,12 @@ def load_mouse_params(mouse):
 
     # Load the parameters from the specified JSON file
     return simple_json_loader(full_path)
+
+    # Store the name
+    params['name'] = mouse
+
+    # Return
+    return params
 
 def load_pi_params():
     """Loads pi params for this hostname and returns
