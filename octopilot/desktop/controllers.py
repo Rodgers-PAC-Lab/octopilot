@@ -751,7 +751,7 @@ class Dispatcher:
     def start_trial(self):
         ## Choose and broadcast reward_port
         # Choose trial parameters
-        goal_port, trial_parameters, port_parameters = (
+        self.goal_port, self.trial_parameters, self.port_parameters = (
             self.trial_parameter_chooser.choose(self.previously_rewarded_port)
             )
 
@@ -761,12 +761,9 @@ class Dispatcher:
         else:
             self.current_trial += 1
 
-        # Store the goal port (to define correct trials)
-        self.goal_port = goal_port
-
         # Add trial number to trial_parameters
         # TODO: get Pi to store this with each poke
-        trial_parameters['trial_number'] = self.current_trial
+        self.trial_parameters['trial_number'] = self.current_trial
 
         # Update which ports have been poked
         self.ports_poked_this_trial = set()
@@ -774,15 +771,15 @@ class Dispatcher:
         # Log
         self.logger.info(
             f'starting trial {self.current_trial}; '
-            f'goal port {goal_port}; '
-            f'trial parameters\n{trial_parameters}; '
-            f'port_parameters:\n{port_parameters}'
+            f'goal port {self.goal_port}; '
+            f'trial parameters\n{self.trial_parameters}; '
+            f'port_parameters:\n{self.port_parameters}'
             )
         
         # Send the parameters to each pi
         for pi_name in self.pi_names:
             # Make a copy
-            pi_params = trial_parameters.copy()
+            pi_params = self.trial_parameters.copy()
             
             # Add the parameters that can vary by port 
             # from port_parameters to pi_params
@@ -800,10 +797,10 @@ class Dispatcher:
                 # Iterate over pi_specific_params
                 for pi_specific_param in pi_specific_params:
                     # Add it only if it was specified
-                    if pi_specific_param in port_parameters.columns:
+                    if pi_specific_param in self.port_parameters.columns:
                         # Add it, keyed by the side
                         pi_params[f'{side}_{pi_specific_param}'] = (
-                            port_parameters.loc[port_name, pi_specific_param])
+                            self.port_parameters.loc[port_name, pi_specific_param])
             
             # Send start to each Pi
             self.network_communicator.send_trial_parameters_to_pi(
@@ -966,8 +963,11 @@ class Dispatcher:
         # Save the rewarded port as previously_rewarded_port
         self.previously_rewarded_port = port_name
 
-        # Log
+        # Log the poke
         self.log_poke(trial_number, poke_time, identity, port_name, reward=True)
+
+        # Log the trial
+        self.log_trial(poke_time)
         
         # Start a new trial
         self.start_trial()
@@ -985,6 +985,16 @@ class Dispatcher:
         if self.session_is_running and not self.network_communicator.check_if_all_pis_connected():
             self.logger.error('session stopped due to early goodbye')
             self.stop_session()
+    
+    def log_trial(self, reward_time):
+        # store in alphabetical order for consistency
+        str_to_log = ''
+        for key in sorted(self.trial_parameters.keys()):
+            str_to_log += str(self.trial_parameters[key]) + ','
+        str_to_log += str(reward_time)
+        
+        with open('trials.log', 'a') as fi:
+            fi.write(str_to_log + '\n')
     
     def log_poke(self, trial_number, poke_time, identity, poked_port, reward):
         """Record that a poke occurred"""
