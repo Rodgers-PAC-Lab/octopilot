@@ -44,6 +44,7 @@ active_nosepokes = [int(i) for i in params['active_nosepokes']]
 # Variable to keep track of the current task
 current_task = None
 current_time = None
+task_active = False
 
 # Function to print to terminal and store log files as txt
 def print_out(*args, **kwargs):
@@ -194,7 +195,7 @@ class Worker(QObject):
 
     # Method to stop the sequence
     @pyqtSlot()
-    def stop_sequence(self):
+    def stop_sequence(self):        
         if self.timer is not None:
             self.timer.stop()
             self.timer.timeout.disconnect(self.update_Pi)
@@ -364,7 +365,10 @@ class Worker(QObject):
     
    # Method to save results to a CSV file
     def save_results_to_csv(self):
-        global current_task, current_time
+        global current_task, current_time, task_active
+        
+        # Flag signifying task is completed 
+        task_active = False
         
         # Specifying the directory where you want to save the CSV files
         save_directory = params['save_directory']
@@ -1159,37 +1163,47 @@ class ConfigurationList(QWidget):
         
     # Define the slot for double-clicked items
     def config_item_clicked(self, item, column):
-        global current_task, current_time 
+        global current_task, current_time, task_active 
         
         if item.parent():  # Ensure it's a config item, not a category
             selected_config = item.data(0, Qt.UserRole)
             self.current_config = selected_config
             self.selected_config_label.setText(f"Selected Config: {selected_config['name']}")
             
-            # Prompt to confirm selected configuration
-            confirm_dialog = QMessageBox()
-            confirm_dialog.setIcon(QMessageBox.Question)
-            confirm_dialog.setText(f"Do you want to use '{selected_config['name']}'?")
-            confirm_dialog.setWindowTitle("Confirm Configuration")
-            confirm_dialog.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-            confirm_dialog.setDefaultButton(QMessageBox.Yes)
+            # If the dialog and toast have already been shown, return early
+            if task_active == True:
+                return
             
-            if confirm_dialog.exec_() == QMessageBox.Yes:
-                # Serialize JSON data and send it over ZMQ to all IPs connected
-                json_data = json.dumps(selected_config)
-                self.publisher.send_json(json_data)
-                self.current_task = selected_config['name'] + "_" + selected_config['task']
-                self.current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-                current_time = self.current_time
-                current_task = self.current_task
-                toast = Toast(self)
-                toast.setDuration(5000)  # Hide after 5 seconds
-                toast.setTitle('Task Parameters Sent')
-                toast.setText(f'Parameters for task {current_task} have been sent to {args.json_filename}')
-                toast.applyPreset(ToastPreset.SUCCESS)  # Apply style preset
-                toast.show()
-            else:
-                self.selected_config_label.setText(f"Selected Config: None")
+            if task_active == False:
+                # Prompt to confirm selected configuration
+                confirm_dialog = QMessageBox()
+                confirm_dialog.setIcon(QMessageBox.Question)
+                confirm_dialog.setText(f"Do you want to use '{selected_config['name']}'?")
+                confirm_dialog.setWindowTitle("Confirm Configuration")
+                confirm_dialog.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                confirm_dialog.setDefaultButton(QMessageBox.Yes)
+                
+                if confirm_dialog.exec_() == QMessageBox.Yes:
+                    # Serialize JSON data and send it over ZMQ to all IPs connected
+                    json_data = json.dumps(selected_config)
+                    self.publisher.send_json(json_data)
+                    self.current_task = selected_config['name'] + "_" + selected_config['task']
+                    self.current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    current_time = self.current_time
+                    current_task = self.current_task
+                    
+                    toast = Toast(self)
+                    toast.setDuration(5000)  # Hide after 5 seconds
+                    toast.setTitle('Task Parameters Sent')
+                    toast.setText(f'Parameters for task {current_task} have been sent to {args.json_filename}')
+                    toast.applyPreset(ToastPreset.SUCCESS)  # Apply style preset
+                    toast.show()
+
+                    # Mark the dialog and toast as shown
+                    task_active = True  
+                else:
+                    self.selected_config_label.setText(f"Selected Config: None")
+    
 
     def show_context_menu(self, pos):
         item = self.config_tree.itemAt(pos)
