@@ -164,7 +164,7 @@ class Worker(QObject):
         self.unique_ports_colors = {}  # Dictionary to store color for each unique port
         self.average_unique_ports = 0  # Variable to store the average number of unique ports visited
     
-       # Method to start the sequence
+    # Method to start the sequence
     @pyqtSlot()
     def start_sequence(self):
         # Reset data when starting a new sequence
@@ -182,11 +182,17 @@ class Worker(QObject):
         for identity in self.identities:
             self.socket.send_multipart([identity, bytes(reward_message, 'utf-8')])
         
-        port_data = params['ports'][int(self.reward_port)]
-        label_text = port_data['label']
-        
-        # Set the color of the initial reward port to green
-        self.Pi_signals[self.reward_port - 1].set_color("green")
+        # Get the label value from self.reward_port
+        target_label = str(self.reward_port)
+
+        # Find the port where the label matches the target label
+        port_data = next((port for port in params['ports'] if port['label'] == target_label), None)
+
+        # If a matching port is found, retrieve the index
+        if port_data:
+            port_index = port_data['index']
+            # Set the color of the signal at the found index to green
+            self.Pi_signals[port_index].set_color("green")
 
         # Start the timer loop
         self.timer = QTimer()
@@ -297,16 +303,22 @@ class Worker(QObject):
                 self.timestamps.append(elapsed_time)
                 
             else:
-                poked_port = int(message_str)
+                poked_port = message_str
                 # Check if the poked port is the same as the last rewarded port
                 if poked_port == self.last_rewarded_port:
                      # If it is, do nothing and return
                         return
 
-                if 1 <= poked_port <= self.total_ports:
-                    poked_port_signal = self.Pi_signals[poked_port - 1]
+                if 1 <= int(poked_port) <= self.total_ports:
+                    # Find the port with the matching label
+                    port_data = next((port for port in params['ports'] if port['label'] == poked_port), None)
 
-                    if poked_port == self.reward_port:
+                    # If the port is found, get the corresponding Pi signal
+                    if port_data:
+                        port_index = port_data['index']
+                        poked_port_signal = self.Pi_signals[port_index]
+
+                    if int(poked_port) == self.reward_port:
                         color = "green" if self.trials == 0 else "blue"
                         if self.trials > 0:
                             self.trials = 0
@@ -340,11 +352,22 @@ class Worker(QObject):
                             self.current_fraction_correct = self.current_correct_trials / self.current_completed_trials
 
                         # Reset color of all non-reward ports to gray and reward port to green
-                        for index, Pi in enumerate(self.Pi_signals):
-                            if index + 1 == self.reward_port:
-                                Pi.set_color("green")
-                            else:
-                                Pi.set_color("gray")
+                        # Get the label value from self.reward_port
+                        target_label = str(self.reward_port)
+
+                        # Find the port where the label matches the target label
+                        port_data = next((port for port in params['ports'] if port['label'] == target_label), None)
+
+                        # If a matching port is found, retrieve the index
+                        if port_data:
+                            port_index = port_data['index']
+
+                            # Reset color of all non-reward ports to gray, and reward port to green
+                            for index, Pi in enumerate(self.Pi_signals):
+                                if index == port_index:
+                                    Pi.set_color("green")
+                                else:
+                                    Pi.set_color("gray")
 
                         for identity in self.identities:
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
