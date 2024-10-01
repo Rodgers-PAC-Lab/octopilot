@@ -603,7 +603,7 @@ class PiWidget(QWidget):
         toast = Toast(self)
         toast.setDuration(5000)  # Hide after 5 seconds
         toast.setTitle('Results Saved')
-        toast.setText('Log saved to /home/mouse/dev/paclab_sukrith/logs')
+        toast.setText('Log saved to /home/mouse/dev/octopilot/logs')
         toast.applyPreset(ToastPreset.SUCCESS)  # Apply style preset
         toast.show()
 
@@ -780,7 +780,7 @@ class PresetTaskDialog(QDialog):
 
         self.task_label = QLabel("Select Task:")
         self.task_combo = QComboBox(self)
-        self.task_combo.addItems(["Fixed", "Sweep", "Poketrain", "Distracter", "Audio"])  
+        self.task_combo.addItems(["Fixed", "Sweep", "Poketrain"])  
         self.ok_button = QPushButton("OK")
         self.ok_button.clicked.connect(self.accept)
 
