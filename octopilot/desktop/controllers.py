@@ -2,6 +2,7 @@
 
 """
 import zmq
+import os
 import time
 import subprocess
 import threading
@@ -273,6 +274,9 @@ class TrialParameterChooser(object):
             # Store in kwargs
             kwargs['range_' + param] = rangeval
         
+        # Transfer task name
+        kwargs['task_name'] = task_params.pop('name')
+        
         # Transfer any remaining items in task_params to kwargs
         # This includes: play_targets, play_distracters, and reward_radius,
         # none of which are ranged
@@ -297,6 +301,7 @@ class TrialParameterChooser(object):
         range_distracter_center_freq=None,
         range_distracter_log_amplitude=None,
         range_n_distracters=None,
+        task_name=None,
         ):
         """Init new object that will choose trial params from specified ranges.
         
@@ -735,6 +740,26 @@ class Dispatcher:
         self.session_name = (
             self.session_start_time.strftime('%Y-%m-%d_%H-%M-%S') 
             + '_' + self.mouse_params['name'])
+
+        # Create a path to store data
+        dt_now = datetime.datetime.now()
+        self.save_path = os.path.join(
+            os.path.expanduser('~/octopilot/logs'), 
+            str(dt_now.year), '{:02d}'.format(dt_now.month), 
+            self.session_name)
+        
+        # Create the paths needed for save_path
+        path1 = os.path.join(os.path.expanduser('~/octopilot/logs'),    
+            str(dt_now.year))
+        if not os.path.exists(path1):
+            os.mkdir(path1)
+        path1 = os.path.join(path1, '{:02d}'.format(dt_now.month))
+        if not os.path.exists(path1):
+            os.mkdir(path1)
+        path1 = os.path.join(path1, self.session_name)
+        if not os.path.exists(path1):
+            os.mkdir(path1)
+        assert path1 == self.save_path
         
         # Deal with case where the old sessions is still going
         if self.session_is_running:
@@ -1005,19 +1030,10 @@ class Dispatcher:
             str_to_log += str(self.trial_parameters[key]) + ','
         str_to_log += str(reward_time)
         
-        # Path to logfile
-        # TODO: hardcode this once, and write a header row, instead of
-        # recomputing each time
-        dt_now = datetime.datetime.now()
-        path = os.path.join(
-            os.path.expanduser('~/octopilot/logs'), 
-            dt_now.year, '{:02d}'.format(dt_now.month), 
-            self.session_name, 'trials.log')
-        
-        with open('trials.log', 'a') as fi:
+        with open(os.path.join(self.save_path, 'trials.csv'), 'a') as fi:
             fi.write(str_to_log + '\n')
     
     def log_poke(self, trial_number, poke_time, identity, poked_port, reward):
         """Record that a poke occurred"""
-        with open('pokes.log', 'a') as fi:
+        with open(os.path.join(self.save_path, 'pokes.csv'), 'a') as fi:
             fi.write(f'{poke_time},{trial_number},{identity},{poked_port},{reward}\n')

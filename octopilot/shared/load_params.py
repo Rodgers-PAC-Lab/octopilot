@@ -125,7 +125,7 @@ def load_mouse_params(mouse):
     full_path = os.path.join(config_path, 'mouse', mouse + '.json')
 
     # Load the parameters from the specified JSON file
-    return simple_json_loader(full_path)
+    params = simple_json_loader(full_path)
 
     # Store the name
     params['name'] = mouse
