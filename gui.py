@@ -305,7 +305,7 @@ class Worker(QObject):
             else:
                 poked_port = message_str
                 # Check if the poked port is the same as the last rewarded port
-                if poked_port == self.last_rewarded_por
+                if poked_port == self.last_rewarded_port:
                      # If it is, do nothing and return
                         return
 
