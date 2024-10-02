@@ -282,18 +282,18 @@ class Worker(QObject):
                 # Remove the "Current Parameters - " part and strip any leading/trailing whitespace
                 param_string = sound_parameters.split("-", 1)[1].strip()
                 
-                # Extract parameters
-                params = {}
-                for param in param_string.split(','):
-                    key, value = param.split(':')
-                    params[key.strip()] = value.strip()
+                # Extract sound parameters
+                sparams = {}
+                for sparam in param_string.split(','):
+                    key, value = sparam.split(':')
+                    sparams[key.strip()] = value.strip()
                 
                 # Extract and convert the values
-                self.current_amplitude = float(params.get("Amplitude", 0))
-                self.current_target_rate = float(params.get("Rate", "0").split()[0])
-                self.current_target_temporal_log_std = float(params.get("Irregularity", "0").split()[0])
-                self.current_center_freq = float(params.get("Center Frequency", "0").split()[0])
-                self.current_bandwidth = float(params.get("Bandwidth", "0"))
+                self.current_amplitude = float(sparams.get("Amplitude", 0))
+                self.current_target_rate = float(sparams.get("Rate", "0").split()[0])
+                self.current_target_temporal_log_std = float(sparams.get("Irregularity", "0").split()[0])
+                self.current_center_freq = float(sparams.get("Center Frequency", "0").split()[0])
+                self.current_bandwidth = float(sparams.get("Bandwidth", "0"))
 
             if  message_str.startswith("Poke Time:"): 
                 print(message_str)
@@ -305,7 +305,7 @@ class Worker(QObject):
             else:
                 poked_port = message_str
                 # Check if the poked port is the same as the last rewarded port
-                if poked_port == self.last_rewarded_port:
+                if int(poked_port) == self.last_rewarded_port:
                      # If it is, do nothing and return
                         return
 
@@ -329,11 +329,11 @@ class Worker(QObject):
 
                     poked_port_signal.set_color(color)
                     
-                    self.poked_port_numbers.append(poked_port)
+                    self.poked_port_numbers.append(int(poked_port))
                     print_out("Sequence:", self.poked_port_numbers)
                     self.last_pi_received = identity
 
-                    self.pokedportsignal.emit(poked_port, color)
+                    self.pokedportsignal.emit(int(poked_port), color)
                     self.reward_ports.append(self.reward_port)
                     self.update_unique_ports()
                     
