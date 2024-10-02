@@ -1010,9 +1010,9 @@ try:
                     
                     # TODO: what does this do? Why not just have reward pin
                     # always be set to output? # These are for the LEDs to blink
-                    pi.set_mode(reward_pin, pigpio.OUTPUT)
-                    pi.set_PWM_frequency(reward_pin, pwm_frequency)
-                    pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
+                    #pi.set_mode(reward_pin, pigpio.OUTPUT)
+                    #pi.set_PWM_frequency(reward_pin, pwm_frequency)
+                    #pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     
                     # Playing sound from the left speaker
                     sound_chooser.empty_queue()
@@ -1039,9 +1039,9 @@ try:
                     
                     # TODO: what does this do? Why not just have reward pin
                     # always be set to output? # LED blinking
-                    pi.set_mode(reward_pin, pigpio.OUTPUT)
-                    pi.set_PWM_frequency(reward_pin, pwm_frequency)
-                    pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
+                    #pi.set_mode(reward_pin, pigpio.OUTPUT)
+                    #pi.set_PWM_frequency(reward_pin, pwm_frequency)
+                    #pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     
                     # Playing sound from the right speaker
                     sound_chooser.empty_queue()
