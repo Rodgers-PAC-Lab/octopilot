@@ -9,7 +9,7 @@
         "center_freq_min": 10000.0,
         "center_freq_max": 10000.0,
         "bandwidth": 3000.0,
-        "reward_value": 0.5
+        "reward_value": 0.05
     },
     "Sweep": {
         "amplitude_min": 0.05,
@@ -21,7 +21,7 @@
         "center_freq_min": 5000.0,
         "center_freq_max": 15000.0,
         "bandwidth": 3000.0,
-        "reward_value": 0.5
+        "reward_value": 0.05
     },
     "Poketrain": {
         "amplitude_min": 0.0001,
@@ -33,6 +33,6 @@
         "center_freq_min": 10000.0,
         "center_freq_max": 10000.0,
         "bandwidth": 3000.0,
-        "reward_value": 1.0
+        "reward_value": 0.05
     }
 }
