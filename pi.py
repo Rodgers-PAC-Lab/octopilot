@@ -44,6 +44,9 @@ time.sleep(1)
 pi_hostname = sc.gethostname()
 pi_name = str(pi_hostname)
 
+# Making a flag for the pis to report pokes 
+report_poke = False
+
 # Load the config parameters for this pi
 # TODO: document everything in params
 param_directory = f"pi/configs/pis/{pi_name}.json"
@@ -703,6 +706,7 @@ def poke_inL(pin, level, tick):
             pi.write(17, 1)
         elif params['nosepokeL_type'] == "903":
             pi.write(17, 0)
+
     # Reset poke detected flags
     left_poke_detected = False
 
@@ -744,12 +748,13 @@ def poke_detectedL(pin, level, tick):
     poke_time = datetime.now()
         
     # Sending nosepoke_id wirelessly with datetime
-    try:
-        print(f"Sending nosepoke_id = {nosepoke_idL} at {poke_time}") 
-        poke_socket.send_string(f"{nosepoke_idL}")
-        poke_socket.send_string(f"Poke Time: {poke_time}")
-    except Exception as e:
-        print("Error sending nosepoke_id:", e)
+    if report_poke == True:
+        try:
+            print(f"Sending nosepoke_id = {nosepoke_idL} at {poke_time}") 
+            poke_socket.send_string(f"{nosepoke_idL}")
+            poke_socket.send_string(f"Poke Time: {poke_time}")
+        except Exception as e:
+            print("Error sending nosepoke_id:", e)
 
     if task == "Poketrain":
         if prev_reward == None or prev_reward != nosepoke_idL:
@@ -777,12 +782,13 @@ def poke_detectedR(pin, level, tick):
     poke_time = datetime.now()
     
     # Sending nosepoke_id wirelessly with datetime
-    try:
-        print(f"Sending nosepoke_id = {nosepoke_idR} at {poke_time}") 
-        poke_socket.send_string(f"{nosepoke_idR}")
-        poke_socket.send_string(f"Poke Time: {poke_time}")
-    except Exception as e:
-        print("Error sending nosepoke_id:", e)
+    if report_poke == True:
+        try:
+            print(f"Sending nosepoke_id = {nosepoke_idR} at {poke_time}") 
+            poke_socket.send_string(f"{nosepoke_idR}")
+            poke_socket.send_string(f"Poke Time: {poke_time}")
+        except Exception as e:
+            print("Error sending nosepoke_id:", e)
 
     if task == "Poketrain":
         if  prev_reward == None or prev_reward != nosepoke_idR:
@@ -962,6 +968,7 @@ try:
             
             # Receiving message from stop button 
             if msg == 'stop':
+                report_poke = False
                 stop_session()
                 
                 # Sending stop signal wirelessly to stop update function
@@ -975,6 +982,7 @@ try:
 
             # Communicating with start button to restart session
             if msg == 'start':
+                report_poke = True
                 try:
                     poke_socket.send_string("start")
                 except Exception as e:
