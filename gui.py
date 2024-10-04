@@ -246,6 +246,8 @@ class Worker(QObject):
     # Method to handle the update of Pis
     @pyqtSlot()
     def update_Pi(self):
+        global current_task
+        
         current_time = datetime.now()
         elapsed_time = None
 
@@ -304,10 +306,17 @@ class Worker(QObject):
                 
             else:
                 poked_port = message_str
+        
                 # Check if the poked port is the same as the last rewarded port
                 if int(poked_port) == self.last_rewarded_port:
                      # If it is, do nothing and return
                         return
+                
+                # Making exception for poketrain where every poke is the last rewarded port 
+                poketrain_flag = "Poketrain"
+                self.current_task = current_task
+                if poketrain_flag in current_task:
+                    self.last_rewarded_port = int(poked_port)
 
                 if 1 <= int(poked_port) <= self.total_ports:
                     # Find the port with the matching label
