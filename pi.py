@@ -968,11 +968,12 @@ try:
             
             # Receiving message from stop button 
             if msg == 'stop':
-                report_poke = False
                 stop_session()
                 
                 # Sending stop signal wirelessly to stop update function
                 try:
+                    print("Stopping poke messages")
+                    report_poke = False
                     poke_socket.send_string("stop")
                 except Exception as e:
                     print("Error stopping session", e)
@@ -982,8 +983,9 @@ try:
 
             # Communicating with start button to restart session
             if msg == 'start':
-                report_poke = True
                 try:
+                    print("Reporting Pokes")
+                    report_poke = True
                     poke_socket.send_string("start")
                 except Exception as e:
                     print("Error stopping session", e)
