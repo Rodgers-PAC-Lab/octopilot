@@ -760,8 +760,8 @@ def poke_detectedL(pin, level, tick):
     if task == "Poketrain":
         if prev_reward == None or prev_reward != nosepoke_idL:
             if give_reward == True:
-                open_valve(int(nosepoke_idR))
-                prev_reward = nosepoke_idR
+                open_valve(int(nosepoke_idL))
+                prev_reward = nosepoke_idL
 
 def poke_detectedR(pin, level, tick): 
     global a_state, count, right_poke_detected, current_port_poked, poke_time, prev_reward, report_poke 
