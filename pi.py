@@ -44,9 +44,6 @@ time.sleep(1)
 pi_hostname = sc.gethostname()
 pi_name = str(pi_hostname)
 
-# Making a flag for the pis to report pokes 
-report_poke = False
-
 # Load the config parameters for this pi
 # TODO: document everything in params
 param_directory = f"pi/configs/pis/{pi_name}.json"
@@ -694,6 +691,9 @@ current_port_poked = None
 poke_time = None
 prev_reward = None
 
+# Making a flag for the pis to report pokes 
+report_poke = False
+
 # Callback function for nosepoke pin (When the nosepoke is completed)
 def poke_inL(pin, level, tick):
     global a_state, left_poke_detected
@@ -728,7 +728,7 @@ def poke_inR(pin, level, tick):
 
 # Callback functions for nosepoke pin (When the nosepoke is detected)
 def poke_detectedL(pin, level, tick): 
-    global a_state, count, left_poke_detected, current_port_poked, poke_time, prev_reward
+    global a_state, count, left_poke_detected, current_port_poked, poke_time, prev_reward, report_poke
     
     a_state = 1
     count += 1
@@ -762,7 +762,7 @@ def poke_detectedL(pin, level, tick):
             prev_reward = nosepoke_idL
 
 def poke_detectedR(pin, level, tick): 
-    global a_state, count, right_poke_detected, current_port_poked, poke_time, prev_reward 
+    global a_state, count, right_poke_detected, current_port_poked, poke_time, prev_reward, report_poke 
     
     a_state = 1
     count += 1
