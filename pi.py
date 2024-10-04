@@ -937,11 +937,6 @@ try:
             
             # Debug print
             print("Parameters updated")
-
-        # # Separate logic for Poketrain task
-        # if task == 'Poketrain':
-        #     if left_poke_detected == True or right_poke_detected == True:
-        #         open_valve()
         
         ## Check for incoming messages on poke_socket
         # TODO: document the types of messages that can be sent on poke_socket 
@@ -975,6 +970,7 @@ try:
             if msg == 'stop':
                 give_reward = False
                 report_poke = False
+                prev_reward = None
                 stop_session()
                 
                 # Sending stop signal wirelessly to stop update function
