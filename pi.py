@@ -945,7 +945,8 @@ try:
         if poke_socket in socks2 and socks2[poke_socket] == zmq.POLLIN:
             # Blocking receive: #flags=zmq.NOBLOCK)  
             # Non-blocking receive
-            msg = poke_socket.recv_string()  
+            msg = poke_socket.recv_string()
+            report_poke = True
     
             # Different messages have different effects
             if msg == 'exit': 
@@ -968,12 +969,11 @@ try:
             
             # Receiving message from stop button 
             if msg == 'stop':
+                report_poke = False
                 stop_session()
                 
                 # Sending stop signal wirelessly to stop update function
                 try:
-                    print("Stopping poke messages")
-                    report_poke = not report_poke
                     poke_socket.send_string("stop")
                 except Exception as e:
                     print("Error stopping session", e)
@@ -983,9 +983,8 @@ try:
 
             # Communicating with start button to restart session
             if msg == 'start':
+                report_poke = True
                 try:
-                    print("Reporting Pokes")
-                    report_poke = True
                     poke_socket.send_string("start")
                 except Exception as e:
                     print("Error stopping session", e)
