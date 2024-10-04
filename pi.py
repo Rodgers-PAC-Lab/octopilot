@@ -973,7 +973,7 @@ try:
                 # Sending stop signal wirelessly to stop update function
                 try:
                     print("Stopping poke messages")
-                    report_poke = False
+                    report_poke = not report_poke
                     poke_socket.send_string("stop")
                 except Exception as e:
                     print("Error stopping session", e)
