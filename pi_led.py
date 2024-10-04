@@ -693,6 +693,7 @@ prev_reward = None
 
 # Making a flag for the pis to report pokes 
 report_poke = False
+give_reward = False
 
 # Callback function for nosepoke pin (When the nosepoke is completed)
 def poke_inL(pin, level, tick):
@@ -758,8 +759,9 @@ def poke_detectedL(pin, level, tick):
 
     if task == "Poketrain":
         if prev_reward == None or prev_reward != nosepoke_idL:
-            open_valve(int(nosepoke_idL))
-            prev_reward = nosepoke_idL
+            if give_reward == True:
+                open_valve(int(nosepoke_idL))
+                prev_reward = nosepoke_idL
 
 def poke_detectedR(pin, level, tick): 
     global a_state, count, right_poke_detected, current_port_poked, poke_time, prev_reward, report_poke 
@@ -792,8 +794,9 @@ def poke_detectedR(pin, level, tick):
 
     if task == "Poketrain":
         if  prev_reward == None or prev_reward != nosepoke_idR:
-            open_valve(int(nosepoke_idR))
-            prev_reward = nosepoke_idR
+            if give_reward == True:
+                open_valve(int(nosepoke_idR))
+                prev_reward = nosepoke_idR
 
 def open_valve(port):
     """Open the valve for port
@@ -940,7 +943,9 @@ try:
         if poke_socket in socks2 and socks2[poke_socket] == zmq.POLLIN:
             # Blocking receive: #flags=zmq.NOBLOCK)  
             # Non-blocking receive
-            msg = poke_socket.recv_string()  
+            msg = poke_socket.recv_string()
+            report_poke = True
+            give_reward = True
     
             # Different messages have different effects
             if msg == 'exit': 
@@ -963,7 +968,9 @@ try:
             
             # Receiving message from stop button 
             if msg == 'stop':
+                give_reward = False
                 report_poke = False
+                prev_reward = None
                 stop_session()
                 
                 # Sending stop signal wirelessly to stop update function
