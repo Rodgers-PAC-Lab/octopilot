@@ -302,7 +302,13 @@ class Worker(QObject):
                 label, poke_time_str = message_str.split(': ', 1)
                 poke_time = datetime.strptime(poke_time_str, "%Y-%m-%d %H:%M:%S.%f")
                 elapsed_time = poke_time - self.initial_time 
-                self.timestamps.append(elapsed_time)
+                #self.timestamps.append(elapsed_time)
+                
+            if  message_str.startswith("Poke_Time:"): 
+                print(message_str)
+                label, poke_time_str = message_str.split(': ', 1)
+                poke_time = datetime.strptime(poke_time_str, "%Y-%m-%d %H:%M:%S.%f")
+                self.timestamps.append(poke_time)
                 
             else:
                 poked_port = message_str
