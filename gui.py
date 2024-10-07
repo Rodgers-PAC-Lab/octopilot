@@ -297,14 +297,14 @@ class Worker(QObject):
                 self.current_center_freq = float(sparams.get("Center Frequency", "0").split()[0])
                 self.current_bandwidth = float(sparams.get("Bandwidth", "0"))
 
-            if  message_str.startswith("Poke Time:"): 
+            if  message_str.startswith("Poke_Time (datetime):"): 
                 print(message_str)
                 #label, poke_time_str = message_str.split(': ', 1)
                 #poke_time = datetime.strptime(poke_time_str, "%Y-%m-%d %H:%M:%S.%f")
                 #elapsed_time = poke_time - self.initial_time 
                 #self.timestamps.append(elapsed_time)
                 
-            if  message_str.startswith("Poke_Time:"): 
+            if  message_str.startswith("Poke Time:"): 
                 print(message_str)
                 label, poke_time_str = message_str.split(': ', 1)
                 self.timestamps.append(poke_time_str)
