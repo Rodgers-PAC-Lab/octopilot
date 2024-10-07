@@ -688,6 +688,11 @@ reward_state = None
 left_poke_detected = False
 right_poke_detected = False
 current_port_poked = None
+
+# Variables used to track the time on Pi when these pokes happen 
+initial_start_time = None 
+config_loaded = False
+
 poke_time = None
 prev_reward = None
 
@@ -747,6 +752,7 @@ def poke_detectedL(pin, level, tick):
 
     # Get current datetime
     poke_time = datetime.now()
+    elapsed_poke_time = poke_time - initial_start_time
         
     # Sending nosepoke_id wirelessly with datetime
     if report_poke == True:
@@ -754,6 +760,7 @@ def poke_detectedL(pin, level, tick):
             print(f"Sending nosepoke_id = {nosepoke_idL} at {poke_time}") 
             poke_socket.send_string(f"{nosepoke_idL}")
             poke_socket.send_string(f"Poke Time: {poke_time}")
+            poke_socket.send_string(f"Poke_Time: {elapsed_poke_time}")
         except Exception as e:
             print("Error sending nosepoke_id:", e)
 
@@ -782,6 +789,7 @@ def poke_detectedR(pin, level, tick):
      
     # Get current datetime
     poke_time = datetime.now()
+    elapsed_poke_time = poke_time - initial_start_time
     
     # Sending nosepoke_id wirelessly with datetime
     if report_poke == True:
@@ -789,6 +797,7 @@ def poke_detectedR(pin, level, tick):
             print(f"Sending nosepoke_id = {nosepoke_idR} at {poke_time}") 
             poke_socket.send_string(f"{nosepoke_idR}")
             poke_socket.send_string(f"Poke Time: {poke_time}")
+            poke_socket.send_string(f"Poke_Time: {elapsed_poke_time}")
         except Exception as e:
             print("Error sending nosepoke_id:", e)
 
@@ -935,12 +944,20 @@ try:
                 sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
             sound_chooser.set_sound_cycle()
             
+            # Changing config_loaded to signal new session started
+            config_loaded = True
+            
             # Debug print
             print("Parameters updated")
         
         ## Check for incoming messages on poke_socket
         # TODO: document the types of messages that can be sent on poke_socket 
         if poke_socket in socks2 and socks2[poke_socket] == zmq.POLLIN:
+            # Initializing a start time
+            if config_loaded == True:
+                initial_start_time = datetime.now()
+                config_loaded = False
+            
             # Blocking receive: #flags=zmq.NOBLOCK)  
             # Non-blocking receive
             msg = poke_socket.recv_string()
