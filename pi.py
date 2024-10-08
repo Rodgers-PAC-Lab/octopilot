@@ -761,7 +761,7 @@ def poke_detectedL(pin, level, tick):
             print(f"Sending nosepoke_id = {nosepoke_idL} at {elapsed_poke_time}")
             poke_socket.send_string(f"{nosepoke_idL}")
             #poke_socket.send_string(f"Poke_Time (datetime): {poke_time}")
-            if reward_port != int(nosepoke_idL) 
+            if reward_port != int(nosepoke_idL): 
                 poke_socket.send_string(f"Poke Time: {elapsed_poke_time}")
             elif reward_port == int(nosepoke_idL):
                 if prev_port_poked = nosepoke_idL:
@@ -815,7 +815,7 @@ def poke_detectedR(pin, level, tick):
             print(f"Sending nosepoke_id = {nosepoke_idR} at {elapsed_poke_time}") 
             poke_socket.send_string(f"{nosepoke_idR}")
             #poke_socket.send_string(f"Poke_Time (datetime): {poke_time}")
-            if reward_port != int(nosepoke_idR) 
+            if reward_port != int(nosepoke_idR): 
                 poke_socket.send_string(f"Poke Time: {elapsed_poke_time}")
             elif reward_port == int(nosepoke_idR):
                 if prev_port_poked = nosepoke_idR:
