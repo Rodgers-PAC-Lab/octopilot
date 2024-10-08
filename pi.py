@@ -758,7 +758,7 @@ def poke_detectedL(pin, level, tick):
     if report_poke == True:
         try:
             print(f"Poke Datetime:", {poke_time})
-            print(f"Sending nosepoke_id = {nosepoke_idR} at {elapsed_poke_time}")
+            print(f"Sending nosepoke_id = {nosepoke_idL} at {elapsed_poke_time}")
             poke_socket.send_string(f"{nosepoke_idL}")
             #poke_socket.send_string(f"Poke_Time (datetime): {poke_time}")
             poke_socket.send_string(f"Poke Time: {elapsed_poke_time}")
