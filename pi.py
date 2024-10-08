@@ -699,6 +699,7 @@ prev_reward = None
 # Making a flag for the pis to report pokes 
 report_poke = False
 give_reward = False
+reward_port = None 
 
 # Callback function for nosepoke pin (When the nosepoke is completed)
 def poke_inL(pin, level, tick):
@@ -734,7 +735,7 @@ def poke_inR(pin, level, tick):
 
 # Callback functions for nosepoke pin (When the nosepoke is detected)
 def poke_detectedL(pin, level, tick): 
-    global a_state, count, left_poke_detected, current_port_poked, poke_time, prev_reward, report_poke
+    global a_state, count, left_poke_detected, current_port_poked, poke_time, prev_reward, report_poke, reward_port
     
     a_state = 1
     count += 1
@@ -770,9 +771,14 @@ def poke_detectedL(pin, level, tick):
             if give_reward == True:
                 open_valve(int(nosepoke_idL))
                 prev_reward = nosepoke_idL
+    
+    if task == "Fixed" or "Sweep":
+        if reward_port == nosepoke_idL and give_reward == True and prev_reward != nosepoke_idL:
+                open_valve(int(nosepoke_idL))
+                prev_reward = nosepoke_idL
 
 def poke_detectedR(pin, level, tick): 
-    global a_state, count, right_poke_detected, current_port_poked, poke_time, prev_reward, report_poke 
+    global a_state, count, right_poke_detected, current_port_poked, poke_time, prev_reward, report_poke, reward_port 
     
     a_state = 1
     count += 1
@@ -806,6 +812,11 @@ def poke_detectedR(pin, level, tick):
     if task == "Poketrain":
         if  prev_reward == None or prev_reward != nosepoke_idR:
             if give_reward == True:
+                open_valve(int(nosepoke_idR))
+                prev_reward = nosepoke_idR
+    
+    if task == "Fixed" or "Sweep":
+        if reward_port == nosepoke_idR and give_reward == True and prev_reward != nosepoke_idR:
                 open_valve(int(nosepoke_idR))
                 prev_reward = nosepoke_idR
 
@@ -1029,6 +1040,9 @@ try:
                 
                 # Manipulate pin values based on the integer value
                 if value == int(params['nosepokeL_id']):
+                    # Assigning Reward Port
+                    reward_port = value
+                    
                     # Starting sound
                     sound_chooser.running = True
                     
@@ -1058,6 +1072,9 @@ try:
                     current_pin = reward_pin # for LED only 
 
                 elif value == int(params['nosepokeR_id']):
+                    # Assigning Reward Port
+                    reward_port = value
+                    
                     # Starting sound
                     sound_chooser.running = True
                     
