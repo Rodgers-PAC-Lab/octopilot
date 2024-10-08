@@ -755,7 +755,7 @@ def poke_detectedL(pin, level, tick):
     elapsed_poke_time = poke_time - initial_start_time
         
     # Sending nosepoke_id wirelessly with datetime
-    if report_poke == True:
+    if report_poke == True and prev_reward!= nosepoke_idL:
         try:
             print(f"Poke Datetime:", {poke_time})
             print(f"Sending nosepoke_id = {nosepoke_idL} at {elapsed_poke_time}")
@@ -793,7 +793,7 @@ def poke_detectedR(pin, level, tick):
     elapsed_poke_time = poke_time - initial_start_time
     
     # Sending nosepoke_id wirelessly with datetime
-    if report_poke == True:
+    if report_poke == True and prev_reward != nosepoke_idR:
         try:
             print(f"Poke Datetime:", {poke_time})
             print(f"Sending nosepoke_id = {nosepoke_idR} at {elapsed_poke_time}") 
