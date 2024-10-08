@@ -774,7 +774,7 @@ def poke_detectedL(pin, level, tick):
     
     if task == "Fixed" or "Sweep":
         print(reward_port)
-        if reward_port == nosepoke_idL:
+        if reward_port == int(nosepoke_idL):
                 open_valve(int(nosepoke_idL))
                 prev_reward = nosepoke_idL
 
@@ -818,7 +818,7 @@ def poke_detectedR(pin, level, tick):
     
     if task == "Fixed" or "Sweep":
         print(reward_port)
-        if reward_port == nosepoke_idR:
+        if reward_port == int(nosepoke_idR):
                 open_valve(int(nosepoke_idR))
                 prev_reward = nosepoke_idR
 
