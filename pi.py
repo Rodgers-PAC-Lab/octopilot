@@ -687,7 +687,7 @@ reward_state = None
 # Global variables for which nospoke was detected
 left_poke_detected = False
 right_poke_detected = False
-current_port_poked = None
+prev_port_poked = None
 
 # Variables used to track the time on Pi when these pokes happen 
 initial_start_time = None 
@@ -735,7 +735,7 @@ def poke_inR(pin, level, tick):
 
 # Callback functions for nosepoke pin (When the nosepoke is detected)
 def poke_detectedL(pin, level, tick): 
-    global a_state, count, left_poke_detected, current_port_poked, poke_time, prev_reward, report_poke, reward_port
+    global a_state, count, left_poke_detected, prev_port_poked, poke_time, prev_reward, report_poke, reward_port
     
     a_state = 1
     count += 1
@@ -744,7 +744,6 @@ def poke_detectedL(pin, level, tick):
     print("Poke Completed (Left)")
     print("Poke Count:", count)
     nosepoke_idL = params['nosepokeL_id']  # Set the left nosepoke_id here according to the pi
-    current_port_poked = nosepoke_idL
     pi.set_mode(17, pigpio.OUTPUT)
     if params['nosepokeL_type'] == "901":
         pi.write(17, 0)
@@ -758,11 +757,18 @@ def poke_detectedL(pin, level, tick):
     # Sending nosepoke_id wirelessly with datetime
     if report_poke == True and prev_reward!= nosepoke_idL:
         try:
-            print(f"Poke Datetime:", {poke_time})
+            #print(f"Poke Datetime:", {poke_time})
             print(f"Sending nosepoke_id = {nosepoke_idL} at {elapsed_poke_time}")
             poke_socket.send_string(f"{nosepoke_idL}")
             #poke_socket.send_string(f"Poke_Time (datetime): {poke_time}")
-            poke_socket.send_string(f"Poke Time: {elapsed_poke_time}")
+            if reward_port != int(nosepoke_idL) 
+                poke_socket.send_string(f"Poke Time: {elapsed_poke_time}")
+            elif reward_port == int(nosepoke_idL):
+                if prev_port_poked = nosepoke_idL:
+                    pass
+                else:
+                    poke_socket.send_string(f"Poke Time: {elapsed_poke_time}")
+                
         except Exception as e:
             print("Error sending nosepoke_id:", e)
 
@@ -774,12 +780,16 @@ def poke_detectedL(pin, level, tick):
     
     if task == "Fixed" or "Sweep":
         print(reward_port)
-        if reward_port == int(nosepoke_idL):
+        if reward_port == int(nosepoke_idL) and prev_reward != nosepokeidL:
                 open_valve(int(nosepoke_idL))
                 prev_reward = nosepoke_idL
+                
+    # Signal that poke has ended
+    prev_port_poked = nosepoke_idL
+
 
 def poke_detectedR(pin, level, tick): 
-    global a_state, count, right_poke_detected, current_port_poked, poke_time, prev_reward, report_poke, reward_port 
+    global a_state, count, right_poke_detected, prev_port_poked, poke_time, prev_reward, report_poke, reward_port 
     
     a_state = 1
     count += 1
@@ -788,7 +798,6 @@ def poke_detectedR(pin, level, tick):
     print("Poke Completed (Right)")
     print("Poke Count:", count)
     nosepoke_idR = params['nosepokeR_id']  # Set the right nosepoke_id here according to the pi
-    current_port_poked = nosepoke_idR
     pi.set_mode(10, pigpio.OUTPUT)
     if params['nosepokeR_type'] == "901":
         pi.write(10, 0)
@@ -802,11 +811,18 @@ def poke_detectedR(pin, level, tick):
     # Sending nosepoke_id wirelessly with datetime
     if report_poke == True and prev_reward != nosepoke_idR:
         try:
-            print(f"Poke Datetime:", {poke_time})
+            #print(f"Poke Datetime:", {poke_time})
             print(f"Sending nosepoke_id = {nosepoke_idR} at {elapsed_poke_time}") 
             poke_socket.send_string(f"{nosepoke_idR}")
             #poke_socket.send_string(f"Poke_Time (datetime): {poke_time}")
-            poke_socket.send_string(f"Poke Time: {elapsed_poke_time}")
+            if reward_port != int(nosepoke_idR) 
+                poke_socket.send_string(f"Poke Time: {elapsed_poke_time}")
+            elif reward_port == int(nosepoke_idR):
+                if prev_port_poked = nosepoke_idR:
+                    pass
+                else:
+                    poke_socket.send_string(f"Poke Time: {elapsed_poke_time}")
+                
         except Exception as e:
             print("Error sending nosepoke_id:", e)
 
@@ -816,11 +832,15 @@ def poke_detectedR(pin, level, tick):
                 open_valve(int(nosepoke_idR))
                 prev_reward = nosepoke_idR
     
-    if task == "Fixed" or "Sweep":
+    if task == "Fixed" or "Sweep" and prev_reward != nosepoke_idR:
         print(reward_port)
         if reward_port == int(nosepoke_idR):
                 open_valve(int(nosepoke_idR))
                 prev_reward = nosepoke_idR
+    
+    # Signal that a poke has ended to log for main task
+    prev_port_poked = nosepoke_idR
+
 
 def open_valve(port):
     """Open the valve for port
