@@ -1121,7 +1121,7 @@ try:
 
                 # Opening Solenoid Valve
                 flash()
-                open_valve(prev_port)
+                #open_valve(prev_port)
                 
                 # Adding an inter trial interval
                 time.sleep(1)
