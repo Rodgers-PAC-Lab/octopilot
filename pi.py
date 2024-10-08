@@ -773,7 +773,7 @@ def poke_detectedL(pin, level, tick):
                 prev_reward = nosepoke_idL
     
     if task == "Fixed" or "Sweep":
-        if reward_port == nosepoke_idL and give_reward == True and prev_reward != nosepoke_idL:
+        if reward_port == nosepoke_idL and give_reward == True:
                 open_valve(int(nosepoke_idL))
                 prev_reward = nosepoke_idL
 
@@ -816,7 +816,7 @@ def poke_detectedR(pin, level, tick):
                 prev_reward = nosepoke_idR
     
     if task == "Fixed" or "Sweep":
-        if reward_port == nosepoke_idR and give_reward == True and prev_reward != nosepoke_idR:
+        if reward_port == nosepoke_idR and give_reward == True:
                 open_valve(int(nosepoke_idR))
                 prev_reward = nosepoke_idR
 
@@ -1033,6 +1033,7 @@ try:
                 
                 # Extract the integer part
                 value = int(msg_parts[2])  
+                reward_port = value
                 
                 # Turn off the previously active LED if any
                 if current_pin is not None:
