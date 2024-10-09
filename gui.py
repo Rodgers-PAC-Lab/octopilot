@@ -310,11 +310,12 @@ class Worker(QObject):
                 print(message_str)
                 label, poke_time_str = message_str.split(': ', 1)
                 self.poketime = poke_time_str
-                if self.last_rewarded_port != poked_port or self.last_rewarded_port == None
+                if self.previous_port != self.last_rewarded_port or self.previous_port == None:
                     self.timestamps.append(self.poketime)
     
             else:
                 poked_port = message_str
+                self.previous_port = poked_port
         
                 # Check if the poked port is the same as the last rewarded port
                 if int(poked_port) == self.last_rewarded_port:

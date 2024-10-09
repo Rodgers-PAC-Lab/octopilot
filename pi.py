@@ -976,7 +976,7 @@ try:
             # Blocking receive: #flags=zmq.NOBLOCK)  
             # Non-blocking receive
             msg = poke_socket.recv_string()
-            first_message = True
+            #~ first_message = True
             report_poke = True
             give_reward = True
     
@@ -1029,9 +1029,9 @@ try:
             elif msg.startswith("Reward Port:"):    
                 ## This specifies which port to reward
                 # Setting initial time 
-                if first_message == True:
-                    initial_start_time = datetime.now()
-                    first_message = False
+                #~ if first_message == True:
+                    #~ initial_start_time = datetime.now()
+                    #~ first_message = False
                     
                 # Debug print
                 print(msg)
