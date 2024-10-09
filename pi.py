@@ -981,11 +981,6 @@ try:
             give_reward = True
             
             # Different messages have different effects
-            if msg == 'Hello':
-                # Initial contact from the GUI to signal that the session has started 
-                print(f'Received:', msg)
-                initial_start_time = datetime.now()
-            
             if msg == 'exit': 
                 # Condition to terminate the main loop
                 # TODO: why are these pi.write here? # To turn the LEDs on the Pi off when the GUI is closed
@@ -1021,7 +1016,7 @@ try:
                 continue
 
             # Communicating with start button to restart session
-            if msg == 'start':
+            elif msg == 'start':
                 report_poke = True
                 initial_start_time = datetime.now()
                 
@@ -1029,6 +1024,11 @@ try:
                     poke_socket.send_string("start")
                 except Exception as e:
                     print("Error stopping session", e)
+            
+            elif msg == 'Hello':            
+                # Initial contact from the GUI to signal that the session has started 
+                print(f'Received:', msg)
+                initial_start_time = datetime.now()
             
             elif msg.startswith("Reward Port:"):    
                 ## This specifies which port to reward
