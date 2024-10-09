@@ -1,20 +1,37 @@
 # Introduction
 `octopilot` controls the sound-seeking behavior used in the Rodgers PAC Lab. 
 
-To use this software, `octopilot` must be running on a desktop PC and also on Rasperry Pis on the same wifi network. Each physical arena is controlled by four Raspberry Pis, and there can be multiple such arenas on the network. For each arena, the desktop PC instantiates an object called a `Dispatcher` which is controlled by either a GUI or a CLI. Each Pi instantiates an object called an `Agent` which is controlled by a CLI. The `Dispatcher` and `Agent` communicate over the wireless network to control the task for that arena. 
+To use this software, `octopilot` must be running on a desktop PC and also on Rasperry Pis on the same wifi network. Each physical arena is controlled by four Raspberry Pis, and there can be multiple such arenas on the network. For each arena, the desktop PC instantiates an object called a `Dispatcher` which is controlled by either a GUI or a CLI. Each Pi instantiates an object called an `Agent` which is controlled by a CLI. The `Dispatcher` and each of the `Agent`s communicate over the wireless network to control the task for that arena. 
 
-# Structure of the repository
-These are the files within this repository.
-* gui/ - Python scripts to run the `Dispatcher` on the desktop PC. TODO: Rename this dispatcher, or similar.
-* pi/ - Python scripts to run the `Agent` on each Pi. TODO: rename this agent, or similar.
-* shared/ - Python scripts that are used by both `Dispatcher` and `Agent`
-* tests/ - Python scripts that test individual components
-* configs/ - JSON configuration files
-* logs/ - Log files for each session. TODO: move these out of the repository
+# Organization of the repository
+## Top-level files
+These are the files at the top level of this repository:
+* config/ - JSON configuration files for each box, mouse, pi, task, etc. These are described further below in the section "Config files". Eventually these may be moved out of the repository and moved into a local directory.
+* doc/ - Documentation
+* octopilot/ - The source files, described further below under "Source files".
+* README.md - This file
+* requirements.txt - Required dependencies. See "Installation" for more information.
+* setup.py - The setup script. See "Installation".
+* .gitignore - Filenames that git should ignore.
+
+## Source files
+These are the source files. These are located within the directory "octopilot/". The prefix "octopilot/" is omitted below.
+* desktop/ - Code to run the `Dispatcher` on the desktop PC. TODO: rename to "dispatcher".
+* pi/ - Code to run the `Agent` on each Pi. TODO: rename to "agent".
+* shared/ - Code that is used by both `Dispatcher` and `Agent`
+* tests/ - Code to test individual components
 
 For further documentation on the files within these directories, see the `__init__.py` within each directory.
 
-For further documentation on the config files, see below.
+## Config files
+To run an experiment, you must specify the box, mouse, and task. In addition, the box specifies the four individual Pis that are connected.
+
+* The config file for the box named BOXNAME is located in `config/box/BOXNAME.json`. Briefly, this file specifies parameters of the computer running the `Dispatcher` and how to connect to the individual `Agents` running on each connected Pi.
+* The config file for the mouse named MOUSENAME is located in `config/mouse/MOUSENAME.json`. Presently the only mouse-specific parameters is "reward_value", but eventually this should also include the task performed by each mouse.
+* The config file for the Pi named PINAME is located in `config/pi/PINAME.json`. Briefly, this includes the box to which this Pi connects, and the pin numbers. Note that the box name in the pi config must be aligned with the pi name in the box config.
+* The config file for the task named TASKNAME is located in `config/task/TASKNAME.json`. These specify the parameters of the task, such as what sounds are played and what ports are rewarded.
+
+Detailed documentation for all parameters in each of these files may be found in octopilot/shared/load_params.py
 
 # Installation
 `octopilot` must be installed separately on the desktop and on each Pi.
@@ -44,7 +61,7 @@ Install dependencies
 
 Reboot after install jackd. For more info about installing jack: https://jackclient-python.readthedocs.io/en/0.5.4/installation.html#requirements
 
-Install octopilot
+## Installing octopilot
 
     cd ~/dev/octopilot
     pip install -e .
@@ -53,20 +70,10 @@ Install octopilot
 On the desktop:
 
     conda activate octopilot
-    python3 -m octopilot.gui.start_gui
+    python3 -m octopilot.desktop.start_gui
 
 The present version will automatically connect to each Pi and start `octopilot` on each Pi. Alternatively you can start it on the Pi like this:
 
     source ~/.venv/py3/bin/activate
     python3 -m octopilot.pi.start_cli
 
-# Documentation for config files
-
-To run an experiment, you must specify the box, mouse, and task. In addition, the box specifies the four individual Pis that are connected.
-
-* The config file for the box named BOXNAME is located in `config/box/BOXNAME.json`. Example: the identity of the connected Pis and their orientation.
-* The config file for the mouse named MOUSENAME is located in `config/mouse/MOUSENAME.json`. Example: reward duration. 
-* The config file for the Pi named PINAME is located in `config/pi/PINAME.json`. Example: pin numbers and hardware parameters.
-* The config file for the task named TASKNAME is located in `config/task/TASKNAME.json`. Example: the range of possible sounds.
-
-The params in each of these files are documented in octopilot/shared/load_params.py
