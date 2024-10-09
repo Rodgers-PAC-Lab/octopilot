@@ -1031,7 +1031,7 @@ try:
                 # Setting initial time 
                 if first_message == True:
                     initial_start_time = datetime.now()
-                    first message = False
+                    first_message = False
                     
                 # Debug print
                 print(msg)
