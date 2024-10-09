@@ -679,7 +679,7 @@ count = 0
 nosepoke_pinL = 8
 nosepoke_pinR = 15
 nosepokeL_id = params['nosepokeL_id']
-nospokeR_id = params['nosepokeR_id']
+nosepokeR_id = params['nosepokeR_id']
 
 # Adding this state variable to keep track of whenever open_valve is called 
 reward_state = None 
