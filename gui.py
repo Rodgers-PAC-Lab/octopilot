@@ -209,6 +209,7 @@ class Worker(QObject):
         
         # Clear the recorded data and reset necessary attributes
         self.initial_time = None
+        self.poketime = None
         self.timestamps.clear()
         self.reward_ports.clear()
         self.poked_port_numbers.clear()
@@ -309,7 +310,9 @@ class Worker(QObject):
                 print(message_str)
                 label, poke_time_str = message_str.split(': ', 1)
                 self.poketime = poke_time_str
-                
+                if self.last_rewarded_port != poked_port or self.last_rewarded_port == None
+                    self.timestamps.append(self.poketime)
+    
             else:
                 poked_port = message_str
         

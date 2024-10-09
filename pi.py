@@ -976,6 +976,7 @@ try:
             # Blocking receive: #flags=zmq.NOBLOCK)  
             # Non-blocking receive
             msg = poke_socket.recv_string()
+            first_message = True
             report_poke = True
             give_reward = True
     
@@ -1017,6 +1018,9 @@ try:
             # Communicating with start button to restart session
             if msg == 'start':
                 report_poke = True
+                if config_loaded == True:
+                    initial_start_time = datetime.now()
+                    config_loaded = False
                 try:
                     poke_socket.send_string("start")
                 except Exception as e:
@@ -1024,6 +1028,11 @@ try:
             
             elif msg.startswith("Reward Port:"):    
                 ## This specifies which port to reward
+                # Setting initial time 
+                if first_message == True:
+                    initial_start_time = datetime.now()
+                    first message = False
+                    
                 # Debug print
                 print(msg)
                 
