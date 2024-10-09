@@ -148,6 +148,7 @@ class Worker(QObject):
         self.poked_port_numbers = self.pi_widget.poked_port_numbers 
         self.identities = set()
         self.last_poke_timestamp = None  # Attribute to store the timestamp of the last poke event
+        self.poketime = None
         self.reward_port = None
         self.last_rewarded_port = None
         self.previous_port = None
@@ -307,6 +308,7 @@ class Worker(QObject):
             if  message_str.startswith("Poke Time:"):
                 print(message_str)
                 label, poke_time_str = message_str.split(': ', 1)
+                self.poketime = poke_time_str
                 
             else:
                 poked_port = message_str
@@ -346,7 +348,7 @@ class Worker(QObject):
                     # Appending the poked port to a sequence 
                     self.poked_port_numbers.append(int(poked_port))
                     print_out("Sequence:", self.poked_port_numbers)
-                    self.timestamps.append(poke_time_str)
+                    self.timestamps.append(self.poketime)
                     self.last_pi_received = identity
                     
                     # Sending the poked port and the color in a signal for other classes to use 
