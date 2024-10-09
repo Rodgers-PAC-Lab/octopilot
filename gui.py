@@ -177,12 +177,10 @@ class Worker(QObject):
         # Randomly choose the initial reward port
         self.reward_port = self.choose()
         reward_message = f"Reward Port: {self.reward_port}"
-        hello_message = "Hello"
         print_out(reward_message)
         
         # Send the message to all connected Pis
         for identity in self.identities:
-            self.socket.send([identity, bytes(hello_message, 'utf-8')])
             self.socket.send_multipart([identity, bytes(reward_message, 'utf-8')])
         
         # Get the label value from self.reward_port
@@ -274,6 +272,7 @@ class Worker(QObject):
                 return
             
             # Sending the initial message to start the loop
+            self.socket.send([identity, bytes("Hello", 'utf-8')])
             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
             # Starting next session

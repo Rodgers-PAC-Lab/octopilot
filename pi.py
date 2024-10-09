@@ -1023,9 +1023,8 @@ try:
             # Communicating with start button to restart session
             if msg == 'start':
                 report_poke = True
-                if config_loaded == True:
-                    initial_start_time = datetime.now()
-                    config_loaded = False
+                initial_start_time = datetime.now()
+                
                 try:
                     poke_socket.send_string("start")
                 except Exception as e:
