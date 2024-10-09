@@ -181,6 +181,7 @@ class Worker(QObject):
         
         # Send the message to all connected Pis
         for identity in self.identities:
+            self.socket.send_string("hello")
             self.socket.send_multipart([identity, bytes(reward_message, 'utf-8')])
         
         # Get the label value from self.reward_port
