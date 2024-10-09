@@ -3,6 +3,8 @@
 
 To use this software, `octopilot` must be running on a desktop PC and also on Rasperry Pis on the same wifi network. Each physical arena is controlled by four Raspberry Pis, and there can be multiple such arenas on the network. For each arena, the desktop PC instantiates an object called a `Dispatcher` which is controlled by either a GUI or a CLI. Each Pi instantiates an object called an `Agent` which is controlled by a CLI. The `Dispatcher` and each of the `Agent`s communicate over the wireless network to control the task for that arena. 
 
+`octopilot` is heavily inspired by the precursor `autopilot`: https://github.com/auto-pi-lot/autopilot and we are presently using some code from `autopilot`
+
 # Organization of the repository
 ## Top-level files
 These are the files at the top level of this repository:
