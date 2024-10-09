@@ -1144,10 +1144,6 @@ try:
 
                 # Opening Solenoid Valve
                 flash()
-                
-                # Making previous reward port none to avoid blocking
-                prev_reward = None
-                
                 #open_valve(prev_port)
                 
                 # Adding an inter trial interval
