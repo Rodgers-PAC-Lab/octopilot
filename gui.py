@@ -304,10 +304,13 @@ class Worker(QObject):
                 #elapsed_time = poke_time - self.initial_time 
                 #self.timestamps.append(elapsed_time)
                 
-            if  message_str.startswith("Poke Time:"): 
-                print(message_str)
-                label, poke_time_str = message_str.split(': ', 1)
-                self.timestamps.append(poke_time_str)
+            if  message_str.startswith("Poke Time:"):
+                if self.last_rewarded_port == poked_port:
+                    pass
+                else:
+                    print(message_str)
+                    label, poke_time_str = message_str.split(': ', 1)
+                    self.timestamps.append(poke_time_str)
                 
             else:
                 poked_port = message_str
@@ -341,17 +344,21 @@ class Worker(QObject):
                         self.trials += 1
                         self.current_poke += 1
 
+                    # Setting the color of the port on the widget according to the outcome of the poke
                     poked_port_signal.set_color(color)
                     
+                    # Appending the poked port to a sequence 
                     self.poked_port_numbers.append(int(poked_port))
                     print_out("Sequence:", self.poked_port_numbers)
                     self.last_pi_received = identity
-
+                    
+                    # Sending the poked port and the color in a signal for other classes to use 
                     self.pokedportsignal.emit(int(poked_port), color)
                     self.reward_ports.append(self.reward_port)
                     self.update_unique_ports()
                     
 
+                    # Implementing logic for what happens when a reward poke is detected 
                     if color == "green" or color == "blue":
                         self.current_poke += 1
                         self.current_completed_trials += 1
@@ -383,9 +390,11 @@ class Worker(QObject):
                                 else:
                                     Pi.set_color("gray")
 
+                        # Sending reward port string to the Pis so they know 
                         for identity in self.identities:
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
                             
+                    # Appending all values to their respective lists
                     self.pokes.append(self.current_poke)
                     self.amplitudes.append(self.current_amplitude)
                     self.target_rates.append(self.current_target_rate)
