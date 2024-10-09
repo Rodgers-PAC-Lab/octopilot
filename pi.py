@@ -979,8 +979,12 @@ try:
             #~ first_message = True
             report_poke = True
             give_reward = True
-    
+            
             # Different messages have different effects
+            if msg == 'Hello':
+                # Initial contact from the GUI to signal that the session has started 
+                initial_start_time = datetime.now()
+            
             if msg == 'exit': 
                 # Condition to terminate the main loop
                 # TODO: why are these pi.write here? # To turn the LEDs on the Pi off when the GUI is closed
