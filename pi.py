@@ -983,6 +983,7 @@ try:
             # Different messages have different effects
             if msg == 'Hello':
                 # Initial contact from the GUI to signal that the session has started 
+                print(f'Received:', msg)
                 initial_start_time = datetime.now()
             
             if msg == 'exit': 
