@@ -272,12 +272,11 @@ class Worker(QObject):
                 return
             
             # Sending the initial message to start the loop
+            self.socket.send_string("hello")
             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
             # Starting next session
             if message_str.strip().lower() == "start":
-                hello_msg = "Hello"
-                self.socket.send([identity, bytes(hello_msg, 'utf-8')])
                 self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
     
             # Statement to keep track of the current parameters 

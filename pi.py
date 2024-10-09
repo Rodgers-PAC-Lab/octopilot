@@ -1025,7 +1025,7 @@ try:
                 except Exception as e:
                     print("Error stopping session", e)
             
-            elif msg == 'Hello':            
+            elif msg == 'hello':            
                 # Initial contact from the GUI to signal that the session has started 
                 print(f'Received:', msg)
                 initial_start_time = datetime.now()
