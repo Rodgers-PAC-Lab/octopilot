@@ -352,7 +352,6 @@ class Worker(QObject):
                     # Appending the poked port to a sequence 
                     self.poked_port_numbers.append(int(poked_port))
                     print_out("Sequence:", self.poked_port_numbers)
-                    self.timestamps.append(self.poketime)
                     self.last_pi_received = identity
                     
                     # Sending the poked port and the color in a signal for other classes to use 

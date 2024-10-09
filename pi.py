@@ -1134,9 +1134,6 @@ try:
                 # Opening Solenoid Valve
                 flash()
                 
-                # Making previous reward port none to avoid blocking
-                prev_reward = None
-                
                 #open_valve(prev_port)
                 
                 # Adding an inter trial interval
@@ -1159,6 +1156,12 @@ try:
                     current_pin = None  # Reset the current LED
                 else:
                     print("No LED is currently active.")
+                
+                # Making previous reward port none to avoid blocking
+                if reward_port == int(nosepokeL_id) or int(nosepokeR_id):
+                    pass
+                else:    
+                    prev_reward = None
            
             else:
                 print("Unknown message received:", msg)
