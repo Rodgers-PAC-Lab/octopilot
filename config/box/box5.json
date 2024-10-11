@@ -1,30 +1,30 @@
 {
-    "port": 5555,
+    "zmq_port": 5555,
     "desktop_ip": "192.168.11.198",
     "connected_pis" : [
         {
             "name": "rpi18",
             "ip": "192.168.11.218",
-            "left_port_position": 225,
-            "right_port_position": 270
+            "left_port_position": 90,
+            "right_port_position": 135
         },
         {
             "name": "rpi19",
             "ip": "192.168.11.219",
-            "left_port_position": 315,
-            "right_port_position": 0
+            "left_port_position": 180,
+            "right_port_position": 225
         },
         {
             "name": "rpi20",
             "ip": "192.168.11.220",
-            "left_port_position": 45,
-            "right_port_position": 90
+            "left_port_position": 270,
+            "right_port_position": 315
         },
         {
             "name": "rpi21",
             "ip": "192.168.11.221",
-            "left_port_position": 135,
-            "right_port_position": 180
+            "left_port_position": 0,
+            "right_port_position": 45
         }
     ]    
 }
