@@ -1170,10 +1170,11 @@ try:
                     print("No LED is currently active.")
                 
                 # Making previous reward port none to avoid blocking
-                if reward_port == int(nosepokeL_id) or int(nosepokeR_id):
-                    pass
-                else:    
-                    prev_reward = None
+                #~ if reward_port == int(nosepokeL_id) or int(nosepokeR_id):
+                    #~ pass
+                #~ else:    
+                    #~ prev_reward = None
+                prev_reward = None
            
             else:
                 print("Unknown message received:", msg)
