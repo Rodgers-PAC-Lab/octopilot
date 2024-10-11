@@ -189,8 +189,13 @@ class Dispatcher:
             self.session_name)
         
         # Create the paths needed for save_path
-        path1 = os.path.join(os.path.expanduser('~/octopilot/logs'),    
-            str(dt_now.year))
+        path1 = os.path.join(os.path.expanduser('~/octopilot'))
+        if not os.path.exists(path1):
+            os.mkdir(path1)
+        path1 = os.path.join(path1, 'logs')
+        if not os.path.exists(path1):
+            os.mkdir(path1)
+        path1 = os.path.join(path1, str(dt_now.year))
         if not os.path.exists(path1):
             os.mkdir(path1)
         path1 = os.path.join(path1, '{:02d}'.format(dt_now.month))

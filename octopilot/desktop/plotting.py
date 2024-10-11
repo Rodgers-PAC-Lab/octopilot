@@ -45,20 +45,30 @@ class ArenaWidget(QWidget):
         self.dispatcher = dispatcher
 
         # Add individual ports to the widget
-        self.create_layout(self.dispatcher.port_names)
+        self.create_layout(
+            self.dispatcher.port_names,
+            self.dispatcher.port_positions,
+            )
         
         # Create a timer and connect to self.update_time_elapsed
         self.timer_update = QTimer(self)
         self.timer_update.timeout.connect(self.update) 
 
-    def create_layout(self, port_names):
+    def create_layout(self, port_names, port_positions):
+        """Place `port_names` at `port_positions`.
+        
+        port_names : list of str
+        port_positions : list of numeric
+            Each is the angular position in degrees, with 0 meaning north.
+        """
         # Create QGraphics
         self.scene = QGraphicsScene(self)
         self.view = QGraphicsView(self.scene)
         
         # Create each
         self.nosepoke_circles = []
-        for port_idx, port_name in enumerate(port_names):
+        iter_obj = enumerate(zip(port_names, port_positions))
+        for port_idx, (port_name, port_position) in iter_obj:
             # Create an ellipse
             ellipse = QGraphicsEllipseItem(0, 0, 38, 38) 
             
@@ -75,7 +85,7 @@ class ArenaWidget(QWidget):
                 )
         
             # Positioning the individual ports
-            ellipse.setPos(self.calculate_position(port_idx, len(port_names)))
+            ellipse.setPos(self.calculate_position(port_position))
         
             # Setting the initial color of the ports to gray
             ellipse.setBrush(QColor("gray")) 
@@ -91,11 +101,15 @@ class ArenaWidget(QWidget):
         main_layout.addWidget(self.view)  
         self.setLayout(main_layout)
 
-    def calculate_position(self, port_idx, n_ports):  
+    def calculate_position(self, port_position):  
+        """Return QPointF corresponding to `port_position`
+        
+        port_position : numeric
+            Angle of the port, in degrees
         """
-        Function to calculate the position of the ports and arrange them in a circle
-        """
-        angle = 2 * math.pi * port_idx / n_ports
+        # Subtracting 90 makes 0 north, although I'm not really sure why
+        # Is QPointF from the upper left or lower left?
+        angle = (port_position - 90) * math.pi / 180
         radius = 62
         x = radius * math.cos(angle)
         y = radius * math.sin(angle)
