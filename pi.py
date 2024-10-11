@@ -754,6 +754,8 @@ def poke_detectedL(pin, level, tick):
     # Get current datetime
     poke_time = datetime.now()
     elapsed_poke_time = poke_time - initial_start_time
+    if initial_start_time == None:
+        initial_start_time = config_loaded_time
         
     # Sending nosepoke_id wirelessly with datetime
     if report_poke == True and prev_reward!= nosepoke_idL:
@@ -958,6 +960,9 @@ try:
             sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
                 sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
             sound_chooser.set_sound_cycle()
+            
+            # Setting a time for the config to be loaded 
+            config_loaded_time = datetime.now()
             
             # Changing config_loaded to signal new session started
             config_loaded = True
