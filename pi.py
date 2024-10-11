@@ -735,7 +735,7 @@ def poke_inR(pin, level, tick):
 
 # Callback functions for nosepoke pin (When the nosepoke is detected)
 def poke_detectedL(pin, level, tick): 
-    global a_state, count, left_poke_detected, current_port_poked, poke_time, prev_reward, report_poke, reward_port
+    global a_state, count, left_poke_detected, current_port_poked, poke_time, prev_reward, report_poke, reward_port, initial_start_time
     
     a_state = 1
     count += 1
@@ -782,7 +782,7 @@ def poke_detectedL(pin, level, tick):
                 prev_reward = nosepoke_idL
 
 def poke_detectedR(pin, level, tick): 
-    global a_state, count, right_poke_detected, current_port_poked, poke_time, prev_reward, report_poke, reward_port 
+    global a_state, count, right_poke_detected, current_port_poked, poke_time, prev_reward, report_poke, reward_port, initial_start_time 
     
     a_state = 1
     count += 1
