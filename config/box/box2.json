@@ -1,28 +1,29 @@
 {
-    "port": 5552,
+    "zmq_port": 5552,
+    "desktop_ip": "192.168.11.198",
     "camera": "e3v82c6",
     "connected_pis" : [
         {
         "name": "rpi05",
-        "ip_address": "192.168.11.205",
+        "ip": "192.168.11.205",
         "left_port_position": 135,
         "right_port_position": 180
         },
         {
         "name": "rpi06",
-        "ip_address": "192.168.11.206",
+        "ip": "192.168.11.206",
         "left_port_position": 225,
         "right_port_position": 270
         },
         {
         "name": "rpi07",
-        "ip_address": "192.168.11.207",
+        "ip": "192.168.11.207",
         "left_port_position": 315,
         "right_port_position": 0
         },
         {
         "name": "rpi08",
-        "ip_address": "192.168.11.208",
+        "ip": "192.168.11.208",
         "left_port_position": 45,
         "right_port_position": 90
         }
