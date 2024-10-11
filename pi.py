@@ -753,9 +753,10 @@ def poke_detectedL(pin, level, tick):
 
     # Get current datetime
     poke_time = datetime.now()
-    elapsed_poke_time = poke_time - initial_start_time
     if initial_start_time == None:
         initial_start_time = config_loaded_time
+    elapsed_poke_time = poke_time - initial_start_time
+
         
     # Sending nosepoke_id wirelessly with datetime
     if report_poke == True and prev_reward!= nosepoke_idL:
@@ -799,6 +800,8 @@ def poke_detectedR(pin, level, tick):
      
     # Get current datetime
     poke_time = datetime.now()
+    if initial_start_time == None:
+        initial_start_time = config_loaded_time
     elapsed_poke_time = poke_time - initial_start_time
     
     # Sending nosepoke_id wirelessly with datetime
