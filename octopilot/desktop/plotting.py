@@ -370,30 +370,53 @@ class PokePlotWidget(QWidget):
         self.plot_widget.getPlotItem().getAxis('left').setTicks([ticks, []])
 
     def initalize_plot_handles(self):
-        """Plots line_of_current_time and line"""
+        """Plots line_of_current_time and line
+        
+        Creates these handles:
+            self.line_of_current_time : a line that moves with the current time
+            self.plot_handle_unrewarded_pokes : a raster plot of unrewarded
+                pokes in red
+            self.plot_handle_rewarded_incorrect_pokes : a raster plot of 
+                rewarded incorrect pokes in blue
+            self.plot_handle_rewarded_correct_pokes : a raster plot of 
+                rewarded correct pokes in green
+        """
         # Plot the sliding timebar
         self.line_of_current_time_color = 0.5
         self.line_of_current_time = self.plot_widget.plot(
             x=[0, 0], y=[-1, 8], pen=pg.mkPen(self.line_of_current_time_color))
 
-        # Included a separate symbol here that shows as a tiny dot under the 
-        # raster to make it easier to distinguish multiple pokes in sequence
-        self.plot_handle_poke_times1 = self.plot_widget.plot(
-            [],
-            [],
-            pen=None,
-            symbol="o", 
-            symbolSize=1,
-            symbolBrush="r",
-        )
-
-        self.plot_handle_poke_times2 = self.plot_widget.plot(
-            [],
-            [],
+        # Unrewarded pokes in red
+        self.plot_handle_unrewarded_pokes = self.plot_widget.plot(
+            x=[],
+            y=[],
             pen=None, # no connecting line
             symbol="arrow_down",  
-            symbolSize=20, # use 8 or lower if using dots
+            symbolSize=10,
             symbolBrush='r',
+            symbolPen=None,
+        )
+    
+        # Rewarded incorrect pokes in blue
+        self.plot_handle_rewarded_incorrect_pokes = self.plot_widget.plot(
+            x=[],
+            y=[],
+            pen=None, # no connecting line
+            symbol="arrow_down",  
+            symbolSize=10,
+            symbolBrush='cyan',
+            symbolPen=None,
+        )
+        
+        # Rewarded correct pokes in green
+        self.plot_handle_rewarded_correct_pokes = self.plot_widget.plot(
+            x=[],
+            y=[],
+            pen=None, # no connecting line
+            symbol="arrow_down",  
+            symbolSize=10,
+            symbolBrush='g',
+            symbolPen=None,
         )
 
     def start_plot(self):
@@ -436,23 +459,48 @@ class PokePlotWidget(QWidget):
     def update_plot(self):
         """Update self.plot_handle_poke_times with poke times from dispatcher
         
+        * Extracts pokes from 
+          self.dispatcher.history_of_pokes 
+          and plots as 
+          self.plot_handle_unrewarded_pokes
+
+        * Extracts pokes from 
+          self.dispatcher.history_of_rewarded_correct_pokes 
+          and plots as 
+          self.plot_handle_rewarded_correct_pokes
+
+        * Extracts pokes from 
+          self.dispatcher.history_of_rewarded_incorrect_pokes 
+          and plots as 
+          self.plot_handle_rewarded_incorrect_pokes
         """
-        # Extract x and y vals
-        xvals = []
-        yvals = []
+        # Plot each thing on the left into the thing on the right
+        pairs = (
+            (self.dispatcher.history_of_pokes, 
+            self.plot_handle_unrewarded_pokes),
+            (self.dispatcher.history_of_rewarded_correct_pokes , 
+            self.plot_handle_rewarded_correct_pokes),
+            (self.dispatcher.history_of_rewarded_incorrect_pokes , 
+            self.plot_handle_rewarded_incorrect_pokes),            
+            )
         
-        # Iterate over ports and get poke times from each
-        for n_port, port_name in enumerate(self.dispatcher.port_names):
-            # Get poke times for this port
-            this_poke_times = self.dispatcher.history_of_pokes[port_name]
+        # Iterate over each pair
+        for data_from, plot_to in pairs:
+            # Extract x and y vals
+            xvals = []
+            yvals = []
             
-            # The x-value will be the n_port
-            port_number = [n_port] * len(this_poke_times)
+            # Iterate over ports and get poke times from each
+            for n_port, port_name in enumerate(self.dispatcher.port_names):
+                # Get poke times for this port
+                this_poke_times = data_from[port_name]
+                
+                # The x-value will be the n_port
+                port_number = [n_port] * len(this_poke_times)
+                
+                # Append
+                xvals += this_poke_times
+                yvals += port_number
             
-            # Append
-            xvals += this_poke_times
-            yvals += port_number
-        
-        # Update plot with the new xvals and yvals
-        self.plot_handle_poke_times1.setData(x=xvals, y=yvals)
-        self.plot_handle_poke_times2.setData(x=xvals, y=yvals)
+            # Update plot with the new xvals and yvals
+            plot_to.setData(x=xvals, y=yvals)
