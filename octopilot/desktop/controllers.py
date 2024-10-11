@@ -133,7 +133,6 @@ class Dispatcher:
         """
         # Identity of last_rewarded_port (to avoid repeats)
         self.previously_rewarded_port = None 
-        self.rewarded_port = None
 
         # Trial index (None if not running)
         self.current_trial = None
