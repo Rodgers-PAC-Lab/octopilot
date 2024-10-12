@@ -7,10 +7,12 @@
 from ..shared import load_params
 
 # This defines standard QApplication
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QTableWidget, QTableWidgetItem, QVBoxLayout
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QTableWidget, QTableWidgetItem, QVBoxLayout, QPushButton
 from PyQt5.QtCore import QObject, pyqtSignal, QThread
+from PyQt5 import QtCore
 
 # For getting info from the command line
+import functools
 import threading
 import argparse
 import sys
@@ -18,6 +20,13 @@ import signal
 import glob
 import os
 import pandas
+
+
+def call_external(mouse, box, task, **other_python_parameters):
+    print(mouse, box, task)
+    #~ ArduFSM.Runner.start_runner_cli.main(mouse=mouse, board=board, box=box,
+        #~ experimenter=experimenter,
+        #~ **other_python_parameters)
 
 
 ## Use argparse to identify the box, mouse, and task
@@ -74,15 +83,64 @@ class LauncherWindow(QWidget):
         # Put each
         for n_mouse, mouse in enumerate(mouse_records.index):
             n_row = n_mouse + 1
-            self.table_widget.setItem(n_row, 0, QTableWidgetItem(mouse))
-            self.table_widget.setItem(n_row, 1, QTableWidgetItem(mouse_records.loc[mouse, 'box']))
-            self.table_widget.setItem(n_row, 2, QTableWidgetItem(mouse_records.loc[mouse, 'task']))
-            self.table_widget.setItem(n_row, 3, QTableWidgetItem('Start'))
+            
+            # The mouse name
+            item = QTableWidgetItem(mouse)
+            item.setFlags(item.flags() ^ QtCore.Qt.ItemIsEditable)
+            self.table_widget.setItem(n_row, 0, item)
+            
+            # The box name
+            item = QTableWidgetItem(mouse_records.loc[mouse, 'box'])
+            item.setFlags(item.flags() ^ QtCore.Qt.ItemIsEditable)
+            self.table_widget.setItem(n_row, 1, item )
+            
+            # The task name
+            item = QTableWidgetItem(mouse_records.loc[mouse, 'task'])
+            item.setFlags(item.flags() ^ QtCore.Qt.ItemIsEditable)
+            self.table_widget.setItem(n_row, 2, item )
+            
+            # The start button
+            qb = QPushButton('Start')
+            qb.clicked.connect(functools.partial(self.start_session2, qb))
+            self.table_widget.setCellWidget(n_row, 3, qb)
 
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.table_widget)
         self.setLayout(self.layout)
 
+    def start_session(self, row):
+        """Collect data from row and pass to start session"""
+        # Highlight clicked cell
+        self.table_widget.setCurrentCell(row, 3)
+        
+        # Extract data from row
+        mouse = str(self.table_widget.item(row, 0).text())
+        box = str(self.table_widget.item(row, 1).text())
+        task = str(self.table_widget.item(row, 2).text())
+        
+        # Call
+        call_external(
+            mouse=mouse,
+            box=box,
+            task=task,
+            background_color=None,
+        )
+
+    def start_session2(self, row_qb):
+        """Start the session associated with the push button for this row.
+        
+        """
+        # Find which row the push button is in
+        session_row = -1
+        for nrow in range(self.table_widget.rowCount()):
+            if self.table_widget.cellWidget(nrow, 3) is row_qb:
+                session_row = nrow
+                break
+        if session_row == -1:
+            raise ValueError("cannot find row for pushbutton")
+        
+        # Extract the mouse, board, box from this row
+        self.start_session(session_row)
 ## Start
 if __name__ == '__main__':
     # Apparently QApplication needs sys.argv for some reason
