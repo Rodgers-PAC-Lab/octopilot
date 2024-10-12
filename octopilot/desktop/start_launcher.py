@@ -164,6 +164,8 @@ class LauncherWindow(QWidget):
         
         # Set the layout
         self.setLayout(self.layout)
+        
+        self.resize(500, 600)
 
     def start_session_from_row_idx(self, n_row):
         """Use data from row in self.table_widget to start octopilot session
