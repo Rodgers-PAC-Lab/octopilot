@@ -54,19 +54,20 @@ def start_octopilot_gui_in_new_terminal(
 
     # Form the full list of Popen args, which are used to start the
     # gnome-terminal window and then run the bash_command inside it
+    # Note: bash_command should NOT be enclosed in quotes here, because that
+    # is magically handled by Popen, even though it would need to be enclosed
+    # in quotes if we were typing this from the command line
     popen_args = [
         'gnome-terminal', 
         '--geometry=%dx%d+%d+%d' % (ncols, nrows, xpos, ypos),
         '--zoom=%0.2f' % zoom,  
         '--', # used to be -x
         'bash', '-l', '-c',
+        bash_command,
         ]
     
-    # Enclose bash_command in quotes and append to popen_args
-    popen_args.append('"' + bash_command + '"')
-    
     # Print
-    print(' '.join(popen_args))
+    print(popen_args)
     
     # Popen
     # TODO: keep track of this process in Launcher
