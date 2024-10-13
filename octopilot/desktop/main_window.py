@@ -115,6 +115,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         
         ## Set the size and title of the main window
+        # Title
+        self.setWindowTitle(
+            f'Octopilot: box={box_params['name']} '
+            f'task={task_params['name']} '
+            f'mouse={mouse_params['name']}')
+        
         # Size in pixels (can be used to modify the size of window)
         self.resize(1200, 200)
         self.move(700, box_params['ypos_of_gui'])

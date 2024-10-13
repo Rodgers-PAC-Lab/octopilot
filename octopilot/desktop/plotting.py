@@ -347,18 +347,8 @@ class PokePlotWidget(QWidget):
         # Setting the background of the plot to be black. Use 'w' for white
         self.plot_widget.setBackground("k") 
         
-        # Setting the title of the plot 
-        self.plot_widget.setTitle("Pokes vs Time", color="white", size="12px") 
-        
         # Setting the font/style for the rest of the text used in the plot
         styles = {"color": "white", "font-size": "11px"} 
-        
-        # Setting label for y axis
-        self.plot_widget.setLabel("left", "Port", **styles) 
-        
-        # Setting label for x axis 
-        self.plot_widget.setLabel("bottom", "Time (s)", **styles) 
-        self.plot_widget.addLegend()
         
         # Adding a grid background to make it easier to see where pokes are in time
         self.plot_widget.showGrid(x=True, y=True) 

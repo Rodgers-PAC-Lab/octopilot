@@ -33,6 +33,9 @@ class TrialParameterChooser(object):
         port_names: see __init__
         task_params : dict from load_params.load_task_params
         """
+        # Copy this so we don't break it for upstream stuff
+        task_params = task_params.copy()
+        
         # Identify whether these have ranges
         ranged_params = [
             'target_rate',
