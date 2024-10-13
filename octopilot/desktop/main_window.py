@@ -75,16 +75,11 @@ class MainWindow(QtWidgets.QMainWindow):
         # Initializing PokePlotWidget to show the pokes
         self.poke_plot_widget = plotting.PokePlotWidget(self.dispatcher)
 
-        # Set up the actions for the menu bar
-        # Creating a menu bar with some actions
-        menubar = self.menuBar()
-        file_menu = menubar.addMenu('File')
 
-        
         ## Creating container widgets for each component 
         # These containers determine size and arrangment of widgets
         arena_widget_container = QWidget()
-        arena_widget_container.setFixedWidth(500)  
+        arena_widget_container.setFixedWidth(200)  
         arena_widget_container.setLayout(QVBoxLayout())
         arena_widget_container.layout().addWidget(self.arena_widget)
 
@@ -95,8 +90,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # and to self.save_results_to_csv
         self.set_up_stop_button()
         
-        # Creating horizontal layout for start and stop buttons
-        start_stop_layout = QHBoxLayout()
+        # Creating vertical layout for start and stop buttons
+        start_stop_layout = QVBoxLayout()
         start_stop_layout.addWidget(self.start_button)
         start_stop_layout.addWidget(self.stop_button)        
 
@@ -113,8 +108,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # the main window. it does not have a fixed width like the other widgets
         container_layout.addWidget(arena_widget_container)
         container_layout.addWidget(self.poke_plot_widget)
-        container_layout.addWidget(self.start_button)
-        container_layout.addWidget(self.stop_button)
+        container_layout.addLayout(start_stop_layout)
         
         # Set this one as the central widget
         self.setCentralWidget(container_widget)

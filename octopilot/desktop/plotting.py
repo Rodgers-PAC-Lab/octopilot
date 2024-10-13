@@ -54,7 +54,7 @@ class ArenaWidget(QWidget):
         self.timer_update = QTimer(self)
         self.timer_update.timeout.connect(self.update) 
 
-    def create_layout(self, port_names, port_positions):
+    def create_layout(self, port_names, port_positions, circle_size=25):
         """Place `port_names` at `port_positions`.
         
         port_names : list of str
@@ -70,7 +70,7 @@ class ArenaWidget(QWidget):
         iter_obj = enumerate(zip(port_names, port_positions))
         for port_idx, (port_name, port_position) in iter_obj:
             # Create an ellipse
-            ellipse = QGraphicsEllipseItem(0, 0, 38, 38) 
+            ellipse = QGraphicsEllipseItem(0, 0, circle_size, circle_size) 
             
             # Setting the label for each port on the GUI
             label = QGraphicsTextItem(port_name, ellipse)
@@ -80,8 +80,8 @@ class ArenaWidget(QWidget):
         
             # Positioning the labels within the ellipse
             label.setPos(
-                19 - label.boundingRect().width() / 2, 
-                19 - label.boundingRect().height() / 2,
+                circle_size / 2 - label.boundingRect().width() / 2, 
+                circle_size / 2 - label.boundingRect().height() / 2,
                 )
         
             # Positioning the individual ports
@@ -101,7 +101,7 @@ class ArenaWidget(QWidget):
         main_layout.addWidget(self.view)  
         self.setLayout(main_layout)
 
-    def calculate_position(self, port_position):  
+    def calculate_position(self, port_position, radius=50):  
         """Return QPointF corresponding to `port_position`
         
         port_position : numeric
@@ -110,13 +110,14 @@ class ArenaWidget(QWidget):
         # Subtracting 90 makes 0 north, although I'm not really sure why
         # Is QPointF from the upper left or lower left?
         angle = (port_position - 90) * math.pi / 180
-        radius = 62
         x = radius * math.cos(angle)
         y = radius * math.sin(angle)
         
         # Arranging the Pi signals in a circle based on x and y coordinates 
         # calculated using the radius
-        return QPointF(200 + x, 200 + y) 
+        # This seems to be auto-centered, so the actual values don't have
+        # to be positive or anything
+        return QPointF(x, y)
 
     def start(self):
         # Start the timer
