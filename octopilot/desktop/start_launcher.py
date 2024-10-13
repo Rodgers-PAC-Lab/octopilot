@@ -10,9 +10,8 @@ from ..shared import load_params
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QTableWidget, QTableWidgetItem, QVBoxLayout, QPushButton
 from PyQt5 import QtCore, QtGui
 
-# For getting info from the command line
 import functools
-import threading
+import datetime
 import argparse
 import sys
 import signal
@@ -43,9 +42,48 @@ def start_octopilot_gui_in_new_terminal(
     
     Returns: the result of subprocess.Popen
     """
+    ## Create a sandbox
+    # Set the session name
+    sandbox_creation_time = datetime.datetime.now()
+    sandbox_name = (
+        sandbox_creation_time.strftime('%Y-%m-%d_%H-%M-%S') 
+        + '_' + mouse)
+
+    # Create a path to store data
+    # This is the high-level save directory, then the year, then the month,
+    # and finally the sandbox_name
+    save_path_l = [
+        os.path.expanduser('~/octopilot/logs'), 
+        str(sandbox_creation_time.year),
+        '{:02d}'.format(sandbox_creation_time.month),
+        sandbox_name,
+        ]
+    
+    # Create each of the above directories in order
+    partial_path = None
+    for path_part in save_path_l:
+        # Gradually grow partial_path
+        if partial_path is None:
+            partial_path = path_part
+        else:
+            partial_path = os.path.join(partial_path, path_part)
+        
+        # Create if needed
+        if not os.path.exists(partial_path):
+            os.mkdir(partial_path)
+    
+    # Error check
+    sandbox_path = os.path.join(*save_path_l)
+    assert partial_path == sandbox_path
+    
+    
+    ## Call the script
     # This is the python3 command used to start the octopilot session
     bash_command = (
         f'python3 -m octopilot.desktop.start_gui {box} {mouse} {task}')
+    
+    # Append a tee
+    bash_command += f' |& tee -a logfile'
 
     # Optionally add a 'read' command afterward to keep the window open
     if keep_window_open:
@@ -58,6 +96,7 @@ def start_octopilot_gui_in_new_terminal(
     # in quotes if we were typing this from the command line
     popen_args = [
         'gnome-terminal', 
+        f'--working-directory={sandbox_path}',
         '--geometry=%dx%d+%d+%d' % (ncols, nrows, xpos, ypos),
         '--zoom=%0.2f' % zoom,  
         '--', # used to be -x

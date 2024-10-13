@@ -5,7 +5,6 @@
 
 
 ## Module imports
-import datetime
 import os
 import argparse
 import sys
@@ -20,7 +19,7 @@ from PyQt5.QtWidgets import QApplication
 
 
 ## This is the function that is actually run
-def main(box, task, mouse):
+def main(box, task, mouse, sandbox_path=None):
     """Main function to run an Octopilot GUI session
     
     Generally this is called by the code block below enclosed in 
@@ -32,49 +31,25 @@ def main(box, task, mouse):
         they must correspond to JSON files in the appropriate places. 
         See top-level documentation of Config Files. 
 
+    sandbox_path : path or None
+        Place to store all data files
+        If None, uses CWD
+
     This function will choose a session name, create a sandbox directory
     for logfiles, and then start the MainWindow of the GUI, which will then
     run the task.
     """
+    ## Set sandbox_path
+    if sandbox_path is None:
+        # Use the current working directory
+        # This works because start_launcher sets the working directory
+        sandbox_path = os.getcwd()
+
+    
     ## Load parameters of the specified box, task, and mouse
     box_params = load_params.load_box_params(args.box)
     task_params = load_params.load_task_params(args.task)
     mouse_params = load_params.load_mouse_params(args.mouse)
-
-
-    ## Create a sandbox
-    # Set the session name
-    sandbox_creation_time = datetime.datetime.now()
-    sandbox_name = (
-        sandbox_creation_time.strftime('%Y-%m-%d_%H-%M-%S') 
-        + '_' + mouse_params['name'])
-
-    # Create a path to store data
-    # This is the high-level save directory, then the year, then the month,
-    # and finally the sandbox_name
-    save_path_l = [
-        os.path.expanduser('~/octopilot/logs'), 
-        str(sandbox_creation_time.year),
-        '{:02d}'.format(sandbox_creation_time.month),
-        sandbox_name,
-        ]
-    
-    # Create each of the above directories in order
-    partial_path = None
-    for path_part in save_path_l:
-        # Gradually grow partial_path
-        if partial_path is None:
-            partial_path = path_part
-        else:
-            partial_path = os.path.join(partial_path, path_part)
-        
-        # Create if needed
-        if not os.path.exists(partial_path):
-            os.mkdir(partial_path)
-    
-    # Error check
-    sandbox_path = os.path.join(*save_path_l)
-    assert partial_path == sandbox_path
 
     # Apparently QApplication needs sys.argv for some reason
     # https://stackoverflow.com/questions/27940378/why-do-i-need-sys-argv-to-start-a-qapplication-in-pyqt
