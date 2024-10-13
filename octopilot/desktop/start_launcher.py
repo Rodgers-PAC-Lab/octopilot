@@ -23,7 +23,7 @@ import pandas
 # Helper function
 def start_octopilot_gui_in_new_terminal(
     mouse, box, task, zoom=0.5, ncols=80, nrows=15, 
-    xpos=350, ypos=200, keep_window_open=True):
+    xpos=350, ypos=200, keep_window_open=False):
     """Open a terminal and start an octopilot GUI session in it.
     
     We want to run the octopilot GUI session in its own subprocess so that 
