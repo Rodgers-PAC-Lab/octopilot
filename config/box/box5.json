@@ -1,6 +1,7 @@
 {
     "zmq_port": 5555,
     "desktop_ip": "192.168.11.198",
+    "ypos_of_gui": 675,
     "connected_pis" : [
         {
             "name": "rpi18",

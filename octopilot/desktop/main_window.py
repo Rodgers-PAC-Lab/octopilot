@@ -123,6 +123,7 @@ class MainWindow(QtWidgets.QMainWindow):
         ## Set the size and title of the main window
         # Size in pixels (can be used to modify the size of window)
         self.resize(1200, 200)
+        self.move(700, box_params['ypos_of_gui'])
         
         # Show it
         self.show()

@@ -1,6 +1,7 @@
 {
     "zmq_port": 5552,
     "desktop_ip": "192.168.11.198",
+    "ypos_of_gui": 0,
     "camera": "e3v82c6",
     "connected_pis" : [
         {

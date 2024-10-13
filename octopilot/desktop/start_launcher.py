@@ -24,7 +24,7 @@ import pandas
 # Helper function
 def start_octopilot_gui_in_new_terminal(
     mouse, box, task, zoom=0.5, ncols=80, nrows=15, 
-    xpos=400, ypos=200, keep_window_open=True):
+    xpos=350, ypos=200, keep_window_open=True):
     """Open a terminal and start an octopilot GUI session in it.
     
     We want to run the octopilot GUI session in its own subprocess so that 
@@ -195,15 +195,9 @@ class LauncherWindow(QWidget):
         box = str(self.table_widget.item(n_row, 1).text())
         task = str(self.table_widget.item(n_row, 2).text())
 
-        # Use the box name to get the position
-        if box == 'box2':
-            ypos = 100
-        elif box == 'box3':
-            ypos = 500
-        elif box == 'box4':
-            ypos = 900
-        elif box == 'box5':
-            ypos = 1300
+        # Load the box params to find out where to put the GUI elements
+        box_params = load_params.load_box_params(box)
+        ypos = box_params['ypos_of_gui']
         
         # Call start_octopilot_gui_in_new_terminal with that data
         # TODO: keep track of this process
