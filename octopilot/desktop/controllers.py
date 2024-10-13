@@ -23,7 +23,7 @@ class Dispatcher:
     
     """
 
-    def __init__(self, box_params, task_params, mouse_params):
+    def __init__(self, box_params, task_params, mouse_params, sandbox_path):
         """Initialize a new worker
         
         Arguments
@@ -31,6 +31,7 @@ class Dispatcher:
         box_params : dict, parameters of the box
         task_params : dict, parameters of the task
         mouse_params : dict, parameters of the mouse
+        sandbox_path : path to where files should be stored
         
         Instance variables
         ------------------
@@ -71,6 +72,7 @@ class Dispatcher:
         self.box_params = box_params
         self.task_params = task_params
         self.mouse_params = mouse_params
+        self.sandbox_path = sandbox_path
 
         
         ## Extract the port names, pi names, and ip addresses from box_params
@@ -122,6 +124,7 @@ class Dispatcher:
         self.marshaller = pi_marshaller.PiMarshaller(
             agent_names=self.pi_names,
             ip_addresses=self.pi_ip_addresses,
+            sandbox_path=self.sandbox_path,
             )
         self.marshaller.start()
 
@@ -133,6 +136,7 @@ class Dispatcher:
         """
         # Identity of last_rewarded_port (to avoid repeats)
         self.previously_rewarded_port = None 
+        self.goal_port = None
 
         # Trial index (None if not running)
         self.current_trial = None
@@ -174,36 +178,6 @@ class Dispatcher:
         # Set the initial_time to now
         self.session_start_time = datetime.datetime.now() 
         self.logger.info(f'Starting session at {self.session_start_time}')
-        
-        # Create and store the session name
-        self.session_name = (
-            self.session_start_time.strftime('%Y-%m-%d_%H-%M-%S') 
-            + '_' + self.mouse_params['name'])
-
-        # Create a path to store data
-        dt_now = datetime.datetime.now()
-        self.save_path = os.path.join(
-            os.path.expanduser('~/octopilot/logs'), 
-            str(dt_now.year), '{:02d}'.format(dt_now.month), 
-            self.session_name)
-        
-        # Create the paths needed for save_path
-        path1 = os.path.join(os.path.expanduser('~/octopilot'))
-        if not os.path.exists(path1):
-            os.mkdir(path1)
-        path1 = os.path.join(path1, 'logs')
-        if not os.path.exists(path1):
-            os.mkdir(path1)
-        path1 = os.path.join(path1, str(dt_now.year))
-        if not os.path.exists(path1):
-            os.mkdir(path1)
-        path1 = os.path.join(path1, '{:02d}'.format(dt_now.month))
-        if not os.path.exists(path1):
-            os.mkdir(path1)
-        path1 = os.path.join(path1, self.session_name)
-        if not os.path.exists(path1):
-            os.mkdir(path1)
-        assert path1 == self.save_path
         
         # Deal with case where the old sessions is still going
         if self.session_is_running:
@@ -474,10 +448,10 @@ class Dispatcher:
             str_to_log += str(self.trial_parameters[key]) + ','
         str_to_log += str(reward_time)
         
-        with open(os.path.join(self.save_path, 'trials.csv'), 'a') as fi:
+        with open(os.path.join(self.sandbox_path, 'trials.csv'), 'a') as fi:
             fi.write(str_to_log + '\n')
     
     def log_poke(self, trial_number, poke_time, identity, poked_port, reward):
         """Record that a poke occurred"""
-        with open(os.path.join(self.save_path, 'pokes.csv'), 'a') as fi:
+        with open(os.path.join(self.sandbox_path, 'pokes.csv'), 'a') as fi:
             fi.write(f'{poke_time},{trial_number},{identity},{poked_port},{reward}\n')

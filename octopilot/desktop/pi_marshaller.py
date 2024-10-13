@@ -1,3 +1,4 @@
+import os
 import time
 import subprocess
 import threading
@@ -9,16 +10,23 @@ class PiMarshaller(object):
     
     """
     def __init__(
-        self, agent_names, ip_addresses, 
-        shell_script='/home/pi/dev/octopilot/octopilot/pi/start_cli.sh'):
+        self, agent_names, ip_addresses, sandbox_path,
+        shell_script='/home/pi/dev/octopilot/octopilot/pi/start_cli.sh',
+        ):
         """Init a new PiMarshaller to connect to each in `ip_addresses`.
         
+        Arguments
+        ---------
         agent_names : list of str
             Each entry should be the name of an Agent
         ip_addresses : list of str
             Each entry should be an IP address of a Pi
             This list should be the same length and correspond one-to-one
             with `agent_names`.
+        sandbox_path : path
+            The output files from each SSH will be stored here
+        shell_script : path on Pi
+            This is the script that is started by SSH
         """
         # Init logger
         self.logger = NonRepetitiveLogger("test")
@@ -31,6 +39,7 @@ class PiMarshaller(object):
         self.agent_names = agent_names
         self.ip_addresses = ip_addresses
         self.shell_script = shell_script
+        self.sandbox_path = sandbox_path
     
     def start(self):
         """Open an ssh connection each Agent in self.agent_names
@@ -63,7 +72,7 @@ class PiMarshaller(object):
                 Prepended to the line in the log
             logger : Logger
                 Lines written to here, with agent_name and buff_name prepended
-            output_filname: path
+            output_filename: path
                 Lines written to here
             """
             # Open output filename
@@ -109,6 +118,8 @@ class PiMarshaller(object):
                 continue
             
             # Start threads to capture output
+            output_filename = os.path.join(
+                self.sandbox_path, f'{agent_name}_stdout.output')
             thread_stdout = threading.Thread(
                 target=capture, 
                 kwargs={
@@ -116,10 +127,12 @@ class PiMarshaller(object):
                     'buff_name': 'stdout',
                     'agent_name': agent_name,
                     'logger': self.logger,
-                    'output_filename': f'{agent_name}_stdout.output',
+                    'output_filename': output_filename,
                     },
                 )
-            
+
+            output_filename = os.path.join(
+                self.sandbox_path, f'{agent_name}_stderr.output')
             thread_stderr = threading.Thread(
                 target=capture, 
                 kwargs={
@@ -127,7 +140,7 @@ class PiMarshaller(object):
                     'buff_name': 'stderr',
                     'agent_name': agent_name,
                     'logger': self.logger,
-                    'output_filename': f'{agent_name}_stderr.output',
+                    'output_filename': output_filename,
                     },
                 )
             
