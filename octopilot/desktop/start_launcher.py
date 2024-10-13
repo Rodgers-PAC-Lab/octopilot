@@ -8,8 +8,7 @@ from ..shared import load_params
 
 # This defines standard QApplication
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QTableWidget, QTableWidgetItem, QVBoxLayout, QPushButton
-from PyQt5.QtCore import QObject, pyqtSignal, QThread
-from PyQt5 import QtCore
+from PyQt5 import QtCore, QtGui
 
 # For getting info from the command line
 import functools
@@ -24,8 +23,8 @@ import pandas
 
 # Helper function
 def start_octopilot_gui_in_new_terminal(
-    mouse, box, task, zoom=0.6, ncols=80, nrows=30, 
-    xpos=100, ypos=200, keep_window_open=True):
+    mouse, box, task, zoom=0.5, ncols=80, nrows=15, 
+    xpos=400, ypos=200, keep_window_open=True):
     """Open a terminal and start an octopilot GUI session in it.
     
     We want to run the octopilot GUI session in its own subprocess so that 
@@ -37,7 +36,7 @@ def start_octopilot_gui_in_new_terminal(
     ---------
     mouse, box, task : str
         These are passed as argparse kwargs to octopilot start_gui like this:
-        python3 -m octopilot.desktop.start_gui {mouse} {box} {task}
+        python3 -m octopilot.desktop.start_gui {box} {mouse} {task}
     
     zoom, ncols, nrows, xpos, ypos : numeric
         These are used to set up how the gnome-terminal window appears
@@ -46,7 +45,7 @@ def start_octopilot_gui_in_new_terminal(
     """
     # This is the python3 command used to start the octopilot session
     bash_command = (
-        f'python3 -m octopilot.desktop.start_gui {mouse} {box} {task}')
+        f'python3 -m octopilot.desktop.start_gui {box} {mouse} {task}')
 
     # Optionally add a 'read' command afterward to keep the window open
     if keep_window_open:
@@ -130,6 +129,17 @@ class LauncherWindow(QWidget):
         self.table_widget.setItem(0, 2, QTableWidgetItem('Task'))
         self.table_widget.setItem(0, 3, QTableWidgetItem('Start'))
 
+        # Set row widths
+        self.table_widget.horizontalHeader().resizeSection(0, 120)
+        self.table_widget.horizontalHeader().resizeSection(1, 60)
+        self.table_widget.horizontalHeader().resizeSection(2, 80)
+        self.table_widget.horizontalHeader().resizeSection(3, 40)
+
+        # Set font size
+        font = QtGui.QFont()
+        font.setPointSize(8)        
+        self.table_widget.setFont(font)
+
         # Put data for each mouse in a row
         for n_mouse, mouse in enumerate(mouse_records.index):
             n_row = n_mouse + 1
@@ -165,7 +175,10 @@ class LauncherWindow(QWidget):
         # Set the layout
         self.setLayout(self.layout)
         
-        self.resize(500, 600)
+        # Position in the upper left corner
+        self.resize(350, 1000)
+        self.move(0, 0)
+        
 
     def start_session_from_row_idx(self, n_row):
         """Use data from row in self.table_widget to start octopilot session
@@ -192,16 +205,12 @@ class LauncherWindow(QWidget):
         elif box == 'box5':
             ypos = 1300
         
-        # xpos is fixed
-        xpos = 300
-        
         # Call start_octopilot_gui_in_new_terminal with that data
         # TODO: keep track of this process
         proc = start_octopilot_gui_in_new_terminal(
             mouse=mouse,
             box=box,
             task=task,
-            xpos=xpos,
             ypos=ypos,
         )
 
