@@ -113,10 +113,11 @@ class Nosepoke(object):
         """Create spurious pokes at a rate of `rate` per second.
         
         rate : float
-            Expected rate of pokes
+            Expected rate of pokes.
         interval : float
-            How often the timer is called, in seconds. Higher numbers offer more 
-            precision but take more processing time.
+            How often the timer is called, in seconds. Lower numbers offer more 
+            precision but take more processing time. The maximum possible
+            rate of pokes is 1/interval.
         """
         # Calculate the probability to use to achieve the rate
         prob = rate * interval
