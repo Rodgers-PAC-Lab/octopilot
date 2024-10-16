@@ -1,5 +1,5 @@
 {
     "reward_value": 0.5,
-    "box": "box5",
-    "task": "poketrain"
+    "box": "box2",
+    "task": "single_sound_source"
 }
