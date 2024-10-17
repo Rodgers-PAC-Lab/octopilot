@@ -21,6 +21,7 @@ import numpy as np
 import time
 import os
 import json
+import logging
 
 # Qt imports
 from PyQt5 import QtWidgets
@@ -31,7 +32,10 @@ from PyQt5.QtCore import QObject, pyqtSignal, QThread, QTimer
 # From this module
 from . import plotting
 from . import controllers
+from ..shared.logtools import NonRepetitiveLogger
 
+
+import traceback
 
 class OctopilotSessionWindow(QtWidgets.QMainWindow):
     """Main window of the GUI that arranges all the widgets.
@@ -39,7 +43,11 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
     Here we make objects of all the different elements of the GUI and arrange 
     the widgets. We also connect the signals defined earlier to slots defined 
     in other classes to make them be able to share information.
-
+    
+    Finally, sys.excepthook is set to self._exception_hook, so that any
+    errors in threads will be caught. All we do when that happens is set
+    the background red, so that the user has some clue that something bad
+    happened.
     
     Methods
     -------
@@ -78,6 +86,18 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         """
         ## Superclass QMainWindow init
         super().__init__()
+
+
+        ## Init logger
+        self.logger = NonRepetitiveLogger("test")
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
+        self.logger.addHandler(sh)
+        self.logger.setLevel(logging.DEBUG)
+        
+        
+        ## This sets up self._exception_hook to handle any unexpected errors
+        self._set_up_exception_handling()
         
         
         ## Create the Dispatcher that will run the task
@@ -93,8 +113,10 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         self.timer_dispatcher = QTimer(self)
         
         # Any error that happens in dispatcher.update will just crash the
-        # timer thread, not the main thread
-        # TODO: figure out how to capture those errors
+        # timer thread, not the main thread. When this happens, 
+        # self._exception_hook is called and sets self.exception_occured.
+        # self._check_if_error_occurred will then set the background to red.
+        self.timer_dispatcher.timeout.connect(self._check_if_error_occured)
         self.timer_dispatcher.timeout.connect(self.dispatcher.update)
 
 
@@ -162,6 +184,49 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         ## Connecting signals to the respective slots/methods 
         # Wait till after the OctopilotSessionWindow is fully initialized
         self.timer_dispatcher.start(timer_dispatcher_period_ms)
+
+    def _set_up_exception_handling(self):
+        self.exception_occurred = False 
+        
+        # this registers the exception_hook() function as hook
+        sys.excepthook = self._exception_hook
+
+    def _exception_hook(self, exc_type, exc_value, exc_traceback):
+        """Function handling uncaught exceptions.
+        
+        It is triggered each time an uncaught exception occurs. 
+        # https://timlehr.com/2018/01/python-exception-hooks-with-qt-message-box/
+        """
+        if issubclass(exc_type, KeyboardInterrupt):
+            # ignore keyboard interrupt to support console applications
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        
+        else:
+            # Flag that an error has occured
+            self.exception_occurred = True
+            
+            # Get the exc_info
+            exc_info = (exc_type, exc_value, exc_traceback)
+            
+            # Form a log message
+            log_msg = '\n'.join([
+                ''.join(traceback.format_tb(exc_traceback)),
+                '{0}: {1}'.format(exc_type.__name__, exc_value),
+                ])
+            
+            # Log it
+            self.logger.error(
+                "Uncaught exception:\n {0}".format(log_msg))
+
+    def _check_if_error_occured(self):
+        """Called every time a dispatcher update is called
+        
+        Checks self.exception_occurred, which is set by self._exception_hook
+        after any uncaught exception. If it is True, set background color to
+        red. 
+        """
+        if self.exception_occurred:
+            self.setStyleSheet("background-color: red;") 
 
     def set_up_start_button(self):
         """Create a start button and connect to self.start_sequence"""
