@@ -66,6 +66,7 @@ Agent is not running.
 
 import logging
 import datetime
+import threading
 import numpy as np
 import zmq
 from ..shared.logtools import NonRepetitiveLogger
@@ -175,6 +176,12 @@ class DispatcherNetworkCommunicator(object):
         
         The ZMQ socket is a ROUTER on the desktop and a DEALER on the pi.
         """
+        # Set up a lock
+        # Note that ZMQ sockets cannot be shared across threads
+        # The use of a lock is discouraged, but I'm not sure if it's known
+        # to not work, or they just don't like it
+        self.zmq_socket_lock = threading.Lock()
+        
         self.context = zmq.Context()
         self.zmq_socket = self.context.socket(zmq.ROUTER)
         self.zmq_socket.bind(f"tcp://*:{zmq_port}")
@@ -197,7 +204,10 @@ class DispatcherNetworkCommunicator(object):
         self.logger.info(f'sending to {identity}: {msg}')
         msg_bytes = bytes(msg, 'utf-8')
         identity_bytes = bytes(identity, 'utf-8')
-        self.zmq_socket.send_multipart([identity_bytes, msg_bytes])
+        
+        # Use a lock to prevent multiple threads from accessing zmq_socket
+        with self.zmq_socket_lock:
+            self.zmq_socket.send_multipart([identity_bytes, msg_bytes])
     
     def send_message_to_all(self, msg):
         """"Send msg to all identities in self.connected_agents"""
