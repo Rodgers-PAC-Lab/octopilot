@@ -162,8 +162,8 @@ class Agent(object):
         # Autopoke
         # This simulates the presence of a mouse, which may be poking before
         # the session actually starts
-        self.left_nosepoke.autopoke_start(rate=1)
-        self.right_nosepoke.autopoke_start(rate=1)
+        self.left_nosepoke.autopoke_start(rate=0)
+        self.right_nosepoke.autopoke_start(rate=0)
 
         
         ## Optionally set up networking

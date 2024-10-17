@@ -47,7 +47,7 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
     closeEvent : Called on close, and tells each worker to exit
     """
     def __init__(self, box_params, task_params, mouse_params, sandbox_path, 
-        timer_dispatcher_period_ms=1):
+        timer_dispatcher_period_ms=50):
         """Initialize a new OctopilotSessionWindow
         
         Arguments
