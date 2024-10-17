@@ -144,6 +144,9 @@ class Dispatcher:
         self.previously_rewarded_port = None 
         self.goal_port = None
 
+        # Start time
+        self.trial_start_time = None
+        
         # Trial index (None if not running)
         self.current_trial = None
         
@@ -216,13 +219,18 @@ class Dispatcher:
             self.trial_parameter_chooser.choose(self.previously_rewarded_port)
             )
 
+        # Set start time as now (note that Pi will not receive the message 
+        # until a bit later)
+        self.trial_start_time = datetime.datetime.now()
+
         # Set up new trial index
         if self.current_trial is None:
             self.current_trial = 0
         else:
             self.current_trial += 1
 
-        # Add trial number to trial_parameters
+        # Add trial number to trial_parameters, so that the Pi can use
+        # this to label the pokes that come back
         self.trial_parameters['trial_number'] = self.current_trial
 
         # Update which ports have been poked
@@ -231,9 +239,10 @@ class Dispatcher:
         # Log
         self.logger.info(
             f'starting trial {self.current_trial}; '
-            f'goal port {self.goal_port}; '
-            f'trial parameters\n{self.trial_parameters}; '
-            f'port_parameters:\n{self.port_parameters}'
+            f'start time={self.trial_start_time}; '
+            f'goal port={self.goal_port}; '
+            f'trial parameters=:\n{self.trial_parameters}; '
+            f'port_parameters=:\n{self.port_parameters}'
             )
         
         # Send the parameters to each pi
@@ -458,19 +467,21 @@ class Dispatcher:
         self.trial_parameter_chooser is set but before any trials have run.
         
         The parameters will be taken from self.trial_parameter_chooser, and 
-        then 'trial_number' and 'reward_time' are added. The ordering
-        matches that in self._log_trial
+        then 'trial_number', start_time', 'goal_port', and 'reward_time' are
+        added. The ordering matches that in self._log_trial
         """
         # The trial_parameters returned by this object are the keys of this
         # dict, plus also 'trial_number'
         param_names = list(
             self.trial_parameter_chooser.param2possible_values.keys())
         
-        # Add 'trial_number' and sort
-        param_names = sorted(param_names + ['trial_number'])
-        
-        # Add 'reward_time' to the end
-        param_names.append('reward_time')
+        # Order as follows: sort the param_names, prepend and postpend a few
+        # that are not contained within param_names
+        param_names = (
+            ['trial_number', 'start_time', 'goal_port'] + 
+            sorted(param_names) + 
+            ['reward_time']
+            )
         
         # Write these as the column names
         with open(os.path.join(self.sandbox_path, 'trials.csv'), 'a') as fi:
@@ -489,10 +500,23 @@ class Dispatcher:
             The time that the reward was delivered on this trial
         
         """
-        # store in alphabetical order for consistency
-        str_to_log = ''
+        # This ordering must patch _log_trial_header_row
+        
+        # First pop trial_number
+        trial_number = self.trial_parameters.pop('trial_number')
+        
+        # Begin with these hardcoded ones
+        str_to_log = f'{trial_number},{self.trial_start_time},{self.goal_port},'
+        
+        # Add trial_parameters in alphabetical order
         for key in sorted(self.trial_parameters.keys()):
             str_to_log += str(self.trial_parameters[key]) + ','
+        
+        # Add trial_number back to trial_parameters, in case anything depends
+        # on it
+        self.trial_parameters['trial_number'] = trial_number
+        
+        # End with reward_time
         str_to_log += str(reward_time)
         
         with open(os.path.join(self.sandbox_path, 'trials.csv'), 'a') as fi:
