@@ -101,7 +101,13 @@ class Dispatcher:
             port_names=self.port_names,
             task_params=task_params,
             ))
-
+        
+        # Use this object to write the header row of trials.csv
+        self._log_trial_header_row()
+        
+        # Also write pokes header row
+        self._log_poke_header_row()
+        
 
         ## Initialize network communicator and tell it what pis to expect
         self.network_communicator = DispatcherNetworkCommunicator(
@@ -217,7 +223,6 @@ class Dispatcher:
             self.current_trial += 1
 
         # Add trial number to trial_parameters
-        # TODO: get Pi to store this with each poke
         self.trial_parameters['trial_number'] = self.current_trial
 
         # Update which ports have been poked
@@ -378,7 +383,7 @@ class Dispatcher:
         self.history_of_pokes[port_name].append(poke_time_sec)
         
         # Log
-        self.log_poke(trial_number, poke_time, identity, port_name, reward=False)
+        self._log_poke(trial_number, poke_time, identity, port_name, reward=False)
 
     def handle_reward(self, trial_number, identity, port_name, poke_time):
         # TODO: store the raw datetime in the csv
@@ -419,10 +424,10 @@ class Dispatcher:
         self.previously_rewarded_port = port_name
 
         # Log the poke
-        self.log_poke(trial_number, poke_time, identity, port_name, reward=True)
+        self._log_poke(trial_number, poke_time, identity, port_name, reward=True)
 
         # Log the trial
-        self.log_trial(poke_time)
+        self._log_trial(poke_time)
         
         # Start a new trial
         self.start_trial()
@@ -441,7 +446,44 @@ class Dispatcher:
             self.logger.error('session stopped due to early goodbye')
             self.stop_session()
     
-    def log_trial(self, reward_time):
+    def _log_trial_header_row(self):
+        """Write the header row of trials.csv
+        
+        This is called once, at the beginning of the session, after
+        self.trial_parameter_chooser is set but before any trials have run.
+        
+        The parameters will be taken from self.trial_parameter_chooser, and 
+        then 'trial_number' and 'reward_time' are added. The ordering
+        matches that in self._log_trial
+        """
+        # The trial_parameters returned by this object are the keys of this
+        # dict, plus also 'trial_number'
+        param_names = list(
+            self.trial_parameter_chooser.param2possible_values.keys())
+        
+        # Add 'trial_number' and sort
+        param_names = sorted(param_names + ['trial_number'])
+        
+        # Add 'reward_time' to the end
+        param_names.append('reward_time')
+        
+        # Write these as the column names
+        with open(os.path.join(self.sandbox_path, 'trials.csv'), 'a') as fi:
+            fi.write(','.join(param_names) + '\n')        
+    
+    def _log_trial(self, reward_time):
+        """Log the results of a trial
+        
+        This writes out all of the values in self.trial_parameters, and then
+        adds `reward_time` at the end. The values will be comma-separated
+        and written to trials.csv in the sandbox path.
+        
+        Arguments
+        ---------
+        reward_time : datetime
+            The time that the reward was delivered on this trial
+        
+        """
         # store in alphabetical order for consistency
         str_to_log = ''
         for key in sorted(self.trial_parameters.keys()):
@@ -451,7 +493,17 @@ class Dispatcher:
         with open(os.path.join(self.sandbox_path, 'trials.csv'), 'a') as fi:
             fi.write(str_to_log + '\n')
     
-    def log_poke(self, trial_number, poke_time, identity, poked_port, reward):
+    def _log_poke_header_row(self):
+        """Write out the header row of pokes.csv
+        
+        Currently this is hard-coded as poke_time, trial_number, rpi,
+        poked_port, and rewarded
+        
+        """
+        with open(os.path.join(self.sandbox_path, 'pokes.csv'), 'a') as fi:
+            fi.write('poke_time,trial_number,rpi,poked_port,rewarded\n')
+        
+    def _log_poke(self, trial_number, poke_time, identity, poked_port, reward):
         """Record that a poke occurred"""
         with open(os.path.join(self.sandbox_path, 'pokes.csv'), 'a') as fi:
             fi.write(f'{poke_time},{trial_number},{identity},{poked_port},{reward}\n')
