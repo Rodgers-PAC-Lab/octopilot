@@ -80,7 +80,11 @@ class Agent(object):
 
         # Whether the session is running
         self.session_running = False
-        self.trial_number = None
+        
+        # Hard code this as -1 instead of None, so that pokes reported before
+        # the first trial don't break the sending protocol by sending None
+        # as an int
+        self.trial_number = -1
         
         # It will keep running until this is set by self.exit() and then 
         # it is noticed by self.mainloop()
