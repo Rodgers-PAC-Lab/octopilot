@@ -251,6 +251,11 @@ class Dispatcher:
                     port_name = pi_name + '_R'
             
                 # The parameters that can vary by port
+                # TODO: fix this, target_rate is likely specified in 
+                # trial_parameters and also in port_parameters, so it will
+                # be sent as 'target_rate', 'left_target_rate', and
+                # 'right_target_rate'. This first is unnecessary but it will
+                # also be ignored.
                 pi_specific_params = [
                     'target_rate', 'distracter_rate', 'reward']
                 
