@@ -345,7 +345,7 @@ class TrialParameterChooser(object):
         
         # Error check
         assert port_params['reward'].any()
-        print(port_params)
+
         
         ## Choose params for this trial
         trial_parameters = {}
@@ -358,10 +358,10 @@ class TrialParameterChooser(object):
         # If targets are played, compute the rate at each port
         if self.play_targets:
             # How fast the targets will be at the goal
-            target_rate = trial_parameters.pop('target_rate')
+            target_rate = trial_parameters['target_rate']
             
             # How quickly the rate falls with distance from goal
-            target_radius = trial_parameters.pop('target_radius')
+            target_radius = trial_parameters['target_radius']
             
             # Set rate of target sounds
             # Once port_params['absdist'] reaches 1 + stim_target_spatial_extent,
@@ -377,10 +377,10 @@ class TrialParameterChooser(object):
         # If distracters are played, compute the rate at each port
         if self.play_distracters:
             # How fast the distracters will be at each chosen port
-            distracter_rate = trial_parameters.pop('distracter_rate')
+            distracter_rate = trial_parameters['distracter_rate']
             
             # How many ports will play distracters
-            n_distracters = trial_parameters.pop('n_distracters')
+            n_distracters = trial_parameters['n_distracters']
             
             # Choose `n_distracters` non-goal ports at random
             potential_distracter_idx = [
