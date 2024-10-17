@@ -258,8 +258,6 @@ class DispatcherNetworkCommunicator(object):
             # Append
             msg += f"{key}={value}={dtyp};"
         
-        self.logger.info(msg)
-        
         self.send_message_to_pi(msg, identity)
     
     def check_for_messages(self):
