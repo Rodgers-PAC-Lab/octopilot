@@ -135,6 +135,11 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         arena_widget_container.setLayout(QVBoxLayout())
         arena_widget_container.layout().addWidget(self.arena_widget)
 
+        # Create PerformanceMetricDisplay
+        # Needs to be created before start_button is set up
+        self.performance_metric_display_widget = (
+            plotting.PerformanceMetricDisplay(self.dispatcher))
+
         # Create self.start_button and connect it to self.start_sequence
         self.set_up_start_button()
         
@@ -146,6 +151,9 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         start_stop_layout = QVBoxLayout()
         start_stop_layout.addWidget(self.start_button)
         start_stop_layout.addWidget(self.stop_button)        
+        
+        # Also add PerformanceMetricDisplay
+        start_stop_layout.addWidget(self.performance_metric_display_widget)
 
 
         ## Create a layout for all containers
@@ -241,8 +249,12 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         # TODO: Handle the case where the dispatcher doesn't actually start
         # because it's not ready
         self.start_button.clicked.connect(self.dispatcher.start_session)
+
+        # TODO: Instead of these objects having their own timers, 
+        # OctopilotSessionWindow should keep track of that
         self.start_button.clicked.connect(self.poke_plot_widget.start_plot)
         self.start_button.clicked.connect(self.arena_widget.start)
+        self.start_button.clicked.connect(self.performance_metric_display_widget.start)
 
     def set_up_stop_button(self):
         """Create a start button and connect to self.start_sequence"""
