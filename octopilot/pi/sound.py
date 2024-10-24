@@ -56,9 +56,9 @@ class Noise:
         if attenuation_file is not None:
             self.attenuation = pd.read_table(
                 attenuation_file, sep=',').set_index('freq')['atten']
-            print(self.attenuation)
         else:
             self.attenuation = None        
+        
         
         ## I think this can be removed because mono isn't being used(?)
         # Save channel
