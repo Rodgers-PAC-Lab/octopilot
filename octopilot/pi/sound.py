@@ -56,6 +56,7 @@ class Noise:
         if attenuation_file is not None:
             self.attenuation = pd.read_table(
                 attenuation_file, sep=',').set_index('freq')['atten']
+            print(self.attenuation)
         else:
             self.attenuation = None        
         
@@ -200,10 +201,29 @@ class SoundGenerator_IntermittentBursts(object):
         parameters of the sounds to generate.
     __next__ : Use this to get the next frame of audio.
     """
-    def __init__(self, blocksize, fs, cycle_length_seconds=10):
+    def __init__(self, blocksize, fs, attenuation_file=None, 
+        cycle_length_seconds=10):
+        """Initalize sound generator
+        
+        blocksize : numeric, should match jackd initialization
+        attenuation_file : path or None
+            If not None, it should be a path containing equalization
+            parameters that are understood by `Noise`
+        cycle_length_seconds: numeric
+            How many seconds long before repeating
+        """
         # Store jack client parameters
         self.blocksize = blocksize
         self.fs = fs
+        
+        # Equalization parameters
+        self.attenuation_file = attenuation_file
+        if not os.path.exists(attenuation_file):
+            print(
+                "error: attenuation file does not exist "
+                "at {}".format(attenuation_file)
+                )
+            self.attenuation_file = None
         
         # How long the cycle will be in seconds
         # TODO: The actual length will always be less than this, which
@@ -262,6 +282,7 @@ class SoundGenerator_IntermittentBursts(object):
                 channel=0,
                 lowpass=lowpass,
                 highpass=highpass,
+                attenuation_file=self.attenuation_file,
                 )  
         
         return sound

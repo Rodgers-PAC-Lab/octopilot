@@ -103,6 +103,7 @@ class Agent(object):
         self.sound_generator = sound.SoundGenerator_IntermittentBursts(
             blocksize=1024,
             fs=192000,
+            attenuation_file='/home/pi/attenuation.csv',
             )
         
         # Set
