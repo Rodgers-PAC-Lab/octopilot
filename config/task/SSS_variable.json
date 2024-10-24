@@ -1,6 +1,6 @@
 {
     "play_targets": true,
-    "target_log_amplitude_min": -2.1,
+    "target_log_amplitude_min": -2.25,
     "target_log_amplitude_max": -1,
     "target_log_amplitude_n_choices": 12,
     "target_rate_min": 3.0,
