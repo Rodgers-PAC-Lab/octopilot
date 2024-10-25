@@ -5,7 +5,7 @@ and get the data it needs by reading the attributes of the Dispatcher.
 """
 
 import math
-from datetime import datetime
+import datetime
 import time
 import csv
 import random
@@ -156,137 +156,152 @@ class ArenaWidget(QWidget):
 
 ## Widget to display text performance metrics
 class PerformanceMetricDisplay(QWidget):
-    def set_up_session_progress_layout(self):
-        """Create a Session Progress layout"""
+    def __init__(self, dispatcher):
+        """Create a PerformanceMetricDisplay
+        
+        dispatcher : controllers.Dispatcher
+            Get data from here
+        """
+        # Superclass QWidget init
+        super(PerformanceMetricDisplay, self).__init__()
+        
+        # Store the dispatcher
+        self.dispatcher = dispatcher
+        
         # Create QVBoxLayout for session details 
         self.details_layout = QVBoxLayout()
 
-        # Variables to keep track of poke outcomes
-        # TODO: rename by what it means, not its color
-        self.red_count = 0
-        self.blue_count = 0
-        self.green_count = 0
-        
-        # QTime since session start or last poke
-        # Sukrith: are these actually used anywhere?
-        self.start_time = QTime(0, 0)
-        #~ self.poke_time = QTime(0, 0)
-
-        # Setting title 
-        bold_font = QFont()
-        bold_font.setBold(True)
-        self.title_label = QLabel("Session Details:", self)
-        self.title_label.setFont(bold_font)
-
         # Making labels that constantly update according to the session details
-        self.time_label = QLabel("Time Elapsed: 00:00", self)
+        self.time_label = QLabel("", self)#Time Elapsed: 00:00", self)
         self.poke_time_label = QLabel("Time since last poke: 00:00", self)
-        self.red_label = QLabel("Number of Pokes: 0", self)
-        self.blue_label = QLabel("Number of Trials: 0", self)
-        self.green_label = QLabel("Number of Correct Trials: 0", self)
-        self.fraction_correct_label = QLabel("Fraction Correct (FC): 0.000", self)
-        self.rcp_label = QLabel("Rank of Correct Port (RCP): 0", self)
+        self.poke_count = QLabel("Number of Pokes: 0", self)
+        self.trial_count = QLabel("Number of Trials: 0", self)
+        self.correct_count = QLabel("Number of Correct Trials: 0", self)
+        self.fraction_correct = QLabel("Fraction Correct (FC): 0.000", self)
+        self.rcp = QLabel("Rank of Correct Port (RCP): 0", self)
         
         # Adding these labels to the layout used to contain the session information 
-        self.details_layout.addWidget(self.title_label)
         self.details_layout.addWidget(self.time_label)
         self.details_layout.addWidget(self.poke_time_label)
-        self.details_layout.addWidget(self.red_label)
-        self.details_layout.addWidget(self.blue_label)
-        self.details_layout.addWidget(self.green_label)
-        self.details_layout.addWidget(self.fraction_correct_label)
-        self.details_layout.addWidget(self.rcp_label)       
+        self.details_layout.addWidget(self.poke_count)
+        self.details_layout.addWidget(self.trial_count)
+        self.details_layout.addWidget(self.correct_count)
+        self.details_layout.addWidget(self.fraction_correct)
+        self.details_layout.addWidget(self.rcp)       
+        
+        # Init these
+        self.update()
+        
+        # set layout
+        self.setLayout(self.details_layout)
+
+        # Create a timer and connect to self.update_time_elapsed
+        self.timer_update = QTimer(self)
+        self.timer_update.timeout.connect(self.update) 
+
+    def start(self):
+        # Start the timer
+        # The faster this is, the more responsive it will be, but when an 
+        # error occurs it will spam the terminal
+        self.timer_update.start(250)
     
     def update(self):
-        # Updating the number of pokes (red + green + blue)
-        n_pokes = self.red_count + self.green_count + self.blue_count
-        self.red_label.setText(f"Number of Pokes: {(n_pokes)}")
+        ## Get data from dispatcher
+        # Number of pokes total
+        n_pokes = int(np.sum([
+            len(pokes_on_port) 
+            for pokes_on_port in 
+            self.dispatcher.history_of_pokes.values()
+            ]))            
         
-        # Update the number of trials (green + blue)
-        n_trials = self.blue_count + self.green_count
-        self.blue_label.setText(f"Number of Trials: {n_trials}")            
-
-        # Updating number of correct trials 
-        n_correct_trials = self.green_count
-        self.green_label.setText(
-            f"Number of Correct Trials: {n_correct_trials}") 
-
-        # Update fraction correct
+        # Number of correct trials (number of rewarded correct pokes)
+        n_correct_trials = int(np.sum([
+            len(rewards_on_port) 
+            for rewards_on_port in 
+            self.dispatcher.history_of_rewarded_correct_pokes.values()
+            ]))            
+        
+        # Number of incorrect trials (number of rewarded incorrect pokes)
+        n_incorrect_trials = int(np.sum([
+            len(rewards_on_port) 
+            for rewards_on_port in 
+            self.dispatcher.history_of_rewarded_incorrect_pokes.values()
+            ]))
+        
+        # The total number of unique ports poked per trial
+        rcp_times_ntrials = int(np.sum(
+            self.dispatcher.history_of_ports_poked_per_trial))
+        
+        # Time since session start
+        if self.dispatcher.session_start_time is not None:
+            time_from_session_start_sec = (
+                datetime.datetime.now() - 
+                self.dispatcher.session_start_time).total_seconds()        
+        else:
+            time_from_session_start_sec = None
+        
+        # Time since last poke
+        if n_pokes > 0:
+            last_poke = np.max(np.concatenate(
+                list(self.dispatcher.history_of_pokes.values())
+                ))
+            time_from_last_poke = time_from_session_start_sec - last_poke
+        else:
+            time_from_last_poke = None
+        
+        
+        ## Calculate performance metrics
+        n_trials = n_correct_trials + n_incorrect_trials
         if n_trials > 0:
-            self.fraction_correct = n_correct_trials / n_trials
-        else:
-            self.fraction_correct = np.nan
+            fraction_correct = n_correct_trials / float(n_trials)
+            rcp = rcp_times_ntrials / float(n_trials)
         
+        else:
+            # If no trials, these can't be calculated
+            fraction_correct = None
+            rcp = None
+        
+        
+        ## Update labels
+        # Update trial count
+        self.trial_count.setText(f"N trials: {n_trials}")
+        
+        # Update poke count
+        self.poke_count.setText(f"N pokes: {(n_pokes)}")
+        
+        # Updating number of correct trials 
+        self.correct_count.setText(
+            f"N correct trials: {n_correct_trials}") 
+
         # Update fraction correct label
-        if self.fraction_correct is None:
-            self.fraction_correct_label.setText(
-                f"Fraction Correct (FC): NA")    
+        if fraction_correct is not None:
+            self.fraction_correct.setText(
+                f"fraction correct: {fraction_correct:.2f}")
         else:
-            self.fraction_correct_label.setText(
-                f"Fraction Correct (FC): {self.fraction_correct:.3f}")        
-    
-    @pyqtSlot() 
-    def update_time_elapsed(self):
-        """Updates self.time_label with time elapsed
-        
-        Connected to self.timer.timeout
-        """
-        # Timer to display the elapsed time in a particular session 
-        # Convert milliseconds to seconds
-        elapsed_time = self.start_time.elapsed() / 1000.0  
-        
-        # Convert seconds to minutes:seconds
-        minutes, seconds = divmod(elapsed_time, 60)  
-        
-        # Update the QLabel text with the elapsed time in minutes and seconds
-        # Sukrith what is zfill?
-        str1 = str(int(minutes)).zfill(2)
-        str2 = str(int(seconds)).zfill(2)
-        self.time_label.setText(f"Time elapsed: {str1}:{str2}")
-    
-    @pyqtSlot()
-    def reset_last_poke_time(self):
-        """Stop and start last_poke_timer whenever a poke is detected (why?)
-        
-        Connected to self.worker.pokedportsignal
-        Sukrith is this necessary?
-        """
-        # Stopping the timer whenever a poke is detected 
-        self.last_poke_timer.stop()
+            self.fraction_correct.setText(
+                f"fraction correct: NA")
 
-        # Start the timer again
-        # Setting update interval to 1s (1000 ms)
-        self.last_poke_timer.start(1000)  
+        if rcp is not None:
+            self.rcp.setText(f"ports poked / trial: {rcp:.2f}")       
+        else:
+            self.rcp.setText(f"ports poked / trial: NA")
         
-    @pyqtSlot()
-    def calc_and_update_avg_unique_ports(self):
-        """Updates displayed RCP
+        # Update timing
+        if time_from_session_start_sec is not None:
+            self.time_label.setText(
+                'elapsed time: {}'.format(int(time_from_session_start_sec)))
+        else:
+            self.time_label.setText(
+                'elapsed time: NA')
         
-        Connected to self.worker.pokedportsignal
-        Gets rcp from self.worker and sets text label
-        """
-        self.worker.calculate_average_unique_ports()
-        average_unique_ports = self.worker.average_unique_ports
-        self.rcp_label.setText(f"Rank of Correct Port: {average_unique_ports:.2f}")
-    
-    @pyqtSlot()
-    def update_last_poke_time(self):
-        """Update the displayed time since last poke
-        
-        Connected to self.last_poke_timer.timeout
-        """
-        # Calculate the elapsed time since the last poke
-        current_time = time.time()
-        elapsed_time = current_time - self.last_poke_timestamp
+        if time_from_last_poke is not None:
+            self.poke_time_label.setText(
+                'time since poke: {}'.format(int(time_from_last_poke)))
+        else:
+            self.poke_time_label.setText(
+                'time since poke: NA')
+            
 
-        # Constantly update the QLabel text with the time since the last poke
-        # Convert seconds to minutes and seconds
-        minutes, seconds = divmod(elapsed_time, 60)  
-        
-        # Update label
-        str1 = str(int(minutes)).zfill(2)
-        str2 = str(int(seconds)).zfill(2)
-        self.poke_time_label.setText(f"Time since last poke: {str1}:{str2}")
 
 ## Widget to plot pokes
 class PokePlotWidget(QWidget):
@@ -432,7 +447,7 @@ class PokePlotWidget(QWidget):
         # Do nothing if there is no start_time
         if self.dispatcher.session_start_time is not None:
             # Determine elapsed time
-            current_time = datetime.now()
+            current_time = datetime.datetime.now()
             approx_time_in_session = (
                 current_time - self.dispatcher.session_start_time).total_seconds()
 

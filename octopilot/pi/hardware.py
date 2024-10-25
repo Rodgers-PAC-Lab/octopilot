@@ -113,16 +113,22 @@ class Nosepoke(object):
         """Create spurious pokes at a rate of `rate` per second.
         
         rate : float
-            Expected rate of pokes
+            Expected rate of pokes.
+            If this equals 0, then the call is ignored
         interval : float
-            How often the timer is called, in seconds. Higher numbers offer more 
-            precision but take more processing time.
+            How often the timer is called, in seconds. Lower numbers offer more 
+            precision but take more processing time. The maximum possible
+            rate of pokes is 1/interval.
         """
         # Calculate the probability to use to achieve the rate
         prob = rate * interval
         
-        # Set up a RepeatedTimer to run every `interval` seconds
-        self.rt = RepeatedTimer(interval, self._autopoke, prob=prob)
+        # If rate == 0, ignore the "start" command
+        if rate > 0:
+            # TODO: make sure it isn't already running, because if it is, a
+            # new one will be set here and the old one will be inaccessible
+            # Set up a RepeatedTimer to run every `interval` seconds
+            self.rt = RepeatedTimer(interval, self._autopoke, prob=prob)
     
     def autopoke_stop(self):
         if self.rt is not None:
