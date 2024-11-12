@@ -399,15 +399,7 @@ class Agent(object):
         sound_plan : DataFrame
             Plan for sound to play
         """
-        # This is only an approximate hash because it excludes the
-        # middle of the data
-        data_hash = hash(str(data))
-        
-        # Determine which channel is playing sound
-        data_left = data[:, 0].std()
-        data_right = data[:, 1].std()
-        
-        # Send 'reward;poke_name' to GUI
+        # Send to GUI
         self.network_communicator.poke_socket.send_string(
             f'sound_plan;'
             f'trial_number={self.trial_number}=int;'
