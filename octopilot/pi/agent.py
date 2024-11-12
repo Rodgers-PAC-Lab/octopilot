@@ -262,8 +262,11 @@ class Agent(object):
 
         # Log the time of the flash
         # Do this after the flash itself so that we don't jitter
-        self.left_nosepoke.flash_red_led()
-        self.right_nosepoke.flash_red_led()
+        self.left_nosepoke.turn_on_red_led()
+        self.right_nosepoke.turn_on_red_led()
+        time.sleep(.3)
+        self.left_nosepoke.turn_off_red_led()
+        self.right_nosepoke.turn_off_red_led()
         self.logger.debug(
             "[{}] synchronization_flash".format(timestamp)
             )        

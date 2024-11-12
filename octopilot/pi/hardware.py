@@ -190,8 +190,9 @@ class Nosepoke(object):
         for handle in self.handles_poke_out:
             handle(self.name, dt_now)        
 
-    def flash_red_led(self):
+    def turn_on_red_led(self):
         self.pig.write(self.red_pin, 1)
-        time.sleep(.3)
+
+    def turn_off_red_led(self):
         self.pig.write(self.red_pin, 0)
         
