@@ -379,9 +379,6 @@ class Agent(object):
         data_left = data[:, 0].std()
         data_right = data[:, 1].std()
         
-        # Log
-        self.logger.info(f'reporting sound at {dt}')
-        
         # Send 'reward;poke_name' to GUI
         self.network_communicator.poke_socket.send_string(
             f'sound;'
