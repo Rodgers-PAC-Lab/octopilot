@@ -241,7 +241,8 @@ class Agent(object):
         threshold2 = dt_now - datetime.timedelta(seconds=15)
         
         if self.last_alive_request_received >= threshold1:
-            self.logger.debug('dispatcher is alive')
+            #self.logger.debug('dispatcher is alive')
+            pass
         
         elif self.last_alive_request_received >= threshold2:
             self.logger.error('dispatcher has crashed')
