@@ -410,7 +410,7 @@ class Agent(object):
         self.network_communicator.poke_socket.send_string(
             f'sound_plan;'
             f'trial_number={self.trial_number}=int;'
-            f'sound_plan={sound_plan.to_csv()}=str'
+            f'sound_plan={sound_plan.to_csv(index=None)}=str'
             )  
     
     def stop_session(self):
