@@ -206,6 +206,10 @@ class SoundGenerator_IntermittentBursts(object):
         """Initalize sound generator
         
         blocksize : numeric, should match jackd initialization
+        fs : sample rate
+        report_method : method or None
+            if not None, then this method is called every time a new
+            `stereo_audio_times` DataFrame is generated
         attenuation_file : path or None
             If not None, it should be a path containing equalization
             parameters that are understood by `Noise`
@@ -215,6 +219,9 @@ class SoundGenerator_IntermittentBursts(object):
         # Store jack client parameters
         self.blocksize = blocksize
         self.fs = fs
+        
+        # Store report_method
+        self.report_method = report_method
         
         # Equalization parameters
         self.attenuation_file = attenuation_file
