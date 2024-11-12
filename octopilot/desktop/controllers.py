@@ -446,8 +446,16 @@ class Dispatcher:
         # Start a new trial
         self.start_trial()
 
-    def handle_sound(self):
-        pass
+    def handle_sound(self, trial_number, identity, data_left, data_right, 
+        data_hash, last_frame_time, frames_since_cycle_start, dt):
+        """Called whenever a 'sound' message is received
+        
+        All of these parameters are logged by self._log_sound
+        """
+        # Log the sound
+        self._log_sound(
+            trial_number, identity, data_left, data_right, 
+            data_hash, last_frame_time, frames_since_cycle_start, dt)
     
     def handle_goodbye(self, identity):
         self.logger.info(f'goodbye received from: {identity}')
@@ -536,3 +544,16 @@ class Dispatcher:
         """Record that a poke occurred"""
         with open(os.path.join(self.sandbox_path, 'pokes.csv'), 'a') as fi:
             fi.write(f'{poke_time},{trial_number},{identity},{poked_port},{reward}\n')
+
+    def _log_sound(self, trial_number, identity, data_left, data_right,
+        data_hash, last_frame_time, frames_since_cycle_start, dt):
+        """Record that a sound was played"""
+        with open(os.path.join(self.sandbox_path, 'sounds.csv'), 'a') as fi:
+            fi.write(
+                f'{dt},{trial_number},{identity},{data_left},'
+                f'{data_right},{data_hash},{last_frame_time},'
+                f'{frames_since_cycle_start}\n')
+
+
+        self._log_sound(
+            )

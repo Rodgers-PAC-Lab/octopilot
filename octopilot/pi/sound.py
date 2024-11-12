@@ -589,7 +589,8 @@ class SoundPlayer(object):
         This is only passed to jack.Client, which requires it.
     
     """
-    def __init__(self, sound_queuer, name='jack_client', verbose=True):
+    def __init__(self, sound_queuer, pigpio_handle=None, report_method=None, 
+        name='jack_client', verbose=True):
         """Initialize a new JackClient
 
         This object has one job: get frames of audio out of sound_queue
@@ -606,8 +607,16 @@ class SoundPlayer(object):
         name : str
             Required by jack.Client
         
-        sound_queue : deque-like object
-            Should produce a frame of audio on request
+        sound_queuer : iterator 
+            `next(sound_queuer)` should provide a frame of audio
+        
+        pigpio_handle : pigpio.pi or None
+            If not None, we use this to pulse a pin whenever we receive
+            a frame of non-zero audio
+        
+        report_method : function or None
+            If not None, we call this method with information about sound
+            timing whenever we receive a frame of non-zero audio
         
         Flow
         ----
@@ -621,6 +630,10 @@ class SoundPlayer(object):
         self.name = name
         self.sound_queuer = sound_queuer
         self.verbose = verbose
+        
+        # For reporting
+        self.pigpio_handle = pigpio_handle
+        self.report_method = report_method
         
         # Keep track of time of last warning
         self.dt_last_warning = None
@@ -722,9 +735,56 @@ class SoundPlayer(object):
         # Ensure it is the correct dtype
         data = data.astype('float32')
         
-        if verbose:
-            if data.std() > 1e-9:
-                print(f'non zero data with std {data.std()}')
+        
+        ## Report when a sound plays
+        # Get the std of the data: a loud sound has data_std .03
+        data_std = data.std()
+        
+        # Only report if we're playing sound
+        if data_std > 1e-12:
+            # Report by pulsing a pin
+            if self.pigpio_handle is not None:
+                # Pulse the pin
+                # Use BCM 23 (board 16) = LED - C - Blue because we're not using it
+                self.pigpio_handle.write(23, True)
+            
+            # Report by calling a function
+            if self.report_method is not None:
+                # Get the current time
+                # lft is the only precise one, and it's at the start of the process
+                # block
+                # fscs is approx number of frames since then until now
+                # dt is about now
+                # later, using lft, fscs, and dt, we can reconstruct the approx
+                # relationship between frame times and clock time
+                # this will get screwed up on every xrun
+                lft = self.client.last_frame_time
+                fscs = self.client.frames_since_cycle_start
+                dt = datetime.datetime.now().isoformat()
+                #~ print('data std is {} with hash {} at {} + {} ie {}'.format(
+                    #~ data_std, 
+                    #~ data_hash,
+                    #~ lft,
+                    #~ fscs,
+                    #~ dt
+                    #~ ))
+                
+                # Would be better to queue these reports in some way
+                #~ with self.q_nonzero_blocks_lock:
+                    #~ self.q_nonzero_blocks.put_nowait((data_hash, lft, fscs, dt))
+                
+                # Report
+                self.report_method(
+                    data=data,
+                    last_frame_time=lft,
+                    frames_since_cycle_start=frames_since_cycle_start,
+                    dt=dt,
+                    )
+        
+        else:
+            # Unpulse the pin
+            if self.pigpio_handle is not None:
+                self.pigpio_handle.write(23, False)
         
         # Write one column to each channel
         self.client.outports[0].get_array()[:] = data[:, 0]
