@@ -403,7 +403,7 @@ class Agent(object):
         # been instantiated yet
         try:
             self.network_communicator
-        except NameError:
+        except AttributeError:
             return
         
         # Send to GUI
