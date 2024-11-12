@@ -399,6 +399,13 @@ class Agent(object):
         sound_plan : DataFrame
             Plan for sound to play
         """
+        # The first time this is called, the network_communicator hasn't
+        # been instantiated yet
+        try:
+            self.network_communicator
+        except NameError:
+            return
+        
         # Send to GUI
         self.network_communicator.poke_socket.send_string(
             f'sound_plan;'
