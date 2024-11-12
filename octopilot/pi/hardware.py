@@ -193,5 +193,5 @@ class Nosepoke(object):
     def flash_red_led(self):
         self.pig.write(self.red_pin, 1)
         time.sleep(.3)
-        self.pig.write(self.reg_pin, 0)
+        self.pig.write(self.red_pin, 0)
         
