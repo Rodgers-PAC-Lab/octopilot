@@ -236,7 +236,7 @@ class SoundGenerator_IntermittentBursts(object):
         self.cycle_of_audio_frames = itertools.cycle(
             [np.zeros((self.blocksize, 2))])
     
-    def _make_sound(self, params):
+    def _make_sound(self, params, channel):
         """Used to make a Noise according to params
         
         If len(params) == 0: returns None
@@ -279,7 +279,7 @@ class SoundGenerator_IntermittentBursts(object):
                 fs=self.fs,
                 duration=duration,
                 amplitude=(10 ** params['log_amplitude']),
-                channel=0,
+                channel=channel,
                 lowpass=lowpass,
                 highpass=highpass,
                 attenuation_file=self.attenuation_file,
@@ -381,6 +381,8 @@ class SoundGenerator_IntermittentBursts(object):
         self.stereo_audio_times.loc[
             self.stereo_audio_times['gap_chunks'] < 1, 'gap_chunks'] = 1
 
+        print(f'stereo_audio_times:\n{self.stereo_audio_times}')
+
     def _set_one_cycle_of_audio_frames(self):
         """Set one_cycle_of_audio_frames from stereo_audio_times
         
@@ -446,8 +448,8 @@ class SoundGenerator_IntermittentBursts(object):
         ## Generate the stimuli to use (one per channel)
         # Presently, exactly zero or one kind of Noise can be played from
         # each speaker. These will be None if len(params) == 0
-        self.left_sound = self._make_sound(left_params)
-        self.right_sound = self._make_sound(right_params)
+        self.left_sound = self._make_sound(left_params, channel=0)
+        self.right_sound = self._make_sound(right_params, channel=1)
    
         # Generate the times at which to play each Noise (one per channel)
         # These will be empty arrays if len(params) == 0
