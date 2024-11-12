@@ -104,11 +104,11 @@ class Dispatcher:
             task_params=task_params,
             ))
         
-        # Use this object to write the header row of trials.csv
-        self._log_trial_header_row()
         
-        # Also write pokes header row
+        ## Write out header rows of log files
+        self._log_trial_header_row()
         self._log_poke_header_row()
+        self._log_sound_header_row()
         
 
         ## Initialize network communicator and tell it what pis to expect
@@ -467,7 +467,20 @@ class Dispatcher:
         """
         # Log the sound
         df = pandas.read_table(io.StringIO(sound_plan), sep=',')
+        
+        # Return if empty
+        if len(df) == 0:
+            return
+        
+        # Log
         self.logger.info(f"received sound plan:\n{df}")
+        
+        # Add trial number and identity
+        df['trial_number'] = trial_number
+        df['identity'] = identity
+        
+        # Log
+        self._log_sound_plan(df)
     
     def handle_goodbye(self, identity):
         self.logger.info(f'goodbye received from: {identity}')
@@ -557,6 +570,18 @@ class Dispatcher:
         with open(os.path.join(self.sandbox_path, 'pokes.csv'), 'a') as fi:
             fi.write(f'{poke_time},{trial_number},{identity},{poked_port},{reward}\n')
 
+    def _log_sound_header_row(self):
+        """Write out the header row of pokes.csv
+        
+        Currently this is hard-coded as poke_time, trial_number, rpi,
+        poked_port, and rewarded
+        
+        """
+        with open(os.path.join(self.sandbox_path, 'sounds.csv'), 'a') as fi:
+            fi.write(
+                'sound_time,trial_number,rpi,data_left,data_right,'
+                'data_hash,last_frame_time,frames_since_cycle_start\n')
+    
     def _log_sound(self, trial_number, identity, data_left, data_right,
         data_hash, last_frame_time, frames_since_cycle_start, dt):
         """Record that a sound was played"""
@@ -565,3 +590,9 @@ class Dispatcher:
                 f'{dt},{trial_number},{identity},{data_left},'
                 f'{data_right},{data_hash},{last_frame_time},'
                 f'{frames_since_cycle_start}\n')
+
+    def _log_sound_plan(self, sound_plan):
+        """Record the sound plan"""
+        txt = sound_plan.to_csv(index=False)
+        with open(os.path.join(self.sandbox_path, 'sound_plans.csv'), 'a') as fi:
+            fi.write(txt)
