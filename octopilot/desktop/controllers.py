@@ -121,6 +121,7 @@ class Dispatcher:
             'poke': self.handle_poke,
             'reward': self.handle_reward,
             'sound': self.handle_sound,
+            'sound_plan': self.handle_sound_plan,
             'goodbye': self.handle_goodbye,
             'alive': self.recv_alive,
             }
@@ -456,6 +457,14 @@ class Dispatcher:
         self._log_sound(
             trial_number, identity, data_left, data_right, 
             data_hash, last_frame_time, frames_since_cycle_start, dt)
+
+    def handle_sound_plan(self, sound_plan):
+        """Called whenever a 'sound_plan' message is received
+        
+        All of these parameters are logged by self._log_sound_plan
+        """
+        # Log the sound
+        print(sound_plan)
     
     def handle_goodbye(self, identity):
         self.logger.info(f'goodbye received from: {identity}')

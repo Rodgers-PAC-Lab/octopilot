@@ -103,6 +103,7 @@ class Agent(object):
         self.sound_generator = sound.SoundGenerator_IntermittentBursts(
             blocksize=1024,
             fs=192000,
+            report_method=self.report_sound_plan,
             attenuation_file='/home/pi/attenuation.csv',
             )
         
@@ -390,6 +391,27 @@ class Agent(object):
             f'frames_since_cycle_start={frames_since_cycle_start}=int;'
             f'data_hash={data_hash}=int;'
             f'dt={dt}=str'
+            )  
+
+    def report_sound_plan(self, sound_plan):
+        """Called by SoundGenerator when new plan. Reports to GUI by ZMQ.
+        
+        sound_plan : DataFrame
+            Plan for sound to play
+        """
+        # This is only an approximate hash because it excludes the
+        # middle of the data
+        data_hash = hash(str(data))
+        
+        # Determine which channel is playing sound
+        data_left = data[:, 0].std()
+        data_right = data[:, 1].std()
+        
+        # Send 'reward;poke_name' to GUI
+        self.network_communicator.poke_socket.send_string(
+            f'sound_plan;'
+            f'trial_number={self.trial_number}=int;'
+            f'sound_plan={str(sound_plan)}=str'
             )  
     
     def stop_session(self):

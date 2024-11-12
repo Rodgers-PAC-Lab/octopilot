@@ -201,7 +201,7 @@ class SoundGenerator_IntermittentBursts(object):
         parameters of the sounds to generate.
     __next__ : Use this to get the next frame of audio.
     """
-    def __init__(self, blocksize, fs, attenuation_file=None, 
+    def __init__(self, blocksize, fs, report_method=None, attenuation_file=None, 
         cycle_length_seconds=10):
         """Initalize sound generator
         
@@ -381,7 +381,9 @@ class SoundGenerator_IntermittentBursts(object):
         self.stereo_audio_times.loc[
             self.stereo_audio_times['gap_chunks'] < 1, 'gap_chunks'] = 1
 
-        print(f'stereo_audio_times:\n{self.stereo_audio_times}')
+        # Report
+        if self.report_method is not None:
+            self.report_method(self.stereo_audio_times)
 
     def _set_one_cycle_of_audio_frames(self):
         """Set one_cycle_of_audio_frames from stereo_audio_times
