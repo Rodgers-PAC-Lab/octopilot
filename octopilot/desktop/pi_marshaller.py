@@ -64,6 +64,10 @@ class PiMarshaller(object):
             a thread. I think these operations are all thread-safe, even
             the logger.
             
+            TODO: If the phrase 'Exception ignored' or 'Traceback' occurs
+            in these messages, then log it somehow. But I don't know how
+            to set this flag in a thread-safe way.
+            
             buff : a process's stdout or stderr
                 Lines of text will be read from this
             buff_name : str, like 'stdout' or 'stderr'
@@ -118,6 +122,7 @@ class PiMarshaller(object):
                 continue
             
             # Start threads to capture output
+            # TODO: rewrite this using multiprocessing or without threads
             output_filename = os.path.join(
                 self.sandbox_path, f'{agent_name}_stdout.output')
             thread_stdout = threading.Thread(

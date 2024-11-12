@@ -680,6 +680,9 @@ class SoundPlayer(object):
         This function is called by self.client every 5 ms or whenever new
         audio is needed.
         
+        TODO: what happens if an exception occurs in this function? Is it
+        ignored or does it crash the thread?
+        
         Flow
         * A frame of audio is popped from self.sound_queue
         * If sound_queue is empty, a frame of zeros is generated. This should
@@ -777,7 +780,7 @@ class SoundPlayer(object):
                 self.report_method(
                     data=data,
                     last_frame_time=lft,
-                    frames_since_cycle_start=frames_since_cycle_start,
+                    frames_since_cycle_start=fscs,
                     dt=dt,
                     )
         
