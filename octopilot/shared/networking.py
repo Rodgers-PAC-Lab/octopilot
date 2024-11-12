@@ -296,13 +296,16 @@ class DispatcherNetworkCommunicator(object):
             The method self.command2method[command] is called with a dict
             of arguments formed from the remaining strings.
         """        
-        # Debug print identity and message
-        self.logger.debug(f'received from {identity}: {message}')
-        
         # Decode the message
         # TODO: in the future support bytes
         identity_str = identity.decode('utf-8')
         message_str = message.decode('utf-8')
+
+        # Debug print identity and message
+        # Squelch the sound methods which are too frequent
+        # TODO: make squelch a param
+        if 'data_hash' not in message_str:
+            self.logger.debug(f'received from {identity}: {message}')
 
         
         ## Handle message
@@ -532,7 +535,7 @@ class PiNetworkCommunicator(object):
 
         # Wait for events on registered sockets. 
         # Currently polls every 100ms to check for messages 
-        self.logger.debug('checking poke socket')
+        #~ self.logger.debug('checking poke socket')
         socks = dict(self.poller.poll(100))
 
         # Check for incoming messages on poke_socket
