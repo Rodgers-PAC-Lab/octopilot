@@ -170,8 +170,8 @@ class Dispatcher:
         
         This is useful in the case that the Dispatcher has been restarted
         """
-        self.logger.info(
-            f'received alive from agent {identity}')# at {datetime.datetime.now()}')        
+        #~ self.logger.info(
+            #~ f'received alive from agent {identity}')# at {datetime.datetime.now()}')        
         
         # Log that this happened
         self.last_alive_message_received[identity] = datetime.datetime.now()

@@ -226,7 +226,7 @@ class DispatcherNetworkCommunicator(object):
         self.send_message_to_all('start')
     
     def send_alive_request(self):
-        self.logger.info('sending are_you_alive message to all connected pis')
+        #~ self.logger.info('sending are_you_alive message to all connected pis')
         self.send_message_to_all('are_you_alive')
     
     def send_trial_parameters_to_pi(self, identity, **kwargs):
@@ -604,7 +604,7 @@ class PiNetworkCommunicator(object):
     def send_alive(self):
         """Send alive message to Dispatcher"""
         if self.socket_is_open:
-            self.logger.debug('sending alive')
+            #~ self.logger.debug('sending alive')
             self.poke_socket.send_string('alive')
         else:
             self.logger.error('alive requested but socket is closed')

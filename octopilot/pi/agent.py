@@ -200,7 +200,7 @@ class Agent(object):
         and a sessions is running, conclude that the Dispatcher has crashed
         and initiate critical shutdown.
         """
-        self.logger.debug('received alive from dispatcher; will respond')
+        #~ self.logger.debug('received alive from dispatcher; will respond')
         self.last_alive_request_received = datetime.datetime.now()
         self.network_communicator.send_alive()
 
