@@ -1,5 +1,5 @@
 {
     "reward_value": 0.5,
     "box": "box3",
-    "task": "single_sound_source"
+    "task": "SSS_variable"
 }
