@@ -268,9 +268,6 @@ class Agent(object):
         self.left_nosepoke.turn_off_red_led()
         self.right_nosepoke.turn_off_red_led()
 
-        # Report trial start
-        self.report_trial_start(timestamp)
-        
 
         ## Log
         self.logger.debug(f'setting trial parameters: {msg_params}')
@@ -288,6 +285,11 @@ class Agent(object):
         # Do this first, because some of the sound functions need to know
         # the correct trial number
         self.trial_number = msg_params['trial_number']
+        
+        
+        ## Log trial start (after trial number update)
+        # Report trial start
+        self.report_trial_start(timestamp)
         
         
         ## Handle reward
