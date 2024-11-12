@@ -110,6 +110,9 @@ class Dispatcher:
         self._log_poke_header_row()
         self._log_sound_header_row()
         
+        # This one writes its own header row
+        self._log_sound_plan_header_row_written = False
+        
 
         ## Initialize network communicator and tell it what pis to expect
         self.network_communicator = DispatcherNetworkCommunicator(
@@ -593,6 +596,17 @@ class Dispatcher:
 
     def _log_sound_plan(self, sound_plan):
         """Record the sound plan"""
-        txt = sound_plan.to_csv(index=False)
+        # This function writes its own header the first time
+        if not self._log_sound_plan_header_row_written:
+            # Convert to csv with header
+            txt = sound_plan.to_csv(index=False)
+            
+            # Flag
+            self._log_sound_plan_header_row_written = True
+        else:
+            # Convert to csv without header
+            txt = sound_plan.to_csv(index=False, header=False)
+        
+        # Write out
         with open(os.path.join(self.sandbox_path, 'sound_plans.csv'), 'a') as fi:
             fi.write(txt)
