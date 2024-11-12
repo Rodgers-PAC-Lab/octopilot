@@ -5,6 +5,8 @@ import os
 import time
 import datetime
 import logging
+import io
+import pandas
 from ..shared.misc import RepeatedTimer
 from ..shared.logtools import NonRepetitiveLogger
 from ..shared.networking import DispatcherNetworkCommunicator
@@ -458,13 +460,14 @@ class Dispatcher:
             trial_number, identity, data_left, data_right, 
             data_hash, last_frame_time, frames_since_cycle_start, dt)
 
-    def handle_sound_plan(self, sound_plan):
+    def handle_sound_plan(self, trial_number, identity, sound_plan):
         """Called whenever a 'sound_plan' message is received
         
         All of these parameters are logged by self._log_sound_plan
         """
         # Log the sound
-        print(sound_plan)
+        df = pandas.read_table(io.StringIO(sound_plan), sep=',')
+        self.logger.info(f"received sound plan:\n{df}")
     
     def handle_goodbye(self, identity):
         self.logger.info(f'goodbye received from: {identity}')
