@@ -6,6 +6,7 @@ import time
 import datetime
 import logging
 import io
+import threading
 import pandas
 from ..shared.misc import RepeatedTimer
 from ..shared.logtools import NonRepetitiveLogger
@@ -97,7 +98,15 @@ class Dispatcher:
         self.reset_history()
 
         
-        ## Use task_params to set TrialParameterChooser
+        ## Parse task_params
+        # Pop out the trial duration, if present
+        # Pop because TrialParameterChooser can't parse this one
+        if 'trial_duration' in task_params:
+            self.trial_duration = task_params.pop('trial_duration')
+        else:
+            self.trial_duration = None
+        
+        # Use task_params to set TrialParameterChooser
         self.trial_parameter_chooser = (
             trial_chooser.TrialParameterChooser.from_task_params(
             port_names=self.port_names,
@@ -285,6 +294,14 @@ class Dispatcher:
             # Send start to each Pi
             self.network_communicator.send_trial_parameters_to_pi(
                 pi_name, **pi_params)
+        
+        # Optionally start a timer to advance the trial
+        if self.trial_duration is not None:
+            self.timer_advance_trial = threading.Timer(
+                self.trial_duration, self.timed_advance_trial)
+            self.timer_advance_trial.start()
+        else:
+            self.timer_advance_trial = None
 
     def stop_session(self):
         """Stop the session
@@ -302,6 +319,9 @@ class Dispatcher:
             self.logger.error('stopping session but no alive timer')
         else:
             self.alive_timer.stop()
+        
+        if self.timer_advance_trial is not None:
+            self.timer_advance_trial.cancel()
         
         # Send a stop message to each pi
         self.network_communicator.send_message_to_all('stop')
@@ -449,6 +469,22 @@ class Dispatcher:
         # Log the trial
         self._log_trial(poke_time)
         
+        # Start a new trial
+        self.start_trial()
+
+    def timed_advance_trial(self):
+        """Advance trial without reward
+        
+        Typically this is called by a timer during the passive task. The
+        trial is logged and the next one is started.
+        """
+        # Log that no reward was given
+        self.previously_rewarded_port = None
+
+        # Log the trial
+        pseudo_reward_time = datetime.datetime.now().isoformat()
+        self._log_trial(pseudo_reward_time)
+
         # Start a new trial
         self.start_trial()
 

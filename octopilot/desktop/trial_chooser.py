@@ -344,7 +344,8 @@ class TrialParameterChooser(object):
             port_params['port'] == previously_rewarded_port, 'reward'] = False
         
         # Error check
-        assert port_params['reward'].any()
+        # No longer valid with passive task
+        # assert port_params['reward'].any()
 
         
         ## Choose params for this trial
