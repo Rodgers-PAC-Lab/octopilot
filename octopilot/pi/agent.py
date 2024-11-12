@@ -256,6 +256,19 @@ class Agent(object):
         """Called upon receiving set_trial_parameters from GUI
         
         """
+        ## Flash an LED
+        # Use this to determine when the flash was done in local timebase
+        timestamp = datetime.datetime.now().isoformat()
+
+        # Log the time of the flash
+        # Do this after the flash itself so that we don't jitter
+        self.left_nose_poke.flash_red_led()
+        self.right_nose_poke.flash_red_led()
+        self.logger.debug(
+            "[{}] synchronization_flash".format(timestamp)
+            )        
+
+
         ## Log
         self.logger.debug(f'setting trial parameters: {msg_params}')
         

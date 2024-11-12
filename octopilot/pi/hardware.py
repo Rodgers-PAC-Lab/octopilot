@@ -190,9 +190,8 @@ class Nosepoke(object):
         for handle in self.handles_poke_out:
             handle(self.name, dt_now)        
 
-    def start_flashing(self, led_pin, pwm_frequency=1, pwm_duty_cycle=50):
-        # Writing to the LED pin such that it blinks acc to the parameters 
-        self.pig.set_mode(led_pin, pigpio.OUTPUT)
-        self.pig.set_PWM_frequency(led_pin, pwm_frequency)
-        self.pig.set_PWM_dutycycle(led_pin, pwm_duty_cycle)
-
+    def flash_red_led(self):
+        self.pig.write(self.red_pin, 1)
+        time.sleep(.3)
+        self.pig.write(self.reg_pin, 0)
+        
