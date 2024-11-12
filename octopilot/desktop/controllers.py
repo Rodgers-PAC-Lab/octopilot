@@ -134,6 +134,7 @@ class Dispatcher:
         self.network_communicator.command2method = {
             'poke': self.handle_poke,
             'reward': self.handle_reward,
+            'flash': self.handle_flash,
             'sound': self.handle_sound,
             'sound_plan': self.handle_sound_plan,
             'goodbye': self.handle_goodbye,
@@ -407,6 +408,10 @@ class Dispatcher:
         finally:
             self.stop_session()
     
+    def handle_flash(self, trial_number, identity, flash_time):
+        """Store the flash time"""
+        self._log_flash(trial_number, identity, flash_time)
+    
     def handle_poke(self, trial_number, identity, port_name, poke_time):
         ## Store results
         # Keep track of what ports have been poked on this trial
@@ -608,6 +613,19 @@ class Dispatcher:
         """Record that a poke occurred"""
         with open(os.path.join(self.sandbox_path, 'pokes.csv'), 'a') as fi:
             fi.write(f'{poke_time},{trial_number},{identity},{poked_port},{reward}\n')
+
+    def _log_flash_header_row(self):
+        """Write out the header row of flashes.csv
+        
+        Currently this is hard-coded
+        """
+        with open(os.path.join(self.sandbox_path, 'flashes.csv'), 'a') as fi:
+            fi.write('trial_number,rpi,flash_time\n')
+        
+    def _log_flash(self, trial_number, identity, flash_time):
+        """Record that a flash occurred"""
+        with open(os.path.join(self.sandbox_path, 'flashes.csv'), 'a') as fi:
+            fi.write(f'{trial_number},{identity},{flash_time}\n')
 
     def _log_sound_header_row(self):
         """Write out the header row of pokes.csv

@@ -267,10 +267,10 @@ class Agent(object):
         time.sleep(.3)
         self.left_nosepoke.turn_off_red_led()
         self.right_nosepoke.turn_off_red_led()
-        self.logger.debug(
-            "[{}] synchronization_flash".format(timestamp)
-            )        
 
+        # Report trial start
+        self.report_trial_start(timestamp)
+        
 
         ## Log
         self.logger.debug(f'setting trial parameters: {msg_params}')
@@ -429,6 +429,18 @@ class Agent(object):
             f'trial_number={self.trial_number}=int;'
             f'sound_plan={sound_plan.to_csv(index=None)}=str'
             )  
+    
+    def report_trial_start(self, dt):
+        """Called by Agent when new trial. Reports to GUI by ZMQ.
+        
+        dt : str, isoformatted time of synchronization flash
+        """
+        # Send to GUI
+        self.network_communicator.poke_socket.send_string(
+            f'flash;'
+            f'trial_number={self.trial_number}=int;'
+            f'flash_time={dt}=str'
+            )          
     
     def stop_session(self):
         """Runs when a session is stopped
