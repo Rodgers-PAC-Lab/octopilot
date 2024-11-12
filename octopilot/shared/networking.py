@@ -347,8 +347,11 @@ class DispatcherNetworkCommunicator(object):
             
             # Call the method
             if meth is not None:
-                self.logger.debug(
-                    f'calling method {meth} with params {msg_params}')
+                # Squelch the sound methods which are too frequent
+                # TODO: make squelch a param
+                if 'data_hash' not in msg_params:
+                    self.logger.debug(
+                        f'calling method {meth} with params {msg_params}')
                 meth(**msg_params)
 
     def handle_hello(self, identity_str):
