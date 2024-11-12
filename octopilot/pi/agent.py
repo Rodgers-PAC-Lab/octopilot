@@ -266,6 +266,12 @@ class Agent(object):
             self.logger.error(
                 f'received trial parameters but session is not running')
             return
+
+
+        ## Update trial number
+        # Do this first, because some of the sound functions need to know
+        # the correct trial number
+        self.trial_number = msg_params['trial_number']
         
         
         ## Handle reward
@@ -330,12 +336,7 @@ class Agent(object):
         # Empty and refill the queue with new sounds
         self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed()
-        
-        
-        ## Update trial number
-        # TODO: does it matter if this is done first or last?
-        self.trial_number = msg_params['trial_number']
-    
+
     def report_poke(self, port_name, poke_time):
         """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
         
