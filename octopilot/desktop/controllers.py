@@ -553,7 +553,3 @@ class Dispatcher:
                 f'{dt},{trial_number},{identity},{data_left},'
                 f'{data_right},{data_hash},{last_frame_time},'
                 f'{frames_since_cycle_start}\n')
-
-
-        self._log_sound(
-            )
