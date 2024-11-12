@@ -117,6 +117,9 @@ def start_octopilot_gui_in_new_terminal(
 parser = argparse.ArgumentParser(
     description="Launch octopilot")
 
+# Optional debug
+parser.add_argument('--debug', action=argparse.BooleanOptionalAction)
+
 # Parse the args
 args = parser.parse_args()
 
@@ -149,6 +152,7 @@ mouse_records = pandas.DataFrame.from_records(
     records_l, 
     columns=['mouse', 'box', 'task']).set_index('mouse')
 print(mouse_records)
+
 
 ## Create the main window
 class LauncherWindow(QWidget):
@@ -245,6 +249,7 @@ class LauncherWindow(QWidget):
             box=box,
             task=task,
             ypos=ypos,
+            keep_window_open=args.debug,
         )
 
     def start_session_from_qb(self, row_qb):
