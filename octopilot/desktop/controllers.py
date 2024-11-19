@@ -70,6 +70,9 @@ class Dispatcher:
         self.session_start_time = None
         self.session_name = None
         
+        # Timer for ITI
+        self.timer_inter_trial_interval = None
+
         
         ## Store
         self.box_params = box_params
@@ -315,25 +318,35 @@ class Dispatcher:
         """
      
         """Send a stop message to the pi"""
-        # Stop the timer
+        ## Stop the timers
+        # Alive timer
         if self.alive_timer is None:
             self.logger.error('stopping session but no alive timer')
         else:
+            # Syntax is different becasue this is a repeating timer
             self.alive_timer.stop()
         
+        # Advance trial timer
         if self.timer_advance_trial is not None:
             self.timer_advance_trial.cancel()
         
-        # Send a stop message to each pi
+        # Inter trial interval timer
+        if self.timer_inter_trial_interval is not None:
+            self.timer_inter_trial_interval.cancel()
+        
+        
+        ## Send a stop message to each pi
         self.network_communicator.send_message_to_all('stop')
 
-        # Reset history when a new session is started 
+        
+        ## Reset history when a new session is started 
         self.reset_history()    
 
         # Flag that it has started
         self.session_is_running = False
         
-
+        
+        ## Log
         self.logger.info('done with stop_session')
 
         # We want to be able to process the final goodbye so commenting this 
@@ -476,6 +489,17 @@ class Dispatcher:
         
         # Start a new trial
         self.start_trial()
+
+        # Optionally start a timer to advance the trial
+        if self.inter_trial_interval is not None:
+            # Create a timer that will call self.start_trial() after
+            # self.inter_trial_interval seconds
+            self.timer_inter_trial_interval = threading.Timer(
+                self.inter_trial_interval, self.start_trial)
+            self.timer_inter_trial_interval.start()
+        else:
+            # Just start trial immediately
+            self.start_trial()
 
     def timed_advance_trial(self):
         """Advance trial without reward
