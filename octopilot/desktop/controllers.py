@@ -109,6 +109,15 @@ class Dispatcher:
         else:
             self.trial_duration = None
         
+        # Same with ITI
+        if 'inter_trial_interval' in task_params:
+            self.inter_trial_interval = task_params.pop('inter_trial_interval')
+        else:
+            # Set default
+            # It's best if this is long enough that the Pis can be informed
+            # and there's no leftover sounds from the previous trial
+            self.inter_trial_interval = 0.5
+        
         # Use task_params to set TrialParameterChooser
         self.trial_parameter_chooser = (
             trial_chooser.TrialParameterChooser.from_task_params(
