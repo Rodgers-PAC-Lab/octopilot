@@ -116,7 +116,7 @@ class Dispatcher:
             # Set default
             # It's best if this is long enough that the Pis can be informed
             # and there's no leftover sounds from the previous trial
-            self.inter_trial_interval = 0.5
+            self.inter_trial_interval = 5
         
         # Use task_params to set TrialParameterChooser
         self.trial_parameter_chooser = (
@@ -496,9 +496,6 @@ class Dispatcher:
         # Log the trial
         self._log_trial(poke_time)
         
-        # Start a new trial
-        self.start_trial()
-
         # Optionally start a timer to advance the trial
         if self.inter_trial_interval is not None:
             # Create a timer that will call self.start_trial() after
@@ -523,8 +520,17 @@ class Dispatcher:
         pseudo_reward_time = datetime.datetime.now().isoformat()
         self._log_trial(pseudo_reward_time)
 
-        # Start a new trial
-        self.start_trial()
+        # Optionally start a timer to advance the trial
+        self.logger.info('ITI is {self.inter_trial_interval}')
+        if self.inter_trial_interval is not None:
+            # Create a timer that will call self.start_trial() after
+            # self.inter_trial_interval seconds
+            self.timer_inter_trial_interval = threading.Timer(
+                self.inter_trial_interval, self.start_trial)
+            self.timer_inter_trial_interval.start()
+        else:
+            # Just start trial immediately
+            self.start_trial()        
 
     def handle_sound(self, trial_number, identity, data_left, data_right, 
         data_hash, last_frame_time, frames_since_cycle_start, dt):
