@@ -1,0 +1,9 @@
+{
+    "reward_radius": -1,
+    "trial_duration": 3,
+    "play_targets": true,
+    "target_log_amplitude": -1,
+    "target_rate": 1.0,
+    "target_temporal_log_std": -2,
+    "target_center_freq": 10000.0
+}
