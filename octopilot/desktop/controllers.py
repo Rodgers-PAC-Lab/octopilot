@@ -498,6 +498,9 @@ class Dispatcher:
         
         # Optionally start a timer to advance the trial
         if self.inter_trial_interval is not None:
+            # Silence the sounds
+            self.network_communicator.send_message_to_all('silence')
+            
             # Create a timer that will call self.start_trial() after
             # self.inter_trial_interval seconds
             self.timer_inter_trial_interval = threading.Timer(

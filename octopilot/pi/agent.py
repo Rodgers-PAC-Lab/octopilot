@@ -185,6 +185,7 @@ class Agent(object):
             # These methods will be called when these commands are received
             self.network_communicator.command2method = {
                 'set_trial_parameters': self.set_trial_parameters,
+                'silence': self.stop_sounds,
                 'stop': self.stop_session,
                 'exit': self.exit,
                 'start': self.start_session,
@@ -444,6 +445,21 @@ class Agent(object):
             f'flash_time={dt}=str'
             )          
     
+    def stop_sounds(self):
+        """Silence the sounds
+        
+        This is called at the end of each trial during the ITI, and again
+        at the end of the session.
+        """
+        # Silence sound generation
+        self.sound_generator.set_audio_parameters(
+            left_params={},
+            right_params={},
+            )
+        
+        # Empty the queue of sound
+        self.sound_queuer.empty_queue()        
+    
     def stop_session(self):
         """Runs when a session is stopped
         
@@ -482,13 +498,7 @@ class Agent(object):
             self.alive_timer.stop()
 
         # Silence sound generation
-        self.sound_generator.set_audio_parameters(
-            left_params={},
-            right_params={},
-            )
-        
-        # Empty the queue of sound
-        self.sound_queuer.empty_queue()
+        self.stop_sounds()
         
         # Stop running
         self.session_running = False
