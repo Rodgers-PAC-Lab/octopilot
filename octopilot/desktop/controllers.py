@@ -116,7 +116,7 @@ class Dispatcher:
             # Set default
             # It's best if this is long enough that the Pis can be informed
             # and there's no leftover sounds from the previous trial
-            self.inter_trial_interval = 5
+            self.inter_trial_interval = 0.5
         
         # Use task_params to set TrialParameterChooser
         self.trial_parameter_chooser = (
