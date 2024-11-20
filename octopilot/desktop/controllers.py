@@ -496,19 +496,8 @@ class Dispatcher:
         # Log the trial
         self._log_trial(poke_time)
         
-        # Optionally start a timer to advance the trial
-        if self.inter_trial_interval is not None:
-            # Silence the sounds
-            self.network_communicator.send_message_to_all('silence')
-            
-            # Create a timer that will call self.start_trial() after
-            # self.inter_trial_interval seconds
-            self.timer_inter_trial_interval = threading.Timer(
-                self.inter_trial_interval, self.start_trial)
-            self.timer_inter_trial_interval.start()
-        else:
-            # Just start trial immediately
-            self.start_trial()
+        # Start the ITI or the next trial, depending
+        self.start_iti_or_start_trial()
 
     def timed_advance_trial(self):
         """Advance trial without reward
@@ -523,9 +512,15 @@ class Dispatcher:
         pseudo_reward_time = datetime.datetime.now().isoformat()
         self._log_trial(pseudo_reward_time)
 
+        # Start the ITI or the next trial, depending
+        self.start_iti_or_start_trial()
+    
+    def start_iti_or_start_trial(self):
         # Optionally start a timer to advance the trial
-        self.logger.info('ITI is {self.inter_trial_interval}')
         if self.inter_trial_interval is not None:
+            # Silence the sounds
+            self.network_communicator.send_message_to_all('silence')
+
             # Create a timer that will call self.start_trial() after
             # self.inter_trial_interval seconds
             self.timer_inter_trial_interval = threading.Timer(
@@ -533,8 +528,8 @@ class Dispatcher:
             self.timer_inter_trial_interval.start()
         else:
             # Just start trial immediately
-            self.start_trial()        
-
+            self.start_trial()                
+    
     def handle_sound(self, trial_number, identity, data_left, data_right, 
         data_hash, last_frame_time, frames_since_cycle_start, dt):
         """Called whenever a 'sound' message is received
