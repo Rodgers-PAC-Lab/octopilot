@@ -70,6 +70,9 @@ class Dispatcher:
         self.session_start_time = None
         self.session_name = None
         
+        # Timer for ITI
+        self.timer_inter_trial_interval = None
+
         
         ## Store
         self.box_params = box_params
@@ -105,6 +108,15 @@ class Dispatcher:
             self.trial_duration = task_params.pop('trial_duration')
         else:
             self.trial_duration = None
+        
+        # Same with ITI
+        if 'inter_trial_interval' in task_params:
+            self.inter_trial_interval = task_params.pop('inter_trial_interval')
+        else:
+            # Set default
+            # It's best if this is long enough that the Pis can be informed
+            # and there's no leftover sounds from the previous trial
+            self.inter_trial_interval = 0.5
         
         # Use task_params to set TrialParameterChooser
         self.trial_parameter_chooser = (
@@ -315,25 +327,35 @@ class Dispatcher:
         """
      
         """Send a stop message to the pi"""
-        # Stop the timer
+        ## Stop the timers
+        # Alive timer
         if self.alive_timer is None:
             self.logger.error('stopping session but no alive timer')
         else:
+            # Syntax is different becasue this is a repeating timer
             self.alive_timer.stop()
         
+        # Advance trial timer
         if self.timer_advance_trial is not None:
             self.timer_advance_trial.cancel()
         
-        # Send a stop message to each pi
+        # Inter trial interval timer
+        if self.timer_inter_trial_interval is not None:
+            self.timer_inter_trial_interval.cancel()
+        
+        
+        ## Send a stop message to each pi
         self.network_communicator.send_message_to_all('stop')
 
-        # Reset history when a new session is started 
+        
+        ## Reset history when a new session is started 
         self.reset_history()    
 
         # Flag that it has started
         self.session_is_running = False
         
-
+        
+        ## Log
         self.logger.info('done with stop_session')
 
         # We want to be able to process the final goodbye so commenting this 
@@ -474,8 +496,8 @@ class Dispatcher:
         # Log the trial
         self._log_trial(poke_time)
         
-        # Start a new trial
-        self.start_trial()
+        # Start the ITI or the next trial, depending
+        self.start_iti_or_start_trial()
 
     def timed_advance_trial(self):
         """Advance trial without reward
@@ -490,9 +512,24 @@ class Dispatcher:
         pseudo_reward_time = datetime.datetime.now().isoformat()
         self._log_trial(pseudo_reward_time)
 
-        # Start a new trial
-        self.start_trial()
+        # Start the ITI or the next trial, depending
+        self.start_iti_or_start_trial()
+    
+    def start_iti_or_start_trial(self):
+        # Optionally start a timer to advance the trial
+        if self.inter_trial_interval is not None:
+            # Silence the sounds
+            self.network_communicator.send_message_to_all('silence')
 
+            # Create a timer that will call self.start_trial() after
+            # self.inter_trial_interval seconds
+            self.timer_inter_trial_interval = threading.Timer(
+                self.inter_trial_interval, self.start_trial)
+            self.timer_inter_trial_interval.start()
+        else:
+            # Just start trial immediately
+            self.start_trial()                
+    
     def handle_sound(self, trial_number, identity, data_left, data_right, 
         data_hash, last_frame_time, frames_since_cycle_start, dt):
         """Called whenever a 'sound' message is received
