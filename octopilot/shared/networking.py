@@ -483,6 +483,10 @@ class PiNetworkCommunicator(object):
         # continuously check for incoming messages
         self.poller = zmq.Poller()
         self.poller.register(self.poke_socket, zmq.POLLIN)
+        
+        # Create a second poller object 
+        self.bonsai_poller = zmq.Poller()
+        self.bonsai_poller.register(self.bonsai_socket, zmq.POLLIN)
     
     def init_socket(self):
         """Create `self.poke_socket` and connect to GUI
@@ -524,6 +528,24 @@ class PiNetworkCommunicator(object):
         self.socket_is_open = True
         print(f"Connected to router at {self.router_ip}")  
 
+    def init_bonsai_socket(self):
+        """Create `self.bonsai_socket` and connect to Bonsai PC
+
+        """
+        ## Create socket
+        # Creating a SUB socket for communication regarding poke and poke times
+        self.bonsai_context = zmq.Context()
+        self.bonsai_socket = self.bonsai_context.socket(zmq.SUB)
+
+
+        ## Connect to the server
+        # Connecting to the GUI IP address stored in params
+        self.bonsai_tcp = f"tcp://{self.bonsai_ip}:{self.bonsai_port}"
+        self.bonsai_socket.connect(self.bonsai_tcp) 
+
+        # Print acknowledgment
+        print(f"Connected to Bonsai at {self.bonsai_tcp}")  
+
     def send_hello(self):
         # Send the identity of the Raspberry Pi to the server
         self.logger.debug('sending hello')
@@ -535,7 +557,6 @@ class PiNetworkCommunicator(object):
 
         # Wait for events on registered sockets. 
         # Currently polls every 100ms to check for messages 
-        #~ self.logger.debug('checking poke socket')
         socks = dict(self.poller.poll(100))
 
         # Check for incoming messages on poke_socket
@@ -552,6 +573,29 @@ class PiNetworkCommunicator(object):
     
             # Handle message
             self.handle_message(msg)
+
+    def check_bonsai_socket(self):
+        # Get time
+        dt_now = datetime.datetime.now().isoformat()
+
+        # Wait for events on registered sockets. 
+        # Currently polls every 100ms to check for messages 
+        socks = dict(self.bonsai_poller.poll(100))
+
+        # Check for incoming messages on poke_socket
+        if self.bonsai_socket in socks and socks[self.bonsai_socket] == zmq.POLLIN:
+            # Waiting to receive message strings that control the main loop
+            # Is this blocking?
+            # I think the 'if' is only satisfied if there is something to
+            # receive, so it doesn't matter if it's blocking
+            msg = self.bonsai_socket.recv_string()  
+            
+            # Receive message
+            self.logger.debug(
+                f'{dt_now} - Received message {msg} on bonsai socket')
+    
+            # Handle message
+            #self.handle_message(msg)
     
     def handle_message(self, msg):
         """Handle a message received on poke_socket
