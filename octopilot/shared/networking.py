@@ -459,6 +459,8 @@ class PiNetworkCommunicator(object):
         """
         ## Store required arguments
         self.gui_ip = gui_ip
+        self.bonsai_ip = "192.168.0.213"
+        self.bonsai_port = 5557
         self.zmq_port = zmq_port
         self.identity = identity
         
