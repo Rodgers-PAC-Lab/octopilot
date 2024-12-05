@@ -562,6 +562,8 @@ class Agent(object):
                 # start, reward, etc
                 if self.network_communicator is not None:
                     self.network_communicator.check_socket()
+                    
+                if self.network_communicator is not None:
                     self.network_communicator.check_bonsai_socket()
 
                 
