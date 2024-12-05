@@ -480,6 +480,7 @@ class PiNetworkCommunicator(object):
         ## Set up sockets
         self.socket_is_open = False
         self.init_socket()
+        self.init_bonsai_socket()
         
         # Creating a poller object for both sockets that will be used to 
         # continuously check for incoming messages
