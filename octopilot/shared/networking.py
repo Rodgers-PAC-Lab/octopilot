@@ -553,7 +553,6 @@ class PiNetworkCommunicator(object):
         # Send the identity of the Raspberry Pi to the server
         self.logger.debug('sending hello')
         self.poke_socket.send_string(f"hello")
-        self.bonsai_socket.send_string(f"hello") 
 
     def check_socket(self):
         # Get time
