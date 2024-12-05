@@ -564,8 +564,6 @@ class PiNetworkCommunicator(object):
         # Wait for events on registered sockets. 
         # Currently polls every 100ms to check for messages 
         socks = dict(self.poller.poll(100))
-        socks2 = dict(self.poller.poll(100))
-
 
         # Check for incoming messages on poke_socket
         if self.poke_socket in socks and socks[self.poke_socket] == zmq.POLLIN:
@@ -588,7 +586,7 @@ class PiNetworkCommunicator(object):
 
         # Wait for events on registered sockets. 
         # Currently polls every 100ms to check for messages 
-        socks = dict(self.bonsai_poller.poll(100))
+        socks2 = dict(self.poller.poll(100))
 
         # Check for incoming messages on poke_socket
         if self.bonsai_socket in socks2 and socks2[self.bonsai_socket] == zmq.POLLIN:
