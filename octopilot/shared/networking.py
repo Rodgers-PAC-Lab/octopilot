@@ -538,7 +538,7 @@ class PiNetworkCommunicator(object):
         ## Create socket
         # Creating a SUB socket for communication regarding poke and poke times
         self.bonsai_context = zmq.Context()
-        self.bonsai_socket = self.bonsai_context.socket(zmq.ROUTER)
+        self.bonsai_socket = self.bonsai_context.socket(zmq.SUB)
 
 
         ## Connect to the server
