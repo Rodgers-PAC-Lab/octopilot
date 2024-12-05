@@ -586,20 +586,20 @@ class PiNetworkCommunicator(object):
 
         # Wait for events on registered sockets. 
         # Currently polls every 100ms to check for messages 
-        socks = dict(self.poller.poll(100))
+        socks2 = dict(self.poller.poll(100))
 
         # Check for incoming messages on poke_socket
-        if self.bonsai_socket in socks and socks[self.bonsai_socket] == zmq.POLLIN:
+        if self.bonsai_socket in socks2 and socks2[self.bonsai_socket] == zmq.POLLIN:
             # Waiting to receive message strings that control the main loop
             # Is this blocking?
             # I think the 'if' is only satisfied if there is something to
             # receive, so it doesn't matter if it's blocking
-            msg = self.bonsai_socket.recv_string()
+            msg2 = self.bonsai_socket.recv_string()
             print("Checking for bonsai messages")
             
             # Receive message
             self.logger.debug(
-                f'{dt_now} - Received message {msg} on bonsai socket')
+                f'{dt_now} - Received message {msg2} on bonsai socket')
     
             # Handle message
             #self.handle_message(msg)
