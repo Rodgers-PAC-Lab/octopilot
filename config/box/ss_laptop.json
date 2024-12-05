@@ -1,0 +1,24 @@
+{
+    "zmq_port": 5551,
+    "bonsai_port": 5557,
+    "desktop_ip": "192.168.0.213",
+    "bonsai_ip": "192.168.0.213",
+    "ypos_of_gui": 0,
+    "camera": "",
+    "connected_pis" : [
+        {
+            "name": "rpi26",
+            "ip": "192.168.0.101",
+            "left_port_position": 180,
+            "right_port_position": 270
+        },
+        {
+            "name": "rpi27",
+            "ip": "192.168.0.102",
+            "left_port_position": 0,
+            "right_port_position": 90
+        }
+    ]    
+}
+
+
