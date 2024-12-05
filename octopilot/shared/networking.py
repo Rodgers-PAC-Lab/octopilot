@@ -538,7 +538,7 @@ class PiNetworkCommunicator(object):
         ## Create socket
         # Creating a SUB socket for communication regarding poke and poke times
         self.bonsai_context = zmq.Context()
-        self.bonsai_socket = self.bonsai_context.socket(zmq.SUB)
+        self.bonsai_socket = self.bonsai_context.socket(zmq.ROUTER)
 
 
         ## Connect to the server
@@ -552,7 +552,8 @@ class PiNetworkCommunicator(object):
     def send_hello(self):
         # Send the identity of the Raspberry Pi to the server
         self.logger.debug('sending hello')
-        self.poke_socket.send_string(f"hello") 
+        self.poke_socket.send_string(f"hello")
+        self.bonsai_socket.send_string(f"hello") 
 
     def check_socket(self):
         # Get time
