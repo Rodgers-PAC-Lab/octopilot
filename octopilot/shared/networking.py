@@ -459,11 +459,8 @@ class PiNetworkCommunicator(object):
         """
         ## Store required arguments
         self.gui_ip = gui_ip
-        self.bonsai_ip = "192.168.0.213"
-        self.bonsai_port = 5557
         self.zmq_port = zmq_port
         self.identity = identity
-        
 
         ## Init logger
         self.logger = NonRepetitiveLogger("test")
@@ -472,24 +469,31 @@ class PiNetworkCommunicator(object):
         self.logger.addHandler(sh)
         self.logger.setLevel(logging.DEBUG)
         
-
         ## Set up the method to call on each command
         self.command2method = {}
-        
 
         ## Set up sockets
         self.socket_is_open = False
         self.init_socket()
-        self.init_bonsai_socket()
         
         # Creating a poller object for both sockets that will be used to 
         # continuously check for incoming messages
         self.poller = zmq.Poller()
         self.poller.register(self.poke_socket, zmq.POLLIN)
         
+        ## Bonsai init
+        self.bonsai_ip = "192.168.0.213"
+        self.bonsai_port = 5557
+        
+        self.init_bonsai_socket()
+        
         # Create a second poller object 
         self.bonsai_poller = zmq.Poller()
         self.bonsai_poller.register(self.bonsai_socket, zmq.POLLIN)
+        
+        # Making a state variable to keep track of information on bonsai socket
+        self.bonsai_state = None
+        self.prev_bonsai_state = None
     
     def init_socket(self):
         """Create `self.poke_socket` and connect to GUI
@@ -587,20 +591,21 @@ class PiNetworkCommunicator(object):
         # Wait for events on registered sockets.
         socks2 = dict(self.bonsai_poller.poll(100))
 
-        # Ensure prev_msg2 is an instance variable
-        if not hasattr(self, 'prev_msg2'):
-            self.prev_msg2 = None
+        #~ # Ensure prev_msg2 is an instance variable
+        #~ if not hasattr(self, 'prev_msg2'):
+            #~ self.prev_msg2 = None
 
-        # Check for incoming messages on bonsai_socket
+        # Check for incoming messages on bonsai_socket and log states 
         if self.bonsai_socket in socks2 and socks2[self.bonsai_socket] == zmq.POLLIN:
             msg2 = self.bonsai_socket.recv_string()
+            self.bonsai_state = msg2
             print("Checking for bonsai messages")
             
             # Log only if the message has changed
-            if msg2 != self.prev_msg2:
+            if self.bonsai_state  != self.prev_bonsai_state:
                 self.logger.debug(
                     f'{dt_now} - Received message {msg2} on bonsai socket')
-                self.prev_msg2 = msg2
+                self.prev_bonsai_state = self.bonsai_state
 
             # Handle message
             #self.handle_message(msg)
