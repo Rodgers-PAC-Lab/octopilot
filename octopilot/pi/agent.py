@@ -356,11 +356,63 @@ class Agent(object):
         self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed()
 
-    def increase_volume(self):
-        # Use this to determine when the volume increased
-        volume_timestamp = datetime.datetime.now().isoformat()
+    def increase_volume(self, **msg_params):
+        print('Increasing Volume')
+
+        # Left Parameters
+        left_params = {
+            'rate': msg_params['left_target_rate'],
+            'temporal_log_std': msg_params['target_temporal_log_std'],
+            'center_freq': msg_params['target_center_freq'],
+            'log_amplitude': 4 * msg_params['target_log_amplitude'],
+            }
         
+        # Right Parameters
+        right_params = {
+            'rate': msg_params['right_target_rate'],
+            'temporal_log_std': msg_params['target_temporal_log_std'],
+            'center_freq': msg_params['target_center_freq'],
+            'log_amplitude': 4 * msg_params['target_log_amplitude'],
+            }
         
+        ## Use those params to set the new sounds
+        self.logger.info(
+            'setting audio parameters. '
+            f'LEFT={left_params}. RIGHT={right_params}')
+        self.sound_generator.set_audio_parameters(left_params, right_params)
+
+        # Empty and refill the queue with new sounds
+        self.sound_queuer.empty_queue()
+        self.sound_queuer.append_sound_to_queue_as_needed()
+    
+    def decrease_volume(self, **msg_params):
+        print('Decreasing Volume')
+
+        # Left Parameters
+        left_params = {
+            'rate': msg_params['left_target_rate'],
+            'temporal_log_std': msg_params['target_temporal_log_std'],
+            'center_freq': msg_params['target_center_freq'],
+            'log_amplitude': 4 * msg_params['target_log_amplitude'],
+            }
+        
+        # Right Parameters
+        right_params = {
+            'rate': msg_params['right_target_rate'],
+            'temporal_log_std': msg_params['target_temporal_log_std'],
+            'center_freq': msg_params['target_center_freq'],
+            'log_amplitude': 4 * msg_params['target_log_amplitude'],
+            }
+        
+        ## Use those params to set the new sounds
+        self.logger.info(
+            'setting audio parameters. '
+            f'LEFT={left_params}. RIGHT={right_params}')
+        self.sound_generator.set_audio_parameters(left_params, right_params)
+
+        # Empty and refill the queue with new sounds
+        self.sound_queuer.empty_queue()
+        self.sound_queuer.append_sound_to_queue_as_needed()
 
     def report_poke(self, port_name, poke_time):
         """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
@@ -567,9 +619,14 @@ class Agent(object):
                 # Check poke_socket for incoming messages about exit, stop,
                 # start, reward, etc
                 if self.network_communicator is not None:
-                    self.network_communicator.check_bonsai_socket()
                     self.network_communicator.check_socket()
+                    self.network_communicator.check_bonsai_socket()
                 
+                if self.network_communicator.bonsai_state == 'True':
+                    self.increase_volume()
+                elif self.network_communicator.bonsai_state == 'False':
+                    self.decrease_volume()
+
                 if self.critical_shutdown:
                     self.logger.critical('critical shutdown')
                     raise ValueError('critical shutdown')
