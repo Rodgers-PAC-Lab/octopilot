@@ -591,15 +591,11 @@ class PiNetworkCommunicator(object):
         # Wait for events on registered sockets.
         socks2 = dict(self.bonsai_poller.poll(100))
 
-        #~ # Ensure prev_msg2 is an instance variable
-        #~ if not hasattr(self, 'prev_msg2'):
-            #~ self.prev_msg2 = None
-
         # Check for incoming messages on bonsai_socket and log states 
         if self.bonsai_socket in socks2 and socks2[self.bonsai_socket] == zmq.POLLIN:
             msg2 = self.bonsai_socket.recv_string()
             self.bonsai_state = msg2
-            print("Checking for bonsai messages")
+            #print("Checking for bonsai messages")
             
             # Log only if the message has changed
             if self.bonsai_state  != self.prev_bonsai_state:

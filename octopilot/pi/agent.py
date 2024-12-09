@@ -356,6 +356,12 @@ class Agent(object):
         self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed()
 
+    def increase_volume(self):
+        # Use this to determine when the volume increased
+        volume_timestamp = datetime.datetime.now().isoformat()
+        
+        
+
     def report_poke(self, port_name, poke_time):
         """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
         
