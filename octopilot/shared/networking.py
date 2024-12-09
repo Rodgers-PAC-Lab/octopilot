@@ -584,27 +584,23 @@ class PiNetworkCommunicator(object):
         # Get time
         dt_now = datetime.datetime.now().isoformat()
 
-        # Wait for events on registered sockets. 
-        # Currently polls every 100ms to check for messages 
+        # Wait for events on registered sockets.
         socks2 = dict(self.bonsai_poller.poll(100))
 
-        # Check for incoming messages on poke_socket
+        # Ensure prev_msg2 is an instance variable
+        if not hasattr(self, 'prev_msg2'):
+            self.prev_msg2 = None
+
+        # Check for incoming messages on bonsai_socket
         if self.bonsai_socket in socks2 and socks2[self.bonsai_socket] == zmq.POLLIN:
-            # Waiting to receive message strings that control the main loop
-            # Is this blocking?
-            # I think the 'if' is only satisfied if there is something to
-            # receive, so it doesn't matter if it's blocking
-            prev_msg2 = None
             msg2 = self.bonsai_socket.recv_string()
             print("Checking for bonsai messages")
             
-            # Receive message
-            if msg2 == prev_msg2:
-                pass
-            else:
+            # Log only if the message has changed
+            if msg2 != self.prev_msg2:
                 self.logger.debug(
                     f'{dt_now} - Received message {msg2} on bonsai socket')
-                prev_msg2 = msg2
+                self.prev_msg2 = msg2
 
             # Handle message
             #self.handle_message(msg)
