@@ -594,6 +594,7 @@ class PiNetworkCommunicator(object):
             # Is this blocking?
             # I think the 'if' is only satisfied if there is something to
             # receive, so it doesn't matter if it's blocking
+            prev_msg2 = None
             msg2 = self.bonsai_socket.recv_string()
             print("Checking for bonsai messages")
             
