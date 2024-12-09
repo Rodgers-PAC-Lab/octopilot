@@ -561,11 +561,8 @@ class Agent(object):
                 # Check poke_socket for incoming messages about exit, stop,
                 # start, reward, etc
                 if self.network_communicator is not None:
-                    self.network_communicator.check_socket()
-                    
-                if self.network_communicator is not None:
                     self.network_communicator.check_bonsai_socket()
-
+                    self.network_communicator.check_socket()
                 
                 if self.critical_shutdown:
                     self.logger.critical('critical shutdown')
