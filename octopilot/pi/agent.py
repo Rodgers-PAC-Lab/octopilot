@@ -393,7 +393,7 @@ class Agent(object):
             'rate': msg_params['left_target_rate'],
             'temporal_log_std': msg_params['target_temporal_log_std'],
             'center_freq': msg_params['target_center_freq'],
-            'log_amplitude': 4 * msg_params['target_log_amplitude'],
+            'log_amplitude': 0.25 * msg_params['target_log_amplitude'],
             }
         
         # Right Parameters
@@ -401,7 +401,7 @@ class Agent(object):
             'rate': msg_params['right_target_rate'],
             'temporal_log_std': msg_params['target_temporal_log_std'],
             'center_freq': msg_params['target_center_freq'],
-            'log_amplitude': 4 * msg_params['target_log_amplitude'],
+            'log_amplitude': 0.25 * msg_params['target_log_amplitude'],
             }
         
         ## Use those params to set the new sounds
