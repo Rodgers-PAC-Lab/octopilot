@@ -598,9 +598,11 @@ class PiNetworkCommunicator(object):
             print("Checking for bonsai messages")
             
             # Receive message
-            self.logger.debug(
-                f'{dt_now} - Received message {msg2} on bonsai socket')
-    
+            if msg2 != prev_msg2:
+                self.logger.debug(
+                    f'{dt_now} - Received message {msg2} on bonsai socket')
+                prev_msg2 = msg2
+
             # Handle message
             #self.handle_message(msg)
     
