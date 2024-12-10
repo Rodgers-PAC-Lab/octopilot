@@ -431,11 +431,11 @@ class Agent(object):
         self.network_communicator.check_bonsai_socket()
 
         # React to state changes
-        if self.bonsai_state == "True" and self.prev_bonsai_state == "False" or None:
+        if self.network_communicator.bonsai_state == "True" and self.network_communicator.prev_bonsai_state == "False" or None:
             print("Decreasing volume")
             self.decrease_volume()  
 
-        elif self.bonsai_state == "False" and self.prev_bonsai_state == "True":
+        elif self.network_communicator.bonsai_state == "False" and self.network_communicator.prev_bonsai_state == "True":
             print("Increasing volume")
             self.increase_volume()  
 
