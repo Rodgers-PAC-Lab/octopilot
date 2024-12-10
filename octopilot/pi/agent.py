@@ -632,7 +632,8 @@ class Agent(object):
                         self.increase_volume()
                     elif self.network_communicator.bonsai_state == 'False':
                         self.decrease_volume()
-                    else pass
+                    else:
+                        pass
 
                 if self.critical_shutdown:
                     self.logger.critical('critical shutdown')
