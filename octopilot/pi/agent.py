@@ -360,20 +360,24 @@ class Agent(object):
         print('Increasing Volume')
 
         # Left Parameters
-        left_params = {
-            'rate': msg_params['left_target_rate'],
-            'temporal_log_std': msg_params['target_temporal_log_std'],
-            'center_freq': msg_params['target_center_freq'],
-            'log_amplitude': 4 * msg_params['target_log_amplitude'],
-            }
+        if 'left_target_rate' in msg_params and msg_params['left_target_rate'] > 0:
+            print('Decreasing Volume')
+            left_params = {
+                'rate': msg_params['left_target_rate'],
+                'temporal_log_std': msg_params['target_temporal_log_std'],
+                'center_freq': msg_params['target_center_freq'],
+                'log_amplitude': 4 * msg_params['target_log_amplitude'],
+                }
         
         # Right Parameters
-        right_params = {
-            'rate': msg_params['right_target_rate'],
-            'temporal_log_std': msg_params['target_temporal_log_std'],
-            'center_freq': msg_params['target_center_freq'],
-            'log_amplitude': 4 * msg_params['target_log_amplitude'],
-            }
+        if 'right_target_rate' in msg_params and msg_params['right_target_rate'] > 0:
+            print('Decreasing Volume')
+            right_params = {
+                'rate': msg_params['right_target_rate'],
+                'temporal_log_std': msg_params['target_temporal_log_std'],
+                'center_freq': msg_params['target_center_freq'],
+                'log_amplitude': 4 * msg_params['target_log_amplitude'],
+                }
         
         ## Use those params to set the new sounds
         self.logger.info(
@@ -386,23 +390,25 @@ class Agent(object):
         self.sound_queuer.append_sound_to_queue_as_needed()
     
     def decrease_volume(self, **msg_params):
-        print('Decreasing Volume')
-
         # Left Parameters
-        left_params = {
-            'rate': msg_params['left_target_rate'],
-            'temporal_log_std': msg_params['target_temporal_log_std'],
-            'center_freq': msg_params['target_center_freq'],
-            'log_amplitude': 0.25 * msg_params['target_log_amplitude'],
-            }
-        
+        if 'left_target_rate' in msg_params and msg_params['left_target_rate'] > 0:
+            print('Decreasing Volume')
+            left_params = {
+                'rate': msg_params['left_target_rate'],
+                'temporal_log_std': msg_params['target_temporal_log_std'],
+                'center_freq': msg_params['target_center_freq'],
+                'log_amplitude': 0.25 * msg_params['target_log_amplitude'],
+                }
+            
         # Right Parameters
-        right_params = {
-            'rate': msg_params['right_target_rate'],
-            'temporal_log_std': msg_params['target_temporal_log_std'],
-            'center_freq': msg_params['target_center_freq'],
-            'log_amplitude': 0.25 * msg_params['target_log_amplitude'],
-            }
+        if 'right_target_rate' in msg_params and msg_params['right_target_rate'] > 0:
+            print('Decreasing Volume')
+            right_params = {
+                'rate': msg_params['right_target_rate'],
+                'temporal_log_std': msg_params['target_temporal_log_std'],
+                'center_freq': msg_params['target_center_freq'],
+                'log_amplitude': 0.25 * msg_params['target_log_amplitude'],
+                }
         
         ## Use those params to set the new sounds
         self.logger.info(
