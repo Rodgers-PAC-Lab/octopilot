@@ -95,6 +95,8 @@ class Agent(object):
         self.last_alive_request_received = datetime.datetime.now()
         self.critical_shutdown = False
         
+        # Variable to save params for each trial
+        self.prev_trial_params = None
 
         ## Initialize sound_generator
         # This object generates frames of audio
@@ -273,7 +275,6 @@ class Agent(object):
         ## Log
         self.logger.debug(f'setting trial parameters: {msg_params}')
         
-        
         ## If not running, issue error
         # Because this might indicate that something has gone wrong
         if not self.session_running:
@@ -320,6 +321,9 @@ class Agent(object):
         else:
             self.right_nosepoke.reward_armed = False
         
+        # Saving these params to be modified by other methods
+        self.prev_trial_params = msg_params
+        
         
         ## Split into left_params and right_params
         # TODO: make this more flexible
@@ -356,69 +360,65 @@ class Agent(object):
         self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed()
 
-    def increase_volume(self, **msg_params):
+    def increase_volume(self):
         # Left Parameters
-        #if 'left_target_rate' in msg_params and msg_params['left_target_rate'] > 0:
-        left_params = {
-            'rate': msg_params['left_target_rate'],
-            'temporal_log_std': msg_params['target_temporal_log_std'],
-            'center_freq': msg_params['target_center_freq'],
-            'log_amplitude': 4 * msg_params['target_log_amplitude'],
-            }
-        
-        # Right Parameters
-        #if 'right_target_rate' in msg_params and msg_params['right_target_rate'] > 0:
-            #print('Increasing Volume')
-        right_params = {
-            'rate': msg_params['right_target_rate'],
-            'temporal_log_std': msg_params['target_temporal_log_std'],
-            'center_freq': msg_params['target_center_freq'],
-            'log_amplitude': 4 * msg_params['target_log_amplitude'],
-            }
-        
-        ## Use those params to set the new sounds
-        self.logger.info(
-            'setting audio parameters. '
-            f'LEFT={left_params}. RIGHT={right_params}')
-        self.sound_generator.set_audio_parameters(left_params, right_params)
-        print('Increasing Volume')
-
-
-        # Empty and refill the queue with new sounds
-        self.sound_queuer.empty_queue()
-        self.sound_queuer.append_sound_to_queue_as_needed()
-    
-    def decrease_volume(self, **msg_params):
-        # Left Parameters
-        #if 'left_target_rate' in msg_params and msg_params['left_target_rate'] > 0:
-        left_params = {
-            'rate': msg_params['left_target_rate'],
-            'temporal_log_std': msg_params['target_temporal_log_std'],
-            'center_freq': msg_params['target_center_freq'],
-            'log_amplitude': 0.25 * msg_params['target_log_amplitude'],
-            }
+        if self.prev_trial_params is not None:
+            left_params = {
+                'rate': self.prev_trial_params['left_target_rate'],
+                'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                'center_freq': self.prev_trial_params['target_center_freq'],
+                'log_amplitude': 4 * self.prev_trial_params['target_log_amplitude'],
+                }
             
-        # Right Parameters
-        #if 'right_target_rate' in msg_params and msg_params['right_target_rate'] > 0:
-        #print('Decreasing Volume')
-        right_params = {
-            'rate': msg_params['right_target_rate'],
-            'temporal_log_std': msg_params['target_temporal_log_std'],
-            'center_freq': msg_params['target_center_freq'],
-            'log_amplitude': 0.25 * msg_params['target_log_amplitude'],
-            }
+            right_params = {
+                'rate': self.prev_trial_params['right_target_rate'],
+                'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                'center_freq': self.prev_trial_params['target_center_freq'],
+                'log_amplitude': 4 * self.prev_trial_params['target_log_amplitude'],
+                }
         
-        ## Use those params to set the new sounds
-        self.logger.info(
-            'setting audio parameters. '
-            f'LEFT={left_params}. RIGHT={right_params}')
-        self.sound_generator.set_audio_parameters(left_params, right_params)
-        print('Decreasing Volume')
+            ## Use those params to set the new sounds
+            self.logger.info(
+                'setting audio parameters. '
+                f'LEFT={left_params}. RIGHT={right_params}')
+            self.sound_generator.set_audio_parameters(left_params, right_params)
+            print('Increasing Volume')
 
+            # Empty and refill the queue with new sounds
+            self.sound_queuer.empty_queue()
+            self.sound_queuer.append_sound_to_queue_as_needed()
+        else:
+            pass
+    
+    def decrease_volume(self):
+        # Left Parameters
+        if self.prev_trial_params is not None:
+            left_params = {
+                'rate': self.prev_trial_params['left_target_rate'],
+                'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                'center_freq': self.prev_trial_params['target_center_freq'],
+                'log_amplitude': 0.25 * self.prev_trial_params['target_log_amplitude'],
+                }
+            
+            right_params = {
+                'rate': self.prev_trial_params['right_target_rate'],
+                'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                'center_freq': self.prev_trial_params['target_center_freq'],
+                'log_amplitude': 0.25 * self.prev_trial_params['target_log_amplitude'],
+                }
+        
+            ## Use those params to set the new sounds
+            self.logger.info(
+                'setting audio parameters. '
+                f'LEFT={left_params}. RIGHT={right_params}')
+            self.sound_generator.set_audio_parameters(left_params, right_params)
+            print('Decreasing Volume')
 
-        # Empty and refill the queue with new sounds
-        self.sound_queuer.empty_queue()
-        self.sound_queuer.append_sound_to_queue_as_needed()
+            # Empty and refill the queue with new sounds
+            self.sound_queuer.empty_queue()
+            self.sound_queuer.append_sound_to_queue_as_needed
+        else:
+            pass
 
     def report_poke(self, port_name, poke_time):
         """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
