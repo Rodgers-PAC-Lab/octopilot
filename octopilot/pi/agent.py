@@ -357,11 +357,9 @@ class Agent(object):
         self.sound_queuer.append_sound_to_queue_as_needed()
 
     def increase_volume(self, **msg_params):
-        print('Increasing Volume')
-
         # Left Parameters
         if 'left_target_rate' in msg_params and msg_params['left_target_rate'] > 0:
-            print('Decreasing Volume')
+            print('Increasing Volume')
             left_params = {
                 'rate': msg_params['left_target_rate'],
                 'temporal_log_std': msg_params['target_temporal_log_std'],
@@ -371,7 +369,7 @@ class Agent(object):
         
         # Right Parameters
         if 'right_target_rate' in msg_params and msg_params['right_target_rate'] > 0:
-            print('Decreasing Volume')
+            print('Increasing Volume')
             right_params = {
                 'rate': msg_params['right_target_rate'],
                 'temporal_log_std': msg_params['target_temporal_log_std'],
@@ -627,11 +625,14 @@ class Agent(object):
                 if self.network_communicator is not None:
                     self.network_communicator.check_socket()
                     self.network_communicator.check_bonsai_socket()
-                
-                if self.network_communicator.bonsai_state == 'True':
-                    self.increase_volume()
-                elif self.network_communicator.bonsai_state == 'False':
-                    self.decrease_volume()
+                 
+                # Closed loop volume changes
+                if self.session_running = True
+                    if self.network_communicator.bonsai_state == 'True':
+                        self.increase_volume()
+                    elif self.network_communicator.bonsai_state == 'False':
+                        self.decrease_volume()
+                    else pass
 
                 if self.critical_shutdown:
                     self.logger.critical('critical shutdown')
