@@ -663,6 +663,8 @@ class Agent(object):
                 if self.network_communicator is not None:
                     self.network_communicator.check_socket()
                     self.network_communicator.check_bonsai_socket()
+                    self.change_volume()
+
                  
                 if self.critical_shutdown:
                     self.logger.critical('critical shutdown')
