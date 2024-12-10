@@ -428,7 +428,7 @@ class Agent(object):
 
     def check_bonsai(self):
         # Continuously check the bonsai state and act on changes
-        self.check_bonsai_socket()  # Update bonsai_state and prev_bonsai_state
+        self.network_communicator.check_bonsai_socket()
 
         # React to state changes
         if self.bonsai_state == "True" and self.prev_bonsai_state == "False" or None:
@@ -646,8 +646,7 @@ class Agent(object):
                 # start, reward, etc
                 if self.network_communicator is not None:
                     self.network_communicator.check_socket()
-                    self.network_communicator.check_bonsai_socket()
-                 
+                    
                 if self.critical_shutdown:
                     self.logger.critical('critical shutdown')
                     raise ValueError('critical shutdown')
