@@ -432,6 +432,14 @@ class Agent(object):
             self.sound_queuer.append_sound_to_queue_as_needed
         else:
             pass
+    
+    def change_volume(self):
+        # Changing volume when theres a change in the state
+        if self.session_running == True:
+            if self.network_communicator.bonsai_state == 'True':
+                self.increase_volume()
+            elif self.network_communicator.bonsai_state == 'False':
+                self.decrease_volume()
 
     def report_poke(self, port_name, poke_time):
         """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
@@ -622,7 +630,8 @@ class Agent(object):
         
         # Empty the queue of already generated sound
         self.sound_queuer.empty_queue()        
-    
+
+        
     def main_loop(self):
         """Loop forever until told to stop, then exit"""
         try:
@@ -642,11 +651,10 @@ class Agent(object):
                     self.network_communicator.check_bonsai_socket()
                  
                 # Closed loop volume changes
-                if self.session_running == True:
-                    if self.network_communicator.bonsai_state == 'True':
-                        self.increase_volume()
-                    elif self.network_communicator.bonsai_state == 'False':
-                        self.decrease_volume()
+                if self.network_communicator.bonsai_state != self.network_communicator.prev_bonsai_state:
+                    change_volume()
+                
+
                     else:
                         pass
 
