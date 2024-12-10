@@ -653,10 +653,8 @@ class Agent(object):
                 # Closed loop volume changes
                 if self.network_communicator.bonsai_state != self.network_communicator.prev_bonsai_state:
                     change_volume()
-                
-
-                    else:
-                        pass
+                else:
+                    pass
 
                 if self.critical_shutdown:
                     self.logger.critical('critical shutdown')
