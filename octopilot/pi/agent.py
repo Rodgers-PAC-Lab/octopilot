@@ -370,6 +370,8 @@ class Agent(object):
                     'center_freq': self.prev_trial_params['target_center_freq'],
                     'log_amplitude': 4 * self.prev_trial_params['target_log_amplitude'],
                     }
+            else:
+                left_params = {}
             
             if 'right_target_rate' in self.prev_trial_params and self.prev_trial_params['right_target_rate'] > 0:
                 right_params = {
@@ -378,6 +380,8 @@ class Agent(object):
                     'center_freq': self.prev_trial_params['target_center_freq'],
                     'log_amplitude': 4 * self.prev_trial_params['target_log_amplitude'],
                     }
+            else:
+                right_params = {}
         
             ## Use those params to set the new sounds
             self.logger.info(
@@ -393,7 +397,7 @@ class Agent(object):
             pass
     
     def decrease_volume(self):
-        # Left Parameters
+        # Left Parameters        
         if self.prev_trial_params is not None:
             if 'left_target_rate' in self.prev_trial_params and self.prev_trial_params['left_target_rate'] > 0:
                 left_params = {
@@ -402,6 +406,9 @@ class Agent(object):
                     'center_freq': self.prev_trial_params['target_center_freq'],
                     'log_amplitude': 0.25 * self.prev_trial_params['target_log_amplitude'],
                     }
+            else:
+                left_params = {}
+    
     
             if 'right_target_rate' in self.prev_trial_params and self.prev_trial_params['right_target_rate'] > 0:
                 right_params = {
@@ -410,6 +417,8 @@ class Agent(object):
                     'center_freq': self.prev_trial_params['target_center_freq'],
                     'log_amplitude': 0.25 * self.prev_trial_params['target_log_amplitude'],
                     }
+            else:
+                right_params = {}
         
             ## Use those params to set the new sounds
             self.logger.info(
