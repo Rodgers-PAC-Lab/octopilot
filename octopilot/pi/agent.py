@@ -404,7 +404,7 @@ class Agent(object):
                     'rate': self.prev_trial_params['left_target_rate'],
                     'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
                     'center_freq': self.prev_trial_params['target_center_freq'],
-                    'log_amplitude': self.prev_trial_params['target_log_amplitude'],
+                    'log_amplitude': 0.25 * self.prev_trial_params['target_log_amplitude'],
                     }
             else:
                 left_params = {}
@@ -415,7 +415,7 @@ class Agent(object):
                     'rate': self.prev_trial_params['right_target_rate'],
                     'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
                     'center_freq': self.prev_trial_params['target_center_freq'],
-                    'log_amplitude': self.prev_trial_params['target_log_amplitude'],
+                    'log_amplitude': 0.25 * self.prev_trial_params['target_log_amplitude'],
                     }
             else:
                 right_params = {}
@@ -434,12 +434,26 @@ class Agent(object):
             pass
     
     def change_volume(self):
-        # Changing volume when theres a change in the state
+        # Logic for initial change
         if self.session_running == True:
+            if self.network_communicator.prev_bonsai_state == None:
+                    if self.network_communicator.bonsai_state == 'True':
+                        self.increase_volume()
+                    elif self.network_communicator.bonsai_state == 'False':
+                        pass
+            
+            # Logic to change continuously
             if self.network_communicator.bonsai_state == 'True':
-                self.increase_volume()
+                if self.network_communicator.prev_bonsai_state == 'False' or 'None':
+                    decrease_volume()
+                else:
+                    pass
             elif self.network_communicator.bonsai_state == 'False':
-                self.decrease_volume()
+                if self.network_communicator.prev_bonsai_state == 'True':
+                    increase_volume()
+                else:
+                    pass
+
 
     def report_poke(self, port_name, poke_time):
         """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
@@ -642,6 +656,7 @@ class Agent(object):
             while True:
                 # Used to continuously add frames of sound to the 
                 # queue until the program stops
+                change_volume()
                 self.sound_queuer.append_sound_to_queue_as_needed()
                 
                 # Check poke_socket for incoming messages about exit, stop,
@@ -650,12 +665,6 @@ class Agent(object):
                     self.network_communicator.check_socket()
                     self.network_communicator.check_bonsai_socket()
                  
-                # Closed loop volume changes
-                if self.network_communicator.bonsai_state != self.network_communicator.prev_bonsai_state:
-                    change_volume()
-                else:
-                    pass
-
                 if self.critical_shutdown:
                     self.logger.critical('critical shutdown')
                     raise ValueError('critical shutdown')
