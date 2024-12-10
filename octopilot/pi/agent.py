@@ -445,12 +445,12 @@ class Agent(object):
             # Logic to change continuously
             if self.network_communicator.bonsai_state == 'True':
                 if self.network_communicator.prev_bonsai_state == 'False' or 'None':
-                    decrease_volume()
+                    self.decrease_volume()
                 else:
                     pass
             elif self.network_communicator.bonsai_state == 'False':
                 if self.network_communicator.prev_bonsai_state == 'True':
-                    increase_volume()
+                    self.increase_volume()
                 else:
                     pass
 
