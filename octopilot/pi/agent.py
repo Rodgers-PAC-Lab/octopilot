@@ -321,10 +321,6 @@ class Agent(object):
         else:
             self.right_nosepoke.reward_armed = False
         
-        # Saving these params to be modified by other methods
-        self.prev_trial_params = msg_params
-        
-        
         ## Split into left_params and right_params
         # TODO: make this more flexible
         # Right now it's hard coded that each port can only play one type
@@ -349,12 +345,14 @@ class Agent(object):
         else:
             right_params = {}
     
-        
         ## Use those params to set the new sounds
         self.logger.info(
             'setting audio parameters. '
             f'LEFT={left_params}. RIGHT={right_params}')
         self.sound_generator.set_audio_parameters(left_params, right_params)
+        
+        # Saving these params to be modified by other methods
+        self.prev_trial_params = msg_params
         
         # Empty and refill the queue with new sounds
         self.sound_queuer.empty_queue()
@@ -449,7 +447,7 @@ class Agent(object):
                 else:
                     pass
             elif self.network_communicator.bonsai_state == 'False':
-                if self.network_communicator.prev_bonsai_state == 'True':
+                if self.network_communicator.prev_bonsai_state == 'True' or None:
                     self.increase_volume()
                 else:
                     pass
