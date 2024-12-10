@@ -431,22 +431,115 @@ class Agent(object):
         # Logic for initial change
         if self.session_running == True:
             if self.network_communicator.prev_bonsai_state == None:
-                    if self.network_communicator.bonsai_state == 'True':
-                        self.decrease_volume()
-                    elif self.network_communicator.bonsai_state == 'False' or None:
-                        pass
+                if self.network_communicator.bonsai_state == 'True':
+                    # Left Parameters        
+                    if 'left_target_rate' in self.prev_trial_params and self.prev_trial_params['left_target_rate'] > 0:
+                        left_params = {
+                            'rate': self.prev_trial_params['left_target_rate'],
+                            'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                            'center_freq': self.prev_trial_params['target_center_freq'],
+                            'log_amplitude': 0.25 * self.prev_trial_params['target_log_amplitude'],
+                            }
+                    else:
+                        left_params = {}
+
+
+                    if 'right_target_rate' in self.prev_trial_params and self.prev_trial_params['right_target_rate'] > 0:
+                        right_params = {
+                            'rate': self.prev_trial_params['right_target_rate'],
+                            'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                            'center_freq': self.prev_trial_params['target_center_freq'],
+                            'log_amplitude': 0.25 * self.prev_trial_params['target_log_amplitude'],
+                            }
+                    else:
+                        right_params = {}
+                
+                    ## Use those params to set the new sounds
+                    self.logger.info(
+                        'setting audio parameters. '
+                        f'LEFT={left_params}. RIGHT={right_params}')
+                    self.sound_generator.set_audio_parameters(left_params, right_params)
+                    print('Decreasing Volume')
+
+                    # Empty and refill the queue with new sounds
+                    self.sound_queuer.empty_queue()
+                    self.sound_queuer.append_sound_to_queue_as_needed
+
+                elif self.network_communicator.bonsai_state == 'False' or None:
+                    pass
             
             # Logic to change continuously
             if self.network_communicator.bonsai_state == "True":
                 if self.network_communicator.prev_bonsai_state == 'False' or None:
-                    self.decrease_volume()
+                    # Left Parameters        
+                    if 'left_target_rate' in self.prev_trial_params and self.prev_trial_params['left_target_rate'] > 0:
+                        left_params = {
+                            'rate': self.prev_trial_params['left_target_rate'],
+                            'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                            'center_freq': self.prev_trial_params['target_center_freq'],
+                            'log_amplitude': 0.25 * self.prev_trial_params['target_log_amplitude'],
+                            }
+                    else:
+                        left_params = {}
+
+
+                    if 'right_target_rate' in self.prev_trial_params and self.prev_trial_params['right_target_rate'] > 0:
+                        right_params = {
+                            'rate': self.prev_trial_params['right_target_rate'],
+                            'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                            'center_freq': self.prev_trial_params['target_center_freq'],
+                            'log_amplitude': 0.25 * self.prev_trial_params['target_log_amplitude'],
+                            }
+                    else:
+                        right_params = {}
+                
+                    ## Use those params to set the new sounds
+                    self.logger.info(
+                        'setting audio parameters. '
+                        f'LEFT={left_params}. RIGHT={right_params}')
+                    self.sound_generator.set_audio_parameters(left_params, right_params)
+                    print('Decreasing Volume')
+
+                    # Empty and refill the queue with new sounds
+                    self.sound_queuer.empty_queue()
+                    self.sound_queuer.append_sound_to_queue_as_needed
                     self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state 
                 else:
                     self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
                     
             elif self.network_communicator.bonsai_state == 'False':
                 if self.network_communicator.prev_bonsai_state == 'True':
-                    self.increase_volume()
+                    # Left Parameters
+                    if 'left_target_rate' in self.prev_trial_params and self.prev_trial_params['left_target_rate'] > 0:
+                        left_params = {
+                            'rate': self.prev_trial_params['left_target_rate'],
+                            'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                            'center_freq': self.prev_trial_params['target_center_freq'],
+                            'log_amplitude': 4 * self.prev_trial_params['target_log_amplitude'],
+                            }
+                    else:
+                        left_params = {}
+                    
+                    if 'right_target_rate' in self.prev_trial_params and self.prev_trial_params['right_target_rate'] > 0:
+                        right_params = {
+                            'rate': self.prev_trial_params['right_target_rate'],
+                            'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                            'center_freq': self.prev_trial_params['target_center_freq'],
+                            'log_amplitude': 4 * self.prev_trial_params['target_log_amplitude'],
+                            }
+                    else:
+                        right_params = {}
+                
+                    ## Use those params to set the new sounds
+                    self.logger.info(
+                        'setting audio parameters. '
+                        f'LEFT={left_params}. RIGHT={right_params}')
+                    self.sound_generator.set_audio_parameters(left_params, right_params)
+                    print('Increasing Volume')
+
+                    # Empty and refill the queue with new sounds
+                    self.sound_queuer.empty_queue()
+                    self.sound_queuer.append_sound_to_queue_as_needed()  
                     self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
                 else:
                     self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
