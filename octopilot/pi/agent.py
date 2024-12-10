@@ -454,7 +454,6 @@ class Agent(object):
                 else:
                     pass
 
-
     def report_poke(self, port_name, poke_time):
         """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
         
@@ -656,7 +655,6 @@ class Agent(object):
             while True:
                 # Used to continuously add frames of sound to the 
                 # queue until the program stops
-                change_volume()
                 self.sound_queuer.append_sound_to_queue_as_needed()
                 
                 # Check poke_socket for incoming messages about exit, stop,
@@ -664,6 +662,8 @@ class Agent(object):
                 if self.network_communicator is not None:
                     self.network_communicator.check_socket()
                     self.network_communicator.check_bonsai_socket()
+                    change_volume()
+
                  
                 if self.critical_shutdown:
                     self.logger.critical('critical shutdown')
