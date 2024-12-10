@@ -627,7 +627,7 @@ class Agent(object):
                     self.network_communicator.check_bonsai_socket()
                  
                 # Closed loop volume changes
-                if self.session_running = True
+                if self.session_running == True:
                     if self.network_communicator.bonsai_state == 'True':
                         self.increase_volume()
                     elif self.network_communicator.bonsai_state == 'False':
