@@ -438,13 +438,13 @@ class Agent(object):
         if self.session_running == True:
             if self.network_communicator.prev_bonsai_state == None:
                     if self.network_communicator.bonsai_state == 'True':
-                        self.increase_volume()
-                    elif self.network_communicator.bonsai_state == 'False':
+                        self.decrease_volume()
+                    elif self.network_communicator.bonsai_state == 'False' or None:
                         pass
             
             # Logic to change continuously
             if self.network_communicator.bonsai_state == 'True':
-                if self.network_communicator.prev_bonsai_state == 'False' or 'None':
+                if self.network_communicator.prev_bonsai_state == 'False' or None:
                     self.decrease_volume()
                 else:
                     pass
