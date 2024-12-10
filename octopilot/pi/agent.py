@@ -444,13 +444,16 @@ class Agent(object):
             if self.network_communicator.bonsai_state == 'True':
                 if self.network_communicator.prev_bonsai_state == 'False' or None:
                     self.decrease_volume()
+                    self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state 
                 else:
-                    pass
+                    self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+                    
             elif self.network_communicator.bonsai_state == 'False':
-                if self.network_communicator.prev_bonsai_state == 'True' or None:
+                if self.network_communicator.prev_bonsai_state == 'True':
                     self.increase_volume()
+                    self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
                 else:
-                    pass
+                    self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
 
     def report_poke(self, port_name, poke_time):
         """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
@@ -467,7 +470,6 @@ class Agent(object):
     
     def report_reward(self, port_name, poke_time):
         """Called by Nosepoke upon reward. Reports to GUI by ZMQ.
-        
         """
         self.logger.info(f'reporting reward on {port_name} at {poke_time}')
         
