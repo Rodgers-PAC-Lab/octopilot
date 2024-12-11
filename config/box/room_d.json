@@ -1,13 +1,13 @@
 {
     "port": 5551,
     "desktop_ip": "192.168.11.139",
-    "camera": "",
+    "ypos_of_gui": 0,
     "connected_pis" : [
         {
         "name": "headfix2",
         "ip_address": "192.168.11.231",
-        "solenoid_pin": 999,
-        "wheel_pin": 998,
+        "left_port_position": 180,
+        "right_port_position": 270
         }
     ]
 }
