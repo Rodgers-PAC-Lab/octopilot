@@ -543,7 +543,9 @@ class PiNetworkCommunicator(object):
         # Creating a SUB socket for communication regarding poke and poke times
         self.bonsai_context = zmq.Context()
         self.bonsai_socket = self.bonsai_context.socket(zmq.SUB)
-
+        
+        # ZMQ_Linger
+        self.bonsai_socket.setsockopt(zmq.LINGER, 100)
 
         ## Connect to the server
         # Connecting to the GUI IP address stored in params
