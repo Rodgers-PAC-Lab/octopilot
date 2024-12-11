@@ -471,15 +471,6 @@ class PiNetworkCommunicator(object):
         
         ## Set up the method to call on each command
         self.command2method = {}
-
-        ## Set up sockets
-        self.socket_is_open = False
-        self.init_socket()
-        
-        # Creating a poller object for both sockets that will be used to 
-        # continuously check for incoming messages
-        self.poller = zmq.Poller()
-        self.poller.register(self.poke_socket, zmq.POLLIN)
         
         ## Bonsai init
         self.bonsai_ip = "192.168.0.213"
@@ -494,6 +485,15 @@ class PiNetworkCommunicator(object):
         # Making a state variable to keep track of information on bonsai socket
         self.bonsai_state = None
         self.prev_bonsai_state = None
+        
+        ## Set up sockets
+        self.socket_is_open = False
+        self.init_socket()
+        
+        # Creating a poller object for both sockets that will be used to 
+        # continuously check for incoming messages
+        self.poller = zmq.Poller()
+        self.poller.register(self.poke_socket, zmq.POLLIN)
     
     def init_socket(self):
         """Create `self.poke_socket` and connect to GUI
@@ -604,6 +604,7 @@ class PiNetworkCommunicator(object):
             if bonsai_log == "on":
                 self.logger.debug(
                     f'{dt_now} - Received message {self.bonsai_state} on bonsai socket')
+        
     
     def handle_message(self, msg):
         """Handle a message received on poke_socket
