@@ -426,7 +426,7 @@ class Agent(object):
                 f'LEFT={left_params}. RIGHT={right_params}')
             self.sound_generator.set_audio_parameters(left_params, right_params)
             print('Decreasing Volume')
-            self.sound_queuer.append_sound_to_queue_as_needed
+            self.sound_queuer.append_sound_to_queue_as_needed()
         else:
             pass
 
