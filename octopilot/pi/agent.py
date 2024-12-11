@@ -361,7 +361,7 @@ class Agent(object):
         self.sound_queuer.append_sound_to_queue_as_needed()
 
     def increase_volume(self):
-        if prev_trial_params is not None:
+        if self.prev_trial_params is not None:
             # Left Parameters
             if 'left_target_rate' in self.prev_trial_params and self.prev_trial_params['left_target_rate'] > 0:
                 left_params = {
@@ -398,7 +398,7 @@ class Agent(object):
 
     
     def decrease_volume(self):
-        if prev_trial_params is not None:
+        if self.prev_trial_params is not None:
             # Left Parameters        
             if 'left_target_rate' in self.prev_trial_params and self.prev_trial_params['left_target_rate'] > 0:
                 left_params = {
