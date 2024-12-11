@@ -597,11 +597,10 @@ class PiNetworkCommunicator(object):
         # Check for incoming messages on bonsai_socket and log states 
         if self.bonsai_socket in socks2 and socks2[self.bonsai_socket] == zmq.POLLIN:
             # Receive Message
-            self.bonsai_state = self.bonsai_socket.recv_string()
-            bonsai_log = "on"
-            
-            # Log messages
-            if bonsai_log == "on":
+            while True:
+                self.bonsai_state = self.bonsai_socket.recv_string()
+                
+                # Log messages
                 self.logger.debug(
                     f'{dt_now} - Received message {self.bonsai_state} on bonsai socket')
         
