@@ -1,11 +1,11 @@
 {
     "port": 5551,
-    "desktop_ip": "192.168.0.999",
+    "desktop_ip": "192.168.11.139",
     "camera": "",
     "connected_pis" : [
         {
         "name": "headfix2",
-        "ip_address": "192.168.0.100",
+        "ip_address": "192.168.11.231",
         "solenoid_pin": 999,
         "wheel_pin": 998,
         }
