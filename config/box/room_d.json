@@ -6,7 +6,7 @@
         {
         "name": "headfix2",
         "ip": "192.168.11.231",
-        "left_port_position": 180,
+        "left_port_position": 90,
         "right_port_position": 270
         }
     ]
