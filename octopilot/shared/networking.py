@@ -595,32 +595,40 @@ class PiNetworkCommunicator(object):
 
         # Check for incoming messages on bonsai_socket and log states 
         if self.bonsai_socket in socks2 and socks2[self.bonsai_socket] == zmq.POLLIN:
+            # Receive Message
             self.bonsai_state = self.bonsai_socket.recv_string()
+            bonsai_log = "on"
+            
+            # Log messages
+            if bonsai_log == "on":
+                self.logger.debug(
+                    f'{dt_now} - Received message {self.bonsai_state} on bonsai socket')
+            
             #print("Checking for bonsai messages")
             
-            # Log only if the message has change
-            if self.prev_bonsai_state == None:
-                if self.bonsai_state == 'True' or'False':
-                    self.logger.debug(
-                        f'{dt_now} - Received message {self.bonsai_state} on bonsai socket')
-                    self.prev_bonsai_state = self.bonsai_state
-            else:
-                pass
+            #~ # Log only if the message has change
+            #~ if self.prev_bonsai_state == None:
+                #~ if self.bonsai_state == 'True' or'False':
+                    #~ self.logger.debug(
+                        #~ f'{dt_now} - Received message {self.bonsai_state} on bonsai socket')
+                    #~ self.prev_bonsai_state = self.bonsai_state
+            #~ else:
+                #~ pass
                 
-            if self.bonsai_state == 'False':
-                if self.prev_bonsai_state == 'True':
-                    self.logger.debug(
-                            f'{dt_now} - Received message {self.bonsai_state} on bonsai socket')
-                    self.prev_bonsai_state = self.bonsai_state
-                else:
-                    self.prev_bonsai_state = self.bonsai_state
-            elif self.bonsai_state == 'True':
-                if self.prev_bonsai_state == 'False':
-                    self.logger.debug(
-                            f'{dt_now} - Received message {self.bonsai_state} on bonsai socket')
-                    self.prev_bonsai_state = self.bonsai_state
-                else:
-                    self.prev_bonsai_state = self.bonsai_state
+            #~ if self.bonsai_state == 'False':
+                #~ if self.prev_bonsai_state == 'True':
+                    #~ self.logger.debug(
+                            #~ f'{dt_now} - Received message {self.bonsai_state} on bonsai socket')
+                    #~ self.prev_bonsai_state = self.bonsai_state
+                #~ else:
+                    #~ self.prev_bonsai_state = self.bonsai_state
+            #~ elif self.bonsai_state == 'True':
+                #~ if self.prev_bonsai_state == 'False':
+                    #~ self.logger.debug(
+                            #~ f'{dt_now} - Received message {self.bonsai_state} on bonsai socket')
+                    #~ self.prev_bonsai_state = self.bonsai_state
+                #~ else:
+                    #~ self.prev_bonsai_state = self.bonsai_state
         
             # Handle message
             #self.handle_message(bonsai_command)

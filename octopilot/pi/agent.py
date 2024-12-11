@@ -428,19 +428,6 @@ class Agent(object):
         self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed
 
-    def check_bonsai(self):
-        # Continuously check the bonsai state and act on changes
-        self.network_communicator.check_bonsai_socket()
-
-        # React to state changes
-        if self.network_communicator.bonsai_state == "True" and self.network_communicator.prev_bonsai_state == "False" or None:
-            print("Decreasing volume")
-            self.decrease_volume()  
-
-        elif self.network_communicator.bonsai_state == "False" and self.network_communicator.prev_bonsai_state == "True":
-            print("Increasing volume")
-            self.increase_volume()  
-
     def report_poke(self, port_name, poke_time):
         """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
         
@@ -641,14 +628,14 @@ class Agent(object):
             while True:
                 # Used to continuously add frames of sound to the 
                 # queue until the program stops
-                self.check_bonsai()
                 self.sound_queuer.append_sound_to_queue_as_needed()
  
                 # Check poke_socket for incoming messages about exit, stop,
                 # start, reward, etc
                 if self.network_communicator is not None:
                     self.network_communicator.check_socket()
-                    
+                    self.network_communicator.check_bonsai_socket()
+
                 if self.critical_shutdown:
                     self.logger.critical('critical shutdown')
                     raise ValueError('critical shutdown')
