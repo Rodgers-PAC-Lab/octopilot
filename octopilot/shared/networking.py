@@ -588,7 +588,6 @@ class PiNetworkCommunicator(object):
 
     def check_bonsai_socket(self):
         # Get time
-        dt_now = datetime.datetime.now().isoformat()
         bonsai_command = None
 
         # Wait for events on registered sockets.
@@ -601,6 +600,7 @@ class PiNetworkCommunicator(object):
                 self.bonsai_state = self.bonsai_socket.recv_string()
                 
                 # Log messages
+                dt_now = datetime.datetime.now().isoformat()
                 self.logger.debug(
                     f'{dt_now} - Received message {self.bonsai_state} on bonsai socket')
         
