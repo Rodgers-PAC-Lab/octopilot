@@ -381,16 +381,16 @@ class Agent(object):
                 }
         else:
             right_params = {}
-    
+        
+        # Empty and refill the queue with new sounds
+        self.sound_queuer.empty_queue()
+        
         ## Use those params to set the new sounds
         self.logger.info(
             'setting audio parameters. '
             f'LEFT={left_params}. RIGHT={right_params}')
         self.sound_generator.set_audio_parameters(left_params, right_params)
         print('Increasing Volume')
-
-        # Empty and refill the queue with new sounds
-        self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed()
 
     
@@ -416,6 +416,9 @@ class Agent(object):
                 }
         else:
             right_params = {}
+        
+        # Empty and refill the queue with new sounds
+        self.sound_queuer.empty_queue()
     
         ## Use those params to set the new sounds
         self.logger.info(
@@ -423,9 +426,6 @@ class Agent(object):
             f'LEFT={left_params}. RIGHT={right_params}')
         self.sound_generator.set_audio_parameters(left_params, right_params)
         print('Decreasing Volume')
-
-        # Empty and refill the queue with new sounds
-        self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed
 
     def report_poke(self, port_name, poke_time):
@@ -626,6 +626,13 @@ class Agent(object):
             ## Loop until KeyboardInterrupt or exit message received
             last_hello_time = datetime.datetime.now()
             while True:
+                # Initial bonsai monitoring 
+                if self.network_communicator.prev_bonsai_state == None:
+                    if self.network_communicator.bonsai_state == "True":
+                        self.decrease_volume()
+                    elif self.network_communicator.bonsai_state == "False" or None:
+                        pass
+                
                 # Used to continuously add frames of sound to the 
                 # queue until the program stops
                 self.sound_queuer.append_sound_to_queue_as_needed()
@@ -635,6 +642,22 @@ class Agent(object):
                 if self.network_communicator is not None:
                     self.network_communicator.check_socket()
                     self.network_communicator.check_bonsai_socket()
+                    
+                    # Logic to interact with bonsai
+                    if self.network_communicator.bonsai_state == "True":
+                        if self.network_communicator.prev_bonsai_state == "False" or self.network_communicator.prev_bonsai_state == None:
+                            self.decrease_volume()
+                            self.network_communicator.prev_bonsai_state = self.network_communicator.prev_bonsai_state
+                        else:
+                            self.network_communicator.prev_bonsai_state = self.network_communicator.prev_bonsai_state
+                    
+                    elif self.network_communicator.bonsai_state == "False":
+                        if self.network_communicator.prev_bonsai_state == "True" 
+                            self.increase_volume()
+                            self.network_communicator.prev_bonsai_state = self.network_communicator.prev_bonsai_state
+                        else:
+                            self.network_communicator.prev_bonsai_state = self.network_communicator.prev_bonsai_state
+                        
 
                 if self.critical_shutdown:
                     self.logger.critical('critical shutdown')
