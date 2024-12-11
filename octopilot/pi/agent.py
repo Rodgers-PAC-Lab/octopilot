@@ -649,16 +649,16 @@ class Agent(object):
                     if self.network_communicator.bonsai_state == "True":
                         if self.network_communicator.prev_bonsai_state == "False" or self.network_communicator.prev_bonsai_state == None:
                             self.decrease_volume()
-                            self.network_communicator.prev_bonsai_state = self.network_communicator.prev_bonsai_state
+                            self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
                         else:
-                            self.network_communicator.prev_bonsai_state = self.network_communicator.prev_bonsai_state
+                            self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
                     
                     elif self.network_communicator.bonsai_state == "False":
                         if self.network_communicator.prev_bonsai_state == "True":
                             self.increase_volume()
-                            self.network_communicator.prev_bonsai_state = self.network_communicator.prev_bonsai_state
+                            self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
                         else:
-                            self.network_communicator.prev_bonsai_state = self.network_communicator.prev_bonsai_state
+                            self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
                         
                 if self.critical_shutdown:
                     self.logger.critical('critical shutdown')
