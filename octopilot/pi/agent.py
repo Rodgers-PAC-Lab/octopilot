@@ -192,8 +192,6 @@ class Agent(object):
                 'exit': self.exit,
                 'start': self.start_session,
                 'are_you_alive': self.recv_alive_request,
-                'increase': self.increase_volume,
-                'decrease': self.decrease_volume
                 }            
             
             # Send hello
@@ -396,7 +394,6 @@ class Agent(object):
         else:
             pass
 
-    
     def decrease_volume(self):
         if self.prev_trial_params is not None:
             # Left Parameters        
@@ -409,7 +406,6 @@ class Agent(object):
                     }
             else:
                 left_params = {}
-
 
             if 'right_target_rate' in self.prev_trial_params and self.prev_trial_params['right_target_rate'] > 0:
                 right_params = {
@@ -649,7 +645,7 @@ class Agent(object):
                     self.network_communicator.check_socket()
                     self.network_communicator.check_bonsai_socket()
                     
-                    # Logic to interact with bonsai
+                    # Logic to interact with bonsai (not working through method)
                     if self.network_communicator.bonsai_state == "True":
                         if self.network_communicator.prev_bonsai_state == "False" or self.network_communicator.prev_bonsai_state == None:
                             self.decrease_volume()
@@ -664,7 +660,6 @@ class Agent(object):
                         else:
                             self.network_communicator.prev_bonsai_state = self.network_communicator.prev_bonsai_state
                         
-
                 if self.critical_shutdown:
                     self.logger.critical('critical shutdown')
                     raise ValueError('critical shutdown')
