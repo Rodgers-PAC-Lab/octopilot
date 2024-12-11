@@ -604,7 +604,7 @@ class PiNetworkCommunicator(object):
                 if self.bonsai_state == 'True' or'False':
                     self.logger.debug(
                         f'{dt_now} - Received message {self.bonsai_state} on bonsai socket')
-                        self.prev_bonsai_state = self.bonsai_state
+                    self.prev_bonsai_state = self.bonsai_state
             elif self.bonsai_state == 'False':
                 if self.prev_bonsai_state == 'True':
                     self.logger.debug(
