@@ -629,37 +629,37 @@ class Agent(object):
             last_hello_time = datetime.datetime.now()
             while True:
                 # Initial bonsai monitoring 
+                self.network_communicator.check_bonsai_socket()
                 if self.network_communicator.prev_bonsai_state == None:
                     if self.network_communicator.bonsai_state == "True":
                         self.decrease_volume()
                     elif self.network_communicator.bonsai_state == "False" or None:
                         pass
-                
+    
                 # Used to continuously add frames of sound to the 
                 # queue until the program stops
                 self.sound_queuer.append_sound_to_queue_as_needed()
+                
+                # Logic to interact with bonsai (not working through method)
+                if self.network_communicator.bonsai_state == "True":
+                    if self.network_communicator.prev_bonsai_state == "False" or self.network_communicator.prev_bonsai_state == None:
+                        self.decrease_volume()
+                        self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+                    else:
+                        self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+                
+                elif self.network_communicator.bonsai_state == "False":
+                    if self.network_communicator.prev_bonsai_state == "True":
+                        self.increase_volume()
+                        self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+                    else:
+                        self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
  
                 # Check poke_socket for incoming messages about exit, stop,
                 # start, reward, etc
                 if self.network_communicator is not None:
                     self.network_communicator.check_socket()
-                    self.network_communicator.check_bonsai_socket()
-                    
-                    # Logic to interact with bonsai (not working through method)
-                    if self.network_communicator.bonsai_state == "True":
-                        if self.network_communicator.prev_bonsai_state == "False" or self.network_communicator.prev_bonsai_state == None:
-                            self.decrease_volume()
-                            self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
-                        else:
-                            self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
-                    
-                    elif self.network_communicator.bonsai_state == "False":
-                        if self.network_communicator.prev_bonsai_state == "True":
-                            self.increase_volume()
-                            self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
-                        else:
-                            self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
-                        
+
                 if self.critical_shutdown:
                     self.logger.critical('critical shutdown')
                     raise ValueError('critical shutdown')
