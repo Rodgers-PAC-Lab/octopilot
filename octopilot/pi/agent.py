@@ -192,6 +192,8 @@ class Agent(object):
                 'exit': self.exit,
                 'start': self.start_session,
                 'are_you_alive': self.recv_alive_request,
+                'increase': self.increase_volume,
+                'decrease': self.decrease_volume
                 }            
             
             # Send hello
