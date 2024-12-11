@@ -599,17 +599,27 @@ class PiNetworkCommunicator(object):
             self.bonsai_state = msg2
             #print("Checking for bonsai messages")
             
-            # Log only if the message has changed
-            if self.bonsai_state == 'True' and self.prev_bonsai_state == 'False' or None:
-                self.logger.debug(
-                    f'{dt_now} - Received message {self.bonsai_state} on bonsai socket')
-                bonsai_command = "increase;"
-            elif self.bonsai_state == 'False' and self.prev_bonsai_state == 'True' or None:
-                self.logger.debug(
-                    f'{dt_now} - Received message {self.bonsai_state} on bonsai socket')
-                bonsai_command = "decrease;"
-            self.prev_bonsai_state = self.bonsai_state
-
+            # Log only if the message has change
+            if self.prev_bonsai_state == None:
+                if self.bonsai_state == 'True' or'False':
+                    self.logger.debug(
+                        f'{dt_now} - Received message {self.bonsai_state} on bonsai socket')
+                        self.prev_bonsai_state = self.bonsai_state
+            elif self.bonsai_state == 'False':
+                if self.prev_bonsai_state == 'True':
+                    self.logger.debug(
+                            f'{dt_now} - Received message {self.bonsai_state} on bonsai socket'
+                    self.prev_bonsai_state = self.bonsai_state
+                else:
+                    self.prev_bonsai_state = self.bonsai_state
+            elif self.bonsai_state == 'True':
+                if self.prev_bonsai_state == 'False':
+                    self.logger.debug(
+                            f'{dt_now} - Received message {self.bonsai_state} on bonsai socket'
+                    self.prev_bonsai_state = self.bonsai_state
+                else:
+                    self.prev_bonsai_state = self.bonsai_state
+        
             # Handle message
             self.handle_message(bonsai_command)
     
