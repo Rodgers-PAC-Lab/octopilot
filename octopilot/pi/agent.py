@@ -652,7 +652,7 @@ class Agent(object):
                             self.network_communicator.prev_bonsai_state = self.network_communicator.prev_bonsai_state
                     
                     elif self.network_communicator.bonsai_state == "False":
-                        if self.network_communicator.prev_bonsai_state == "True" 
+                        if self.network_communicator.prev_bonsai_state == "True":
                             self.increase_volume()
                             self.network_communicator.prev_bonsai_state = self.network_communicator.prev_bonsai_state
                         else:
