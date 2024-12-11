@@ -621,7 +621,7 @@ class PiNetworkCommunicator(object):
                     self.prev_bonsai_state = self.bonsai_state
         
             # Handle message
-            self.handle_message(bonsai_command)
+            #self.handle_message(bonsai_command)
     
     def handle_message(self, msg):
         """Handle a message received on poke_socket
