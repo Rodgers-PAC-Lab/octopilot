@@ -599,10 +599,10 @@ class PiNetworkCommunicator(object):
             while True:
                 self.bonsai_state = self.bonsai_socket.recv_string()
                 
-                # Log messages
-                dt_now = datetime.datetime.now().isoformat()
-                self.logger.debug(
-                    f'{dt_now} - Received message {self.bonsai_state} on bonsai socket')
+        # Log messages
+        dt_now = datetime.datetime.now().isoformat()
+        self.logger.debug(
+            f'{dt_now} - Received message {self.bonsai_state} on bonsai socket')
         
     
     def handle_message(self, msg):
