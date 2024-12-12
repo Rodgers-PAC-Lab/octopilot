@@ -596,13 +596,12 @@ class PiNetworkCommunicator(object):
         bonsai_command = None
 
         # Poll for events on registered sockets.
-        socks2 = dict(self.bonsai_poller.poll((10))
+        socks2 = dict(self.bonsai_poller.poll(10))
 
         # Check if bonsai_socket has incoming messages.
         if self.bonsai_socket in socks2 and socks2[self.bonsai_socket] == zmq.POLLIN:
             # Process all available messages in the socket.
             while True:
-                #~ try:
                 # Receive message
                 self.bonsai_state = self.bonsai_socket.recv_string(flags=zmq.NOBLOCK)
 
@@ -610,10 +609,8 @@ class PiNetworkCommunicator(object):
                 dt_now = datetime.datetime.now().isoformat()
                 self.logger.debug(
                     f'{dt_now} - Received message {self.bonsai_state} on bonsai socket'
-                    #~ )
-                #~ except zmq.Again:
-                    #~ # Break the loop if no more messages are available
-                    #~ break
+                )
+
 
     def handle_message(self, msg):
         """Handle a message received on poke_socket
