@@ -393,7 +393,8 @@ class Agent(object):
             self.sound_queuer.append_sound_to_queue_as_needed()
         else:
             pass
-
+    
+    ## Note: Multiplying log amplitude decreases volume and dividing increases it 
     def decrease_volume(self):
         if self.prev_trial_params is not None:
             # Left Parameters        
@@ -643,14 +644,14 @@ class Agent(object):
                 # Logic to interact with bonsai (not working through method)
                 if self.network_communicator.bonsai_state == "True":
                     if self.network_communicator.prev_bonsai_state == "False" or self.network_communicator.prev_bonsai_state == None:
-                        self.increase_volume()
+                        self.decrease_volume()
                         self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
                     else:
                         self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
                 
                 elif self.network_communicator.bonsai_state == "False":
                     if self.network_communicator.prev_bonsai_state == "True":
-                        self.decrease_volume()
+                        self.increase_volume()
                         self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
                     else:
                         self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
