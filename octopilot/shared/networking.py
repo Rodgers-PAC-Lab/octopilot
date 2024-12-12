@@ -613,7 +613,7 @@ class PiNetworkCommunicator(object):
                     )
                 except zmq.Again:
                     # Break the loop if no more messages are available
-                    brea
+                    break
 
     def handle_message(self, msg):
         """Handle a message received on poke_socket
