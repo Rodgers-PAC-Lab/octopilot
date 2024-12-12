@@ -596,7 +596,7 @@ class PiNetworkCommunicator(object):
         bonsai_command = None
 
         # Poll for events on registered sockets.
-        socks2 = dict(self.bonsai_poller.poll(10)
+        socks2 = dict(self.bonsai_poller.poll((10))
 
         # Check if bonsai_socket has incoming messages.
         if self.bonsai_socket in socks2 and socks2[self.bonsai_socket] == zmq.POLLIN:
