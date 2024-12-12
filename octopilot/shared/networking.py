@@ -602,15 +602,18 @@ class PiNetworkCommunicator(object):
         if self.bonsai_socket in socks2 and socks2[self.bonsai_socket] == zmq.POLLIN:
             # Process all available messages in the socket.
             while True:
-                # Receive message
-                self.bonsai_state = self.bonsai_socket.recv_string(flags=zmq.NOBLOCK)
+                try:
+                    # Receive message
+                    self.bonsai_state = self.bonsai_socket.recv_string(flags=zmq.NOBLOCK)
 
-                # Log received messages
-                dt_now = datetime.datetime.now().isoformat()
-                self.logger.debug(
-                    f'{dt_now} - Received message {self.bonsai_state} on bonsai socket'
-                )
-
+                    # Log received messages
+                    dt_now = datetime.datetime.now().isoformat()
+                    self.logger.debug(
+                        f'{dt_now} - Received message {self.bonsai_state} on bonsai socket'
+                    )
+                except zmq.Again:
+                    # Break the loop if no more messages are available
+                    brea
 
     def handle_message(self, msg):
         """Handle a message received on poke_socket
