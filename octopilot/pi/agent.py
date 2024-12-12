@@ -467,33 +467,33 @@ class Agent(object):
         else:
             pass
     
-    def monitor_bonsai(self, task)
+    def monitor_bonsai(self, task):
         # Initial bonsai monitoring 
-        while true:
-            self.network_communicator.check_bonsai_socket()
-            if self.network_communicator.prev_bonsai_state == None:
-                if self.network_communicator.bonsai_state == "True":
-                    self.decrease_volume()
-                elif self.network_communicator.bonsai_state == "False" or None:
-                    pass
-                
-            # Logic to interact with bonsai (not working through method)
+        #while True:
+        self.network_communicator.check_bonsai_socket()
+        if self.network_communicator.prev_bonsai_state == None:
             if self.network_communicator.bonsai_state == "True":
-                if self.network_communicator.prev_bonsai_state == "False" or self.network_communicator.prev_bonsai_state == None:
-                    if task == "decrease":
-                        self.decrease_volume()
-                    elif task == "increase":
-                        self.increase_volume()                    
-                    self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
-                else:
-                    self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+                self.decrease_volume()
+            elif self.network_communicator.bonsai_state == "False" or None:
+                pass
             
-            elif self.network_communicator.bonsai_state == "False":
-                if self.network_communicator.prev_bonsai_state == "True":
-                    self.normal_volume()
-                    self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
-                else:
-                    self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+        # Logic to interact with bonsai (not working through method)
+        if self.network_communicator.bonsai_state == "True":
+            if self.network_communicator.prev_bonsai_state == "False" or self.network_communicator.prev_bonsai_state == None:
+                if task == "decrease":
+                    self.decrease_volume()
+                elif task == "increase":
+                    self.increase_volume()                    
+                self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+            else:
+                self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+        
+        elif self.network_communicator.bonsai_state == "False":
+            if self.network_communicator.prev_bonsai_state == "True":
+                self.normal_volume()
+                self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+            else:
+                self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
  
     def report_poke(self, port_name, poke_time):
         """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
