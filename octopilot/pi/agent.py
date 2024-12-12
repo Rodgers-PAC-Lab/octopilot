@@ -694,7 +694,7 @@ class Agent(object):
             last_hello_time = datetime.datetime.now()
             while True:
                 # Initial bonsai monitoring 
-                self.monitor_bonsai(increase)
+                self.monitor_bonsai("increase")
                 #~ self.network_communicator.check_bonsai_socket()
                 #~ if self.network_communicator.prev_bonsai_state == None:
                     #~ if self.network_communicator.bonsai_state == "True":
