@@ -360,6 +360,9 @@ class Agent(object):
 
     ## Note: Multiplying log amplitude decreases volume and dividing increases it 
     def increase_volume(self):
+        volume = "increase"
+        volume_time = datetime.datetime.now()
+        
         if self.prev_trial_params is not None:
             # Left Parameters
             if 'left_target_rate' in self.prev_trial_params and self.prev_trial_params['left_target_rate'] > 0:
@@ -391,11 +394,15 @@ class Agent(object):
                 f'LEFT={left_params}. RIGHT={right_params}')
             self.sound_generator.set_audio_parameters(left_params, right_params)
             print('Increasing Volume')
+            self.report_volume_change(volume, volume_time)
             self.sound_queuer.append_sound_to_queue_as_needed()
         else:
             pass
     
     def normal_volume(self):
+        volume = "normal"
+        volume_time = datetime.datetime.now()
+        
         if self.prev_trial_params is not None:
             # Left Parameters
             if 'left_target_rate' in self.prev_trial_params and self.prev_trial_params['left_target_rate'] > 0:
@@ -427,11 +434,15 @@ class Agent(object):
                 f'LEFT={left_params}. RIGHT={right_params}')
             self.sound_generator.set_audio_parameters(left_params, right_params)
             print('Returning Volume to Normal Level')
+            self.report_volume_change(volume, volume_time)
             self.sound_queuer.append_sound_to_queue_as_needed()
         else:
             pass
     
     def decrease_volume(self):
+        volume = "decrease"
+        volume_time = datetime.datetime.now()
+        
         if self.prev_trial_params is not None:
             # Left Parameters        
             if 'left_target_rate' in self.prev_trial_params and self.prev_trial_params['left_target_rate'] > 0:
@@ -463,6 +474,7 @@ class Agent(object):
                 f'LEFT={left_params}. RIGHT={right_params}')
             self.sound_generator.set_audio_parameters(left_params, right_params)
             print('Decreasing Volume')
+            self.report_volume_change(volume, volume_time)
             self.sound_queuer.append_sound_to_queue_as_needed()
         else:
             pass
@@ -505,6 +517,18 @@ class Agent(object):
             f'trial_number={self.trial_number}=int;'
             f'port_name={port_name}=str;'
             f'poke_time={poke_time}=str'
+            )
+        
+    def report_volume_change(self, volume, volume_time):
+        """Called by agent when volume is changed. Reports to GUI by ZMQ.
+        """
+        self.logger.info(f'reporting volume {volume} at {volume_time}')
+        # Send 'poke;poke_name' to GUI
+        self.network_communicator.poke_socket.send_string(
+            f'volume_change;'
+            f'trial_number={self.trial_number}=int;'
+            f'volume={volume}=str;'
+            f'volume_time={volume_time}=str'
             )
     
     def report_reward(self, port_name, poke_time):

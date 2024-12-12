@@ -655,7 +655,7 @@ class PiNetworkCommunicator(object):
         if meth is not None:
             self.logger.debug(f'calling method {meth} with params {msg_params}')
             meth(**msg_params)
-
+    
     def send_goodbye(self):
         """Send goodbye message to GUI
         

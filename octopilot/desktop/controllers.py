@@ -130,6 +130,7 @@ class Dispatcher:
         self._log_trial_header_row()
         self._log_poke_header_row()
         self._log_sound_header_row()
+        self._log_volume_header_row()
         
         # This one writes its own header row
         self._log_sound_plan_header_row_written = False
@@ -151,6 +152,7 @@ class Dispatcher:
             'sound_plan': self.handle_sound_plan,
             'goodbye': self.handle_goodbye,
             'alive': self.recv_alive,
+            'volume_change': self.handle_volume
             }
         
         
@@ -430,6 +432,10 @@ class Dispatcher:
         finally:
             self.stop_session()
     
+    def handle_volume(self, trial_number, identity, volume, volume_time):
+        """Store the flash time"""
+        self._log_volume(trial_number, identity, volume, volume_time)
+    
     def handle_flash(self, trial_number, identity, flash_time):
         """Store the flash time"""
         self._log_flash(trial_number, identity, flash_time)
@@ -663,6 +669,20 @@ class Dispatcher:
         """Record that a flash occurred"""
         with open(os.path.join(self.sandbox_path, 'flashes.csv'), 'a') as fi:
             fi.write(f'{trial_number},{identity},{flash_time}\n')
+    
+    def _log_volume_header_row(self):
+        """Write out the header row of volume_changes.csv
+        
+        Currently this is hard-coded
+        """
+        with open(os.path.join(self.sandbox_path, 'volume_changes.csv'), 'a') as fi:
+            fi.write('trial_number,rpi,flash_time\n')
+        
+    def _log_volume(self, trial_number, identity, volume ,volume_time):
+        """Record that a flash occurred"""
+        with open(os.path.join(self.sandbox_path, 'volume_changes.csv'), 'a') as fi:
+            fi.write(f'{trial_number},{identity}, {volume},{volume_time}\n')
+
 
     def _log_sound_header_row(self):
         """Write out the header row of pokes.csv
