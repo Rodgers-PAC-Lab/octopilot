@@ -402,7 +402,7 @@ class Agent(object):
                     'rate': self.prev_trial_params['left_target_rate'],
                     'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
                     'center_freq': self.prev_trial_params['target_center_freq'],
-                    'log_amplitude': 0.25 * self.prev_trial_params['target_log_amplitude'],
+                    'log_amplitude': 4 * self.prev_trial_params['target_log_amplitude'],
                     }
             else:
                 left_params = {}
@@ -412,7 +412,7 @@ class Agent(object):
                     'rate': self.prev_trial_params['right_target_rate'],
                     'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
                     'center_freq': self.prev_trial_params['target_center_freq'],
-                    'log_amplitude': 0.25 * self.prev_trial_params['target_log_amplitude'],
+                    'log_amplitude': 4 * self.prev_trial_params['target_log_amplitude'],
                     }
             else:
                 right_params = {}
