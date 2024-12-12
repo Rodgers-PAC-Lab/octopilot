@@ -358,7 +358,44 @@ class Agent(object):
         self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed()
 
+    ## Note: Multiplying log amplitude decreases volume and dividing increases it 
     def increase_volume(self):
+        if self.prev_trial_params is not None:
+            # Left Parameters
+            if 'left_target_rate' in self.prev_trial_params and self.prev_trial_params['left_target_rate'] > 0:
+                left_params = {
+                    'rate': self.prev_trial_params['left_target_rate'],
+                    'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                    'center_freq': self.prev_trial_params['target_center_freq'],
+                    'log_amplitude': 0.25 * self.prev_trial_params['target_log_amplitude'],
+                    }
+            else:
+                left_params = {}
+            
+            if 'right_target_rate' in self.prev_trial_params and self.prev_trial_params['right_target_rate'] > 0:
+                right_params = {
+                    'rate': self.prev_trial_params['right_target_rate'],
+                    'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                    'center_freq': self.prev_trial_params['target_center_freq'],
+                    'log_amplitude': 0.25 * self.prev_trial_params['target_log_amplitude'],
+                    }
+            else:
+                right_params = {}
+            
+            # Empty and refill the queue with new sounds
+            self.sound_queuer.empty_queue()
+            
+            ## Use those params to set the new sounds
+            self.logger.info(
+                'setting audio parameters. '
+                f'LEFT={left_params}. RIGHT={right_params}')
+            self.sound_generator.set_audio_parameters(left_params, right_params)
+            print('Increasing Volume')
+            self.sound_queuer.append_sound_to_queue_as_needed()
+        else:
+            pass
+    
+    def normal_volume(self):
         if self.prev_trial_params is not None:
             # Left Parameters
             if 'left_target_rate' in self.prev_trial_params and self.prev_trial_params['left_target_rate'] > 0:
@@ -389,12 +426,11 @@ class Agent(object):
                 'setting audio parameters. '
                 f'LEFT={left_params}. RIGHT={right_params}')
             self.sound_generator.set_audio_parameters(left_params, right_params)
-            print('Increasing Volume')
+            print('Returning Volume to Normal Level')
             self.sound_queuer.append_sound_to_queue_as_needed()
         else:
             pass
     
-    ## Note: Multiplying log amplitude decreases volume and dividing increases it 
     def decrease_volume(self):
         if self.prev_trial_params is not None:
             # Left Parameters        
@@ -430,7 +466,34 @@ class Agent(object):
             self.sound_queuer.append_sound_to_queue_as_needed()
         else:
             pass
-
+    
+    def monitor_bonsai(self, task)
+        # Initial bonsai monitoring 
+        self.network_communicator.check_bonsai_socket()
+        if self.network_communicator.prev_bonsai_state == None:
+            if self.network_communicator.bonsai_state == "True":
+                self.decrease_volume()
+            elif self.network_communicator.bonsai_state == "False" or None:
+                pass
+            
+        # Logic to interact with bonsai (not working through method)
+        if self.network_communicator.bonsai_state == "True":
+            if self.network_communicator.prev_bonsai_state == "False" or self.network_communicator.prev_bonsai_state == None:
+                if task == "decrease":
+                    self.decrease_volume()
+                elif task == "increase":
+                    self.increase_volume()                    
+                self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+            else:
+                self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+        
+        elif self.network_communicator.bonsai_state == "False":
+            if self.network_communicator.prev_bonsai_state == "True":
+                self.normal_volume()
+                self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+            else:
+                self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+ 
     def report_poke(self, port_name, poke_time):
         """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
         
@@ -630,31 +693,32 @@ class Agent(object):
             last_hello_time = datetime.datetime.now()
             while True:
                 # Initial bonsai monitoring 
-                self.network_communicator.check_bonsai_socket()
-                if self.network_communicator.prev_bonsai_state == None:
-                    if self.network_communicator.bonsai_state == "True":
-                        self.decrease_volume()
-                    elif self.network_communicator.bonsai_state == "False" or None:
-                        pass
+                self.monitor_bonsai(increase)
+                #~ self.network_communicator.check_bonsai_socket()
+                #~ if self.network_communicator.prev_bonsai_state == None:
+                    #~ if self.network_communicator.bonsai_state == "True":
+                        #~ self.decrease_volume()
+                    #~ elif self.network_communicator.bonsai_state == "False" or None:
+                        #~ pass
     
                 # Used to continuously add frames of sound to the 
                 # queue until the program stops
                 self.sound_queuer.append_sound_to_queue_as_needed()
                 
                 # Logic to interact with bonsai (not working through method)
-                if self.network_communicator.bonsai_state == "True":
-                    if self.network_communicator.prev_bonsai_state == "False" or self.network_communicator.prev_bonsai_state == None:
-                        self.decrease_volume()
-                        self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
-                    else:
-                        self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+                #~ if self.network_communicator.bonsai_state == "True":
+                    #~ if self.network_communicator.prev_bonsai_state == "False" or self.network_communicator.prev_bonsai_state == None:
+                        #~ self.decrease_volume()
+                        #~ self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+                    #~ else:
+                        #~ self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
                 
-                elif self.network_communicator.bonsai_state == "False":
-                    if self.network_communicator.prev_bonsai_state == "True":
-                        self.increase_volume()
-                        self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
-                    else:
-                        self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+                #~ elif self.network_communicator.bonsai_state == "False":
+                    #~ if self.network_communicator.prev_bonsai_state == "True":
+                        #~ self.normal_volume()
+                        #~ self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+                    #~ else:
+                        #~ self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
  
                 # Check poke_socket for incoming messages about exit, stop,
                 # start, reward, etc
