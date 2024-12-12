@@ -586,24 +586,35 @@ class PiNetworkCommunicator(object):
             # Handle message
             self.handle_message(msg)
 
-    def check_bonsai_socket(self):
-        # Get time
+    def check_bonsai_socket(self, timeout_ms=10):
+        """
+        Check for incoming messages on the bonsai_socket with real-time handling.
+        
+        Parameters:
+            timeout_ms (int): Timeout for polling in milliseconds.
+        """
         bonsai_command = None
 
-        # Wait for events on registered sockets.
-        socks2 = dict(self.bonsai_poller.poll(10))
+        # Poll for events on registered sockets.
+        socks2 = dict(self.bonsai_poller.poll(timeout_ms))
 
-        # Check for incoming messages on bonsai_socket and log states 
+        # Check if bonsai_socket has incoming messages.
         if self.bonsai_socket in socks2 and socks2[self.bonsai_socket] == zmq.POLLIN:
-            # Receive Message
+            # Process all available messages in the socket.
             while True:
-                self.bonsai_state = self.bonsai_socket.recv_string()
-                
-                # Log messages
-                dt_now = datetime.datetime.now().isoformat()
-                self.logger.debug(
-                    f'{dt_now} - Received message {self.bonsai_state} on bonsai socket')
-    
+                try:
+                    # Receive message
+                    self.bonsai_state = self.bonsai_socket.recv_string(flags=zmq.NOBLOCK)
+
+                    # Log received messages
+                    dt_now = datetime.datetime.now().isoformat()
+                    self.logger.debug(
+                        f'{dt_now} - Received message {self.bonsai_state} on bonsai socket'
+                    )
+                except zmq.Again:
+                    # Break the loop if no more messages are available
+                    break
+
     def handle_message(self, msg):
         """Handle a message received on poke_socket
         
