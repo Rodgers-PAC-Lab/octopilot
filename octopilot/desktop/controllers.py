@@ -676,7 +676,7 @@ class Dispatcher:
         Currently this is hard-coded
         """
         with open(os.path.join(self.sandbox_path, 'volume_changes.csv'), 'a') as fi:
-            fi.write('trial_number,rpi,flash_time\n')
+            fi.write('trial_number,rpi,volume,volume_time\n')
         
     def _log_volume(self, trial_number, identity, volume ,volume_time):
         """Record that a flash occurred"""
