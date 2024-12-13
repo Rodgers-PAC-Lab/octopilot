@@ -17,6 +17,7 @@ import logging
 import socket
 import time
 import pigpio
+import random 
 from . import hardware
 from . import sound
 from ..shared.networking import PiNetworkCommunicator
@@ -86,6 +87,10 @@ class Agent(object):
         # as an int
         self.trial_number = -1
         
+        # Randomly choosing to manipulate sound in trial
+        self.manipulation_probability = 0.5
+        self.is_manipulation_trial = None
+        
         # It will keep running until this is set by self.exit() and then 
         # it is noticed by self.mainloop()
         self.shutdown = False
@@ -95,7 +100,9 @@ class Agent(object):
         self.last_alive_request_received = datetime.datetime.now()
         self.critical_shutdown = False
         
-
+        # Variable to save params for each trial
+        self.prev_trial_params = None
+        
         ## Initialize sound_generator
         # This object generates frames of audio
         # We need to have it ready to go before initializing the sound queuer
@@ -273,7 +280,6 @@ class Agent(object):
         ## Log
         self.logger.debug(f'setting trial parameters: {msg_params}')
         
-        
         ## If not running, issue error
         # Because this might indicate that something has gone wrong
         if not self.session_running:
@@ -287,7 +293,13 @@ class Agent(object):
         # the correct trial number
         self.trial_number = msg_params['trial_number']
         
-        
+        # Determine association with True or False based on probability
+        self.is_manipulation_trial = random.choices([True, False], weights=[self.manipulation_probability, 1 - self.manipulation_probability])[0]
+        if self.is_manipulation_trial == True:
+            self.logger.info(f'Trial {self.trial_number} will change sound')
+        else:
+            self.logger.info(f'Trial {self.trial_number} will not change sound')
+    
         ## Log trial start (after trial number update)
         # Report trial start
         self.report_trial_start(timestamp)
@@ -320,7 +332,6 @@ class Agent(object):
         else:
             self.right_nosepoke.reward_armed = False
         
-        
         ## Split into left_params and right_params
         # TODO: make this more flexible
         # Right now it's hard coded that each port can only play one type
@@ -345,17 +356,175 @@ class Agent(object):
         else:
             right_params = {}
     
-        
         ## Use those params to set the new sounds
         self.logger.info(
             'setting audio parameters. '
             f'LEFT={left_params}. RIGHT={right_params}')
         self.sound_generator.set_audio_parameters(left_params, right_params)
         
+        # Saving these params to be modified by other methods
+        self.prev_trial_params = msg_params
+        
         # Empty and refill the queue with new sounds
         self.sound_queuer.empty_queue()
-        self.sound_queuer.append_sound_to_queue_as_needed()
+        self.sound_queuer.append_sound_to_queue_as_needed()   
 
+
+    ## Note: Multiplying log amplitude decreases volume and dividing increases it 
+    def increase_volume(self):
+        volume = "increase"
+        volume_time = datetime.datetime.now()
+        
+        if self.prev_trial_params is not None:
+            # Left Parameters
+            if 'left_target_rate' in self.prev_trial_params and self.prev_trial_params['left_target_rate'] > 0:
+                left_params = {
+                    'rate': self.prev_trial_params['left_target_rate'],
+                    'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                    'center_freq': self.prev_trial_params['target_center_freq'],
+                    'log_amplitude': 0.25 * self.prev_trial_params['target_log_amplitude'],
+                    }
+            else:
+                left_params = {}
+            
+            if 'right_target_rate' in self.prev_trial_params and self.prev_trial_params['right_target_rate'] > 0:
+                right_params = {
+                    'rate': self.prev_trial_params['right_target_rate'],
+                    'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                    'center_freq': self.prev_trial_params['target_center_freq'],
+                    'log_amplitude': 0.25 * self.prev_trial_params['target_log_amplitude'],
+                    }
+            else:
+                right_params = {}
+            
+            # Empty and refill the queue with new sounds
+            self.sound_queuer.empty_queue()
+            
+            ## Use those params to set the new sounds
+            self.logger.info(
+                'setting audio parameters. '
+                f'LEFT={left_params}. RIGHT={right_params}')
+            self.sound_generator.set_audio_parameters(left_params, right_params)
+            print('Increasing Volume')
+            self.report_volume_change(volume, volume_time)
+            self.sound_queuer.append_sound_to_queue_as_needed()
+        else:
+            pass
+    
+    def normal_volume(self):
+        volume = "normal"
+        volume_time = datetime.datetime.now()
+        
+        if self.prev_trial_params is not None:
+            # Left Parameters
+            if 'left_target_rate' in self.prev_trial_params and self.prev_trial_params['left_target_rate'] > 0:
+                left_params = {
+                    'rate': self.prev_trial_params['left_target_rate'],
+                    'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                    'center_freq': self.prev_trial_params['target_center_freq'],
+                    'log_amplitude': self.prev_trial_params['target_log_amplitude'],
+                    }
+            else:
+                left_params = {}
+            
+            if 'right_target_rate' in self.prev_trial_params and self.prev_trial_params['right_target_rate'] > 0:
+                right_params = {
+                    'rate': self.prev_trial_params['right_target_rate'],
+                    'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                    'center_freq': self.prev_trial_params['target_center_freq'],
+                    'log_amplitude': self.prev_trial_params['target_log_amplitude'],
+                    }
+            else:
+                right_params = {}
+            
+            # Empty and refill the queue with new sounds
+            self.sound_queuer.empty_queue()
+            
+            ## Use those params to set the new sounds
+            self.logger.info(
+                'setting audio parameters. '
+                f'LEFT={left_params}. RIGHT={right_params}')
+            self.sound_generator.set_audio_parameters(left_params, right_params)
+            print('Returning Volume to Normal Level')
+            self.report_volume_change(volume, volume_time)
+            self.sound_queuer.append_sound_to_queue_as_needed()
+        else:
+            pass
+    
+    def decrease_volume(self):
+        volume = "decrease"
+        volume_time = datetime.datetime.now()
+        
+        if self.prev_trial_params is not None:
+            # Left Parameters        
+            #~ if 'left_target_rate' in self.prev_trial_params and self.prev_trial_params['left_target_rate'] > 0:
+                #~ left_params = {
+                    #~ 'rate': self.prev_trial_params['left_target_rate'],
+                    #~ 'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                    #~ 'center_freq': self.prev_trial_params['target_center_freq'],
+                    #~ 'log_amplitude': 0,
+                    #~ }
+            #~ else:
+            left_params = {}
+
+            #~ if 'right_target_rate' in self.prev_trial_params and self.prev_trial_params['right_target_rate'] > 0:
+                #~ right_params = {
+                    #~ 'rate': self.prev_trial_params['right_target_rate'],
+                    #~ 'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                    #~ 'center_freq': self.prev_trial_params['target_center_freq'],
+                    #~ 'log_amplitude': 0,
+                    #~ }
+            #~ else:
+            right_params = {}
+            
+            # Empty and refill the queue with new sounds
+            self.sound_queuer.empty_queue()
+        
+            ## Use those params to set the new sounds
+            self.logger.info(
+                'setting audio parameters. '
+                f'LEFT={left_params}. RIGHT={right_params}')
+            self.sound_generator.set_audio_parameters(left_params, right_params)
+            print('Decreasing Volume')
+            self.report_volume_change(volume, volume_time)
+            self.sound_queuer.append_sound_to_queue_as_needed()
+        else:
+            pass
+    
+    def monitor_bonsai(self, task):
+        # Initial bonsai monitoring 
+        self.network_communicator.check_bonsai_socket()
+        
+        if self.is_manipulation_trial == True:
+            if self.network_communicator.prev_bonsai_state == None:
+                if self.network_communicator.bonsai_state == "True":
+                    if task == "decrease":
+                        self.decrease_volume()
+                    elif task == "increase":
+                        self.increase_volume() 
+                elif self.network_communicator.bonsai_state == "False" or None:
+                    pass
+                
+            # Logic to interact with bonsai (not working through method)
+            if self.network_communicator.bonsai_state == "True":
+                if self.network_communicator.prev_bonsai_state == "False" or self.network_communicator.prev_bonsai_state == None:
+                    if task == "decrease":
+                        self.decrease_volume()
+                    elif task == "increase":
+                        self.increase_volume()                    
+                    self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+                else:
+                    self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+            
+            elif self.network_communicator.bonsai_state == "False":
+                if self.network_communicator.prev_bonsai_state == "True":
+                    self.normal_volume()
+                    self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+                else:
+                    self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+        else:
+            pass
+ 
     def report_poke(self, port_name, poke_time):
         """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
         
@@ -368,10 +537,21 @@ class Agent(object):
             f'port_name={port_name}=str;'
             f'poke_time={poke_time}=str'
             )
+        
+    def report_volume_change(self, volume, volume_time):
+        """Called by agent when volume is changed. Reports to GUI by ZMQ.
+        """
+        self.logger.info(f'reporting volume {volume} at {volume_time}')
+        # Send 'poke;poke_name' to GUI
+        self.network_communicator.poke_socket.send_string(
+            f'volume_change;'
+            f'trial_number={self.trial_number}=int;'
+            f'volume={volume}=str;'
+            f'volume_time={volume_time}=str'
+            )
     
     def report_reward(self, port_name, poke_time):
         """Called by Nosepoke upon reward. Reports to GUI by ZMQ.
-        
         """
         self.logger.info(f'reporting reward on {port_name} at {poke_time}')
         
@@ -545,7 +725,8 @@ class Agent(object):
         
         # Empty the queue of already generated sound
         self.sound_queuer.empty_queue()        
-    
+
+        
     def main_loop(self):
         """Loop forever until told to stop, then exit"""
         try:
@@ -554,15 +735,17 @@ class Agent(object):
             ## Loop until KeyboardInterrupt or exit message received
             last_hello_time = datetime.datetime.now()
             while True:
+                # Initial bonsai monitoring 
+                self.monitor_bonsai("decrease")
+    
                 # Used to continuously add frames of sound to the 
                 # queue until the program stops
                 self.sound_queuer.append_sound_to_queue_as_needed()
                 
-                # Check poke_socket for incoming messages about exit, stop,
                 # start, reward, etc
                 if self.network_communicator is not None:
                     self.network_communicator.check_socket()
-                
+
                 if self.critical_shutdown:
                     self.logger.critical('critical shutdown')
                     raise ValueError('critical shutdown')

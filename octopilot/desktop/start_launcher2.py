@@ -53,7 +53,7 @@ def start_octopilot_gui_in_new_terminal(
     # This is the high-level save directory, then the year, then the month,
     # and finally the sandbox_name
     save_path_l = [
-        os.path.expanduser('~/dev/octopilot/logs'), 
+        os.path.expanduser('~/Code/octopilot/logs'), 
         str(sandbox_creation_time.year),
         '{:02d}'.format(sandbox_creation_time.month),
         sandbox_name,
@@ -126,7 +126,7 @@ args = parser.parse_args()
 
 ## Load all the mice
 all_mouse_json = sorted(glob.glob(
-    os.path.expanduser('~/dev/octopilot/config/mouse/*.json')))
+    os.path.expanduser('~/Code/octopilot/config/mouse/*.json')))
 
 # Load params from each
 records_l = []
