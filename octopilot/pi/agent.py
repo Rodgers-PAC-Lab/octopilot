@@ -453,7 +453,7 @@ class Agent(object):
                     #~ 'log_amplitude': 0,
                     #~ }
             #~ else:
-                left_params = {}
+            left_params = {}
 
             #~ if 'right_target_rate' in self.prev_trial_params and self.prev_trial_params['right_target_rate'] > 0:
                 #~ right_params = {
@@ -463,7 +463,7 @@ class Agent(object):
                     #~ 'log_amplitude': 0,
                     #~ }
             #~ else:
-                right_params = {}
+            right_params = {}
             
             # Empty and refill the queue with new sounds
             self.sound_queuer.empty_queue()
