@@ -562,7 +562,7 @@ class PiNetworkCommunicator(object):
         self.bonsai_socket.subscribe(b"")
 
         # Print acknowledgment
-        print(f"Connected to Bonsai at {self.bonsai_tcp}")  
+        print(f"Connected to Bonsai at {self.bonsai_ip}")  
 
     def send_hello(self):
         # Send the identity of the Raspberry Pi to the server
