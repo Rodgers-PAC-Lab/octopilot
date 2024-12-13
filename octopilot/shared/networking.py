@@ -550,7 +550,7 @@ class PiNetworkCommunicator(object):
         ## Connect to the server
         # Connecting to the GUI IP address stored in params
         self.bonsai_tcp = f"tcp://{self.bonsai_ip}:{self.bonsai_port}"
-        self.bonsai_socket.connect(self.bonsai_tcp) 
+        self.bonsai_socket.bind(f"tcp://*:{self.bonsai_port}") 
         
         # Subscribe to all incomign messages from  bonsai
         self.bonsai_socket.subscribe(b"")
