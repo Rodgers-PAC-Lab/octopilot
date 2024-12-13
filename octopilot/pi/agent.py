@@ -462,7 +462,7 @@ class Agent(object):
                     #~ 'center_freq': self.prev_trial_params['target_center_freq'],
                     #~ 'log_amplitude': 0,
                     #~ }
-            else:
+            #~ else:
                 right_params = {}
             
             # Empty and refill the queue with new sounds
@@ -484,7 +484,10 @@ class Agent(object):
         self.network_communicator.check_bonsai_socket()
         if self.network_communicator.prev_bonsai_state == None:
             if self.network_communicator.bonsai_state == "True":
-                self.decrease_volume()
+                if task == "decrease":
+                    self.decrease_volume()
+                elif task == "increase":
+                    self.increase_volume() 
             elif self.network_communicator.bonsai_state == "False" or None:
                 pass
             
