@@ -474,7 +474,10 @@ class PiNetworkCommunicator(object):
         
         ## Bonsai init
         self.bonsai_ip = "192.168.0.213"
-        self.bonsai_port = 5557
+        self.bonsai_port1 = 5557
+        self.bonsai_port2 = 5558
+        self.bonsai_port3 = 5559
+        self.bonsai_port4 = 5560
         
         self.init_bonsai_socket()
         
@@ -550,7 +553,10 @@ class PiNetworkCommunicator(object):
         ## Connect to the server
         # Connecting to the GUI IP address stored in params
         self.bonsai_tcp = f"tcp://{self.bonsai_ip}:{self.bonsai_port}"
-        self.bonsai_socket.bind(f"tcp://{self.bonsai_ip}:{self.bonsai_port}") 
+        self.bonsai_socket.connect(f"tcp://{self.bonsai_ip}:{self.bonsai_port1}")
+        self.bonsai_socket.connect(f"tcp://{self.bonsai_ip}:{self.bonsai_port2}") 
+        self.bonsai_socket.connect(f"tcp://{self.bonsai_ip}:{self.bonsai_port3}") 
+        self.bonsai_socket.connect(f"tcp://{self.bonsai_ip}:{self.bonsai_port4}") 
         
         # Subscribe to all incomign messages from  bonsai
         self.bonsai_socket.subscribe(b"")
