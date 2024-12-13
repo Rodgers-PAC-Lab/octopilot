@@ -489,6 +489,10 @@ class PiNetworkCommunicator(object):
         self.bonsai_state = None
         self.prev_bonsai_state = None
         
+        # Making a variable to store which region is sending message 
+        self.bonsai_region = None 
+        self.prev_bonsai_region = None
+        
         ## Set up sockets
         self.socket_is_open = False
         self.init_socket()
@@ -610,7 +614,13 @@ class PiNetworkCommunicator(object):
             while True:
                 try:
                     # Receive message
-                    self.bonsai_state = self.bonsai_socket.recv_string(flags=zmq.NOBLOCK)
+                    msg2 = self.bonsai_socket.recv_string(flags=zmq.NOBLOCK)
+                    
+                    # Changing behavior based on message
+                    if msg2 == "True" or "False":
+                        self.bonsai_state = msg2
+                    elif msg2.startswith("rpi"):
+                        self.bonsai_region = msg2
 
                     # Log received messages
                     dt_now = datetime.datetime.now().isoformat()
