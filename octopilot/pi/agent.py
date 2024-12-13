@@ -445,23 +445,23 @@ class Agent(object):
         
         if self.prev_trial_params is not None:
             # Left Parameters        
-            if 'left_target_rate' in self.prev_trial_params and self.prev_trial_params['left_target_rate'] > 0:
-                left_params = {
-                    'rate': self.prev_trial_params['left_target_rate'],
-                    'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
-                    'center_freq': self.prev_trial_params['target_center_freq'],
-                    'log_amplitude': 4 * self.prev_trial_params['target_log_amplitude'],
-                    }
-            else:
+            #~ if 'left_target_rate' in self.prev_trial_params and self.prev_trial_params['left_target_rate'] > 0:
+                #~ left_params = {
+                    #~ 'rate': self.prev_trial_params['left_target_rate'],
+                    #~ 'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                    #~ 'center_freq': self.prev_trial_params['target_center_freq'],
+                    #~ 'log_amplitude': 0,
+                    #~ }
+            #~ else:
                 left_params = {}
 
-            if 'right_target_rate' in self.prev_trial_params and self.prev_trial_params['right_target_rate'] > 0:
-                right_params = {
-                    'rate': self.prev_trial_params['right_target_rate'],
-                    'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
-                    'center_freq': self.prev_trial_params['target_center_freq'],
-                    'log_amplitude': 4 * self.prev_trial_params['target_log_amplitude'],
-                    }
+            #~ if 'right_target_rate' in self.prev_trial_params and self.prev_trial_params['right_target_rate'] > 0:
+                #~ right_params = {
+                    #~ 'rate': self.prev_trial_params['right_target_rate'],
+                    #~ 'temporal_log_std': self.prev_trial_params['target_temporal_log_std'],
+                    #~ 'center_freq': self.prev_trial_params['target_center_freq'],
+                    #~ 'log_amplitude': 0,
+                    #~ }
             else:
                 right_params = {}
             
@@ -717,7 +717,7 @@ class Agent(object):
             last_hello_time = datetime.datetime.now()
             while True:
                 # Initial bonsai monitoring 
-                self.monitor_bonsai("increase")
+                self.monitor_bonsai("decrease")
     
                 # Used to continuously add frames of sound to the 
                 # queue until the program stops

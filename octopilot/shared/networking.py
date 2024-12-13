@@ -474,10 +474,7 @@ class PiNetworkCommunicator(object):
         
         ## Bonsai init
         self.bonsai_ip = "192.168.0.213"
-        self.bonsai_port1 = 5557
-        self.bonsai_port2 = 5558
-        self.bonsai_port3 = 5559
-        self.bonsai_port4 = 5560
+        self.bonsai_port = 5557
         
         self.init_bonsai_socket()
         
@@ -488,10 +485,6 @@ class PiNetworkCommunicator(object):
         # Making a state variable to keep track of information on bonsai socket
         self.bonsai_state = None
         self.prev_bonsai_state = None
-        
-        # Making a variable to store which region is sending message 
-        self.bonsai_region = None 
-        self.prev_bonsai_region = None
         
         ## Set up sockets
         self.socket_is_open = False
@@ -556,17 +549,14 @@ class PiNetworkCommunicator(object):
 
         ## Connect to the server
         # Connecting to the GUI IP address stored in params
-        #self.bonsai_tcp = f"tcp://{self.bonsai_ip}:{self.bonsai_port}"
-        self.bonsai_socket.connect(f"tcp://{self.bonsai_ip}:{self.bonsai_port1}")
-        self.bonsai_socket.connect(f"tcp://{self.bonsai_ip}:{self.bonsai_port2}") 
-        self.bonsai_socket.connect(f"tcp://{self.bonsai_ip}:{self.bonsai_port3}") 
-        self.bonsai_socket.connect(f"tcp://{self.bonsai_ip}:{self.bonsai_port4}") 
+        self.bonsai_tcp = f"tcp://{self.bonsai_ip}:{self.bonsai_port}"
+        self.bonsai_socket.connect(self.bonsai_tcp) 
         
         # Subscribe to all incomign messages from  bonsai
         self.bonsai_socket.subscribe(b"")
 
         # Print acknowledgment
-        print(f"Connected to Bonsai at {self.bonsai_ip}")  
+        print(f"Connected to Bonsai at {self.bonsai_tcp}")  
 
     def send_hello(self):
         # Send the identity of the Raspberry Pi to the server
@@ -614,13 +604,7 @@ class PiNetworkCommunicator(object):
             while True:
                 try:
                     # Receive message
-                    msg2 = self.bonsai_socket.recv_string(flags=zmq.NOBLOCK)
-                    
-                    # Changing behavior based on message
-                    if msg2 == "True" or "False":
-                        self.bonsai_state = msg2
-                    elif msg2.startswith("rpi"):
-                        self.bonsai_region = msg2
+                    self.bonsai_state = self.bonsai_socket.recv_string(flags=zmq.NOBLOCK)
 
                     # Log received messages
                     dt_now = datetime.datetime.now().isoformat()
