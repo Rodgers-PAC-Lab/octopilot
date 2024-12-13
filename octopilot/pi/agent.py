@@ -293,12 +293,15 @@ class Agent(object):
         # the correct trial number
         self.trial_number = msg_params['trial_number']
         
+        # Get the trigger trial
+        self.is_manipulation_trial = msg_params['trigger_trial']
+        
         # Determine association with True or False based on probability
-        self.is_manipulation_trial = random.choices([True, False], weights=[self.manipulation_probability, 1 - self.manipulation_probability])[0]
         if self.is_manipulation_trial == True:
             self.logger.info(f'Trial {self.trial_number} will change sound')
         else:
             self.logger.info(f'Trial {self.trial_number} will not change sound')
+
     
         ## Log trial start (after trial number update)
         # Report trial start

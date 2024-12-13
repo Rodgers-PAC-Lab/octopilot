@@ -604,13 +604,16 @@ class PiNetworkCommunicator(object):
             while True:
                 try:
                     # Receive message
+                    self.prev_bonsai_state2 = self.bonsai_state
                     self.bonsai_state = self.bonsai_socket.recv_string(flags=zmq.NOBLOCK)
 
                     # Log received messages
-                    dt_now = datetime.datetime.now().isoformat()
-                    self.logger.debug(
-                        f'{dt_now} - Received message {self.bonsai_state} on bonsai socket'
-                    )
+                    if self.prev_bonsai_state2 != self.bonsai_state:
+                        dt_now = datetime.datetime.now().isoformat()
+                        self.logger.debug(
+                            f'{dt_now} - Received message {self.bonsai_state} on bonsai socket'
+                        )
+                    
                 except zmq.Again:
                     # Break the loop if no more messages are available
                     break
