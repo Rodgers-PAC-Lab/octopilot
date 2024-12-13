@@ -17,6 +17,7 @@ import logging
 import socket
 import time
 import pigpio
+import random 
 from . import hardware
 from . import sound
 from ..shared.networking import PiNetworkCommunicator
@@ -86,6 +87,10 @@ class Agent(object):
         # as an int
         self.trial_number = -1
         
+        # Randomly choosing to manipulate sound in trial
+        self.manipulation_probability = 0.5
+        self.is_manipulation_trial = None
+        
         # It will keep running until this is set by self.exit() and then 
         # it is noticed by self.mainloop()
         self.shutdown = False
@@ -97,7 +102,7 @@ class Agent(object):
         
         # Variable to save params for each trial
         self.prev_trial_params = None
-
+        
         ## Initialize sound_generator
         # This object generates frames of audio
         # We need to have it ready to go before initializing the sound queuer
@@ -288,7 +293,13 @@ class Agent(object):
         # the correct trial number
         self.trial_number = msg_params['trial_number']
         
-        
+        # Determine association with True or False based on probability
+        self.is_manipulation_trial = random.choices([True, False], weights=[self.manipulation_probability, 1 - self.manipulation_probability])[0]
+        if self.is_manipulation_trial == True:
+            self.logger.info(f'Trial {self.trial_number} will change sound')
+        else:
+            self.logger.info(f'Trial {self.trial_number} will not change sound')
+    
         ## Log trial start (after trial number update)
         # Report trial start
         self.report_trial_start(timestamp)
@@ -356,7 +367,8 @@ class Agent(object):
         
         # Empty and refill the queue with new sounds
         self.sound_queuer.empty_queue()
-        self.sound_queuer.append_sound_to_queue_as_needed()
+        self.sound_queuer.append_sound_to_queue_as_needed()   
+
 
     ## Note: Multiplying log amplitude decreases volume and dividing increases it 
     def increase_volume(self):
@@ -482,32 +494,36 @@ class Agent(object):
     def monitor_bonsai(self, task):
         # Initial bonsai monitoring 
         self.network_communicator.check_bonsai_socket()
-        if self.network_communicator.prev_bonsai_state == None:
-            if self.network_communicator.bonsai_state == "True":
-                if task == "decrease":
-                    self.decrease_volume()
-                elif task == "increase":
-                    self.increase_volume() 
-            elif self.network_communicator.bonsai_state == "False" or None:
-                pass
-            
-        # Logic to interact with bonsai (not working through method)
-        if self.network_communicator.bonsai_state == "True":
-            if self.network_communicator.prev_bonsai_state == "False" or self.network_communicator.prev_bonsai_state == None:
-                if task == "decrease":
-                    self.decrease_volume()
-                elif task == "increase":
-                    self.increase_volume()                    
-                self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
-            else:
-                self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
         
-        elif self.network_communicator.bonsai_state == "False":
-            if self.network_communicator.prev_bonsai_state == "True":
-                self.normal_volume()
-                self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
-            else:
-                self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+        if self.is_manipulation_trial == True:
+            if self.network_communicator.prev_bonsai_state == None:
+                if self.network_communicator.bonsai_state == "True":
+                    if task == "decrease":
+                        self.decrease_volume()
+                    elif task == "increase":
+                        self.increase_volume() 
+                elif self.network_communicator.bonsai_state == "False" or None:
+                    pass
+                
+            # Logic to interact with bonsai (not working through method)
+            if self.network_communicator.bonsai_state == "True":
+                if self.network_communicator.prev_bonsai_state == "False" or self.network_communicator.prev_bonsai_state == None:
+                    if task == "decrease":
+                        self.decrease_volume()
+                    elif task == "increase":
+                        self.increase_volume()                    
+                    self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+                else:
+                    self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+            
+            elif self.network_communicator.bonsai_state == "False":
+                if self.network_communicator.prev_bonsai_state == "True":
+                    self.normal_volume()
+                    self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+                else:
+                    self.network_communicator.prev_bonsai_state = self.network_communicator.bonsai_state
+        else:
+            pass
  
     def report_poke(self, port_name, poke_time):
         """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
