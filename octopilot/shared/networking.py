@@ -552,7 +552,7 @@ class PiNetworkCommunicator(object):
 
         ## Connect to the server
         # Connecting to the GUI IP address stored in params
-        self.bonsai_tcp = f"tcp://{self.bonsai_ip}:{self.bonsai_port}"
+        #self.bonsai_tcp = f"tcp://{self.bonsai_ip}:{self.bonsai_port}"
         self.bonsai_socket.connect(f"tcp://{self.bonsai_ip}:{self.bonsai_port1}")
         self.bonsai_socket.connect(f"tcp://{self.bonsai_ip}:{self.bonsai_port2}") 
         self.bonsai_socket.connect(f"tcp://{self.bonsai_ip}:{self.bonsai_port3}") 
