@@ -473,7 +473,7 @@ class PiNetworkCommunicator(object):
         self.command2method = {}
         
         ## Bonsai init
-        self.bonsai_ip = "192.168.0.213"
+        self.bonsai_ip = "192.168.11.135"
         self.bonsai_port = 5557
         
         self.init_bonsai_socket()
