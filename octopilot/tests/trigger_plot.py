@@ -334,6 +334,13 @@ def plot_triggered_vs_non_triggered(data_directory, mouse_name, start_date, ax, 
     triggered_df = pd.DataFrame(average_data_triggered, columns=['session_date', 'average_pokes_per_trial'])
     non_triggered_df = pd.DataFrame(average_data_non_triggered, columns=['session_date', 'average_pokes_per_trial'])
 
+    # Sort data by session_date
+    if not triggered_df.empty:
+        triggered_df = triggered_df.sort_values(by='session_date')
+
+    if not non_triggered_df.empty:
+        non_triggered_df = non_triggered_df.sort_values(by='session_date')
+
     # Plot the data
     lines = []
     labels = []
@@ -353,7 +360,7 @@ def plot_triggered_vs_non_triggered(data_directory, mouse_name, start_date, ax, 
         labels.append(f'{label} (Non-Triggered)')
 
     # Set the y-axis to be inverted
-    ax.set_ylim(2, 1)
+    ax.set_ylim(3, 1)
     
     ax.set_ylabel('Average Unique Ports per Trial')
     ax.set_title('Triggered vs Non-Triggered Trials')
