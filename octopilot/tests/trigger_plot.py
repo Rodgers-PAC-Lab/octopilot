@@ -8,7 +8,7 @@ import matplotlib.dates as mdates
 mouse_names = ["sandwich170", "salad172"]
 
 # Defining log directory location (Change based on where you're saving logs)
-data_directory = "/home/mouse/octopilot/logs"
+data_directory = "/home/mouse/octopilot/behaviorbox_logs"
 start_date = "2024-12-13"  # Date from which all columns and rows were labelled 
 
 def load_sessions_from_date(data_directory, mouse_name, start_date):
