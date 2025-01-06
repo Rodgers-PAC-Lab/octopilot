@@ -437,7 +437,7 @@ class PiNetworkCommunicator(object):
         sockets with it
     set_up_poke_socket : Creates sockets and connects to the GUI
     """
-    def __init__(self, identity, gui_ip, zmq_port):
+    def __init__(self, identity, gui_ip, zmq_port, bonsai_ip, bonsai_port):
         """Init a new NetworkCommunicator
         
         This object will communicate with the GUI using a DEALER socket called
@@ -461,6 +461,10 @@ class PiNetworkCommunicator(object):
         self.gui_ip = gui_ip
         self.zmq_port = zmq_port
         self.identity = identity
+        
+        ## Storing bonsai arguments
+        self.bonsai_ip = bonsai_ip
+        self.bonsai_port = bonsai_port
 
         ## Init logger
         self.logger = NonRepetitiveLogger("test")
@@ -473,9 +477,8 @@ class PiNetworkCommunicator(object):
         self.command2method = {}
         
         ## Bonsai init
-        self.bonsai_ip = "192.168.11.135"
-        self.bonsai_port = 5557
-        
+        #self.bonsai_ip = "192.168.11.135"
+        #self.bonsai_port = 5557
         self.init_bonsai_socket()
         
         # Create a second poller object 
