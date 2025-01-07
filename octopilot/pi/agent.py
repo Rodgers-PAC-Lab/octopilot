@@ -187,7 +187,7 @@ class Agent(object):
                 gui_ip=self.params['gui_ip'], 
                 zmq_port=self.params['zmq_port'],
                 bonsai_ip = self.params['bonsai_ip'],
-                bonsai_port = self.params['bonsai_port']
+                bonsai_port = self.params['bonsai_port'],
                 )
             
             # Set up hooks
