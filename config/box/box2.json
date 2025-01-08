@@ -1,6 +1,15 @@
 {
     "zmq_port": 5552,
-    "bonsai_port": 5557,
+    "bonsai_ports": [{
+    "rpi_05L": 5557,
+    "rpi_05R": 5558,
+    "rpi_06L": 5559,
+    "rpi_06R": 5560,
+    "rpi_07L": 5561,
+    "rpi_07R": 5562,
+    "rpi_08L": 5563,
+    "rpi_08R": 5564    
+}],
     "desktop_ip": "192.168.11.198",
     "bonsai_ip": "192.168.11.135",
     "ypos_of_gui": 0,
