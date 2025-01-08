@@ -2,7 +2,7 @@
     "zmq_port": 5553,
     "bonsai_port": 5558,
     "desktop_ip": "192.168.11.198",
-    "bonsai_ip": "192.168.11.135",
+    "bonsai_ip": "192.168.11.138",
     "ypos_of_gui": 270,
     "camera": "e3v8303",
     "connected_pis" : [
