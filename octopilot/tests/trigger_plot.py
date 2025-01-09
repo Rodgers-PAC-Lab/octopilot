@@ -246,7 +246,7 @@ def plot_n_ports_poked(data_directory, mouse_name, start_date, ax, label, overal
 
         ax.set_ylabel('N Pokes per Trial')
         ax.set_title('Average Pokes per Trial Across Days')
-        ax.set_ylim(5, 1)
+        ax.set_ylim(5, 0)
         ax.axhline(y=4, color='black', linestyle=':', label='Chance Level = 4' if label == mouse_name else None)
         
         ax.grid()
@@ -360,7 +360,7 @@ def plot_triggered_vs_non_triggered(data_directory, mouse_name, start_date, ax, 
         labels.append(f'{label} (Non-Triggered)')
 
     # Set the y-axis to be inverted
-    ax.set_ylim(2.5, 1)
+    ax.set_ylim(3, 0)
     
     ax.set_ylabel('Average Unique Ports per Trial')
     ax.set_title('Triggered vs Non-Triggered Trials')
