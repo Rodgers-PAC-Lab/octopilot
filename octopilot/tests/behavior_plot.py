@@ -225,7 +225,13 @@ def plot_n_ports_poked(data_directory, mouse_name, start_date, ax, label, overal
 
                             trials_data.loc[trials_data['trial_number'] == merged_data.iloc[i]['trial_number'], 'n_ports_poked'] = n_ports_poked
 
-                        average_pokes_per_trial = trials_data['n_ports_poked'].mean()
+                        # Calculate the average number of pokes per trial for this session by dropping npp 0 values for last trial
+                        valid_pokes = trials_data['n_ports_poked'][trials_data['n_ports_poked'] > 0]
+                        if len(valid_pokes) > 0:
+                            average_pokes_per_trial = valid_pokes.mean()
+                        else:
+                            average_pokes_per_trial = np.nan
+
                         average_data.append((session_date_obj, average_pokes_per_trial))
 
             except ValueError:
@@ -251,7 +257,7 @@ def plot_n_ports_poked(data_directory, mouse_name, start_date, ax, label, overal
 
         ax.set_ylabel('N Pokes per Trial')
         ax.set_title('Average Pokes per Trial Across Days')
-        ax.set_ylim(5, 1)
+        ax.set_ylim(6, 1)
         ax.axhline(y=4, color='black', linestyle=':', label='Chance Level = 4' if label == mouse_name else None)
         #ax.axvline(x=datetime.strptime("2024-10-25", "%Y-%m-%d"), color='red', linestyle='--', label='Change to Sweep Task' if label == mouse_name else None)
         #ax.axvline(x=datetime.strptime("2024-11-12", "%Y-%m-%d"), color='green', linestyle='--', label='Speaker Issue Fix' if label == mouse_name else None)
