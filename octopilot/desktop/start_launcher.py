@@ -53,7 +53,7 @@ def start_octopilot_gui_in_new_terminal(
     # This is the high-level save directory, then the year, then the month,
     # and finally the sandbox_name
     save_path_l = [
-        os.path.expanduser('~/dev/octopilot/logs'), 
+        os.path.expanduser('/home/mouse/octopilot/logs'), 
         str(sandbox_creation_time.year),
         '{:02d}'.format(sandbox_creation_time.month),
         sandbox_name,
