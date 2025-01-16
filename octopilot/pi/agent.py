@@ -295,8 +295,12 @@ class Agent(object):
         # the correct trial number
         self.trial_number = msg_params['trial_number']
         
-        # Get the trigger trial
-        self.is_manipulation_trial = msg_params['trigger_trial']
+        # Making it so that the first 1-2 trials are not trigger trials 
+        if self.trial_number == 0 or self.trial_number == 1:
+            self.is_manipulation_trial = False
+        else:
+            # Get the trigger trial
+            self.is_manipulation_trial = msg_params['trigger_trial']
         
         # Determine association with True or False based on probability
         if self.is_manipulation_trial == True:
