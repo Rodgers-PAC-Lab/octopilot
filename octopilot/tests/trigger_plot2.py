@@ -263,127 +263,68 @@ def plot_n_ports_poked(data_directory, mouse_name, start_date, ax, label, overal
         return [line], [label]
     return [], []
 
-def plot_triggered_vs_non_triggered(data_directory, mouse_name, start_date, ax, label):
+def plot_triggered_vs_non_triggered(data_directory, mouse_name, start_date, ax, label, mouse_colors=None):
     """
     Function to calculate and plot the average unique ports per trial for trials split 
     by the 'trigger' column in trials.csv, with inverted y-axis.
-    If True, then it is a trigger trial
-    If False, then it is not a trigger trial
+    If True, then it is a trigger trial.
+    If False, then it is not a trigger trial.
     """
+    # Assign a color to this mouse based on the color cycle
+    if mouse_colors is None:
+        mouse_colors = {name: color for name, color in zip(
+            mouse_names, plt.rcParams['axes.prop_cycle'].by_key()['color']
+        )}
+
+    mouse_color = mouse_colors.get(mouse_name, 'black')  # Default to black if not found
+
     average_data_triggered = []
     average_data_non_triggered = []
-    encountered_dates = set()  
-    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
-    
-    # Assign colors based on specific mouse names to make it easier to interpret
-    if mouse_name == "sandwich170":
-        color_triggered = "#1F77B4"  # Blue
-        color_non_triggered = "#1F77B4"
-    elif mouse_name == "salad172":
-        color_triggered = "#FF7F0E"  # Orange
-        color_non_triggered = "#FF7F0E"
 
-    # Scanning directory for folders with given mouse names
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
     for root, dirs, files in os.walk(data_directory):
         if mouse_name in root:
             folder_name = os.path.basename(root)
             try:
                 date_part = folder_name.split('_')[0]
                 session_date_obj = datetime.strptime(date_part, "%Y-%m-%d")
-
-                # Reading pokes and trials files
                 if session_date_obj >= start_date_obj:
-                    pokes_file_path = os.path.join(root, "pokes.csv")
                     trials_file_path = os.path.join(root, "trials.csv")
-
-                    if os.path.exists(pokes_file_path) and os.path.exists(trials_file_path):
-                        # Load data and skip files if they have fewer than two rows
-                        pokes_data = pd.read_csv(pokes_file_path)
+                    if os.path.exists(trials_file_path):
                         trials_data = pd.read_csv(trials_file_path)
-                        if len(pokes_data) < 2 or len(trials_data) < 2:
-                            continue  # Skip this session if not enough data
-
-                        # Track that we encountered this session date
-                        encountered_dates.add(session_date_obj)
-
-                        # Merge data to analyze unique ports poked
-                        merged_data = pd.merge(pokes_data, trials_data[['trial_number', 'goal_port']],
-                                               left_on='trial_number', right_on='trial_number', how='left')
-
-                        # Logic for counting only unique ports poked for every trial
-                        merged_data['previous_goal_port'] = None
-                        for i in range(len(merged_data)):
-                            if i == 0:
-                                n_ports_poked = merged_data['poked_port'].nunique()
-                            else:
-                                previous_goal_port = merged_data.iloc[i - 1]['goal_port'] # Assigning previous goal port after trial is over to exclude that from calculation
-                                merged_data.at[i, 'previous_goal_port'] = previous_goal_port
-                                current_trial_poked_ports = merged_data[merged_data['trial_number'] == merged_data.iloc[i]['trial_number']]
-                                n_ports_poked = current_trial_poked_ports[current_trial_poked_ports['poked_port'] != previous_goal_port]['poked_port'].nunique() # Finding unique ports excluding previous goal port
-
-                            trials_data.loc[trials_data['trial_number'] == merged_data.iloc[i]['trial_number'], 'n_ports_poked'] = n_ports_poked
-
-                        # Split data based on the 'trigger' column
+                        if len(trials_data) < 2:
+                            continue  # Skip if not enough data
+                        
+                        # Separate triggered and non-triggered trials
                         triggered_trials = trials_data[trials_data['trigger'] == True]
                         non_triggered_trials = trials_data[trials_data['trigger'] == False]
-
-                        # Calculate average unique ports poked for triggered trials
-                        if not triggered_trials.empty:
-                            valid_pokes_triggered = triggered_trials['n_ports_poked'][triggered_trials['n_ports_poked'] > 0]
-                            if len(valid_pokes_triggered) > 0:
-                                average_triggered = valid_pokes_triggered.mean()
-                            else:
-                                average_triggered = np.nan
-                            average_data_triggered.append((session_date_obj, average_triggered))
-
-                        # Calculate average unique ports poked for non-triggered trials
-                        if not non_triggered_trials.empty:
-                            valid_pokes_non_triggered = non_triggered_trials['n_ports_poked'][non_triggered_trials['n_ports_poked'] > 0]
-                            if len(valid_pokes_non_triggered) > 0:
-                                average_non_triggered = valid_pokes_non_triggered.mean()
-                            else:
-                                average_non_triggered = np.nan
-                            average_data_non_triggered.append((session_date_obj, average_non_triggered))
-
+                        
+                        # Calculate averages
+                        avg_triggered = triggered_trials['unique_ports_poked'].mean() if not triggered_trials.empty else None
+                        avg_non_triggered = non_triggered_trials['unique_ports_poked'].mean() if not non_triggered_trials.empty else None
+                        
+                        average_data_triggered.append((session_date_obj, avg_triggered))
+                        average_data_non_triggered.append((session_date_obj, avg_non_triggered))
             except ValueError:
                 print(f"Could not parse date from folder name: {folder_name}")
     
-    # Convert average data into DataFrames
-    triggered_df = pd.DataFrame(average_data_triggered, columns=['session_date', 'average_pokes_per_trial'])
-    non_triggered_df = pd.DataFrame(average_data_non_triggered, columns=['session_date', 'average_pokes_per_trial'])
+    # Convert to DataFrame for easier plotting
+    df_triggered = pd.DataFrame(average_data_triggered, columns=['session_date', 'average_triggered']).dropna()
+    df_non_triggered = pd.DataFrame(average_data_non_triggered, columns=['session_date', 'average_non_triggered']).dropna()
 
-    # Sort data by session_date
-    if not triggered_df.empty:
-        triggered_df = triggered_df.sort_values(by='session_date')
+    # Plot triggered
+    if not df_triggered.empty:
+        ax.plot(df_triggered['session_date'], df_triggered['average_triggered'], 
+                marker='o', linestyle='-', color=mouse_color, label=f"{label} - Triggered")
+    # Plot non-triggered
+    if not df_non_triggered.empty:
+        ax.plot(df_non_triggered['session_date'], df_non_triggered['average_non_triggered'], 
+                marker='o', linestyle='--', color=mouse_color, label=f"{label} - Non-Triggered")
 
-    if not non_triggered_df.empty:
-        non_triggered_df = non_triggered_df.sort_values(by='session_date')
-
-    # Plot the data
-    lines = []
-    labels = []
-
-    # If it is a trigger trial, average the number of pokes for each trial
-    if not triggered_df.empty:
-        line_triggered, = ax.plot(triggered_df['session_date'], triggered_df['average_pokes_per_trial'], 
-                                  marker='o', linestyle='--', label=f'{label} (Triggered)', color=color_triggered)
-        lines.append(line_triggered)
-        labels.append(f'{label} (Triggered)')
-
-    # If it is a non-trigger trial, average the number of pokes for each trial
-    if not non_triggered_df.empty:
-        line_non_triggered, = ax.plot(non_triggered_df['session_date'], non_triggered_df['average_pokes_per_trial'], 
-                                      marker='s', linestyle='-', label=f'{label} (Non-Triggered)', color=color_non_triggered)
-        lines.append(line_non_triggered)
-        labels.append(f'{label} (Non-Triggered)')
-
-    # Set the y-axis to be inverted
-    ax.set_ylim(5, 1)
-    
-    ax.set_ylabel('Average Unique Ports per Trial')
+    ax.set_ylabel('Avg Unique Ports Poked')
     ax.set_title('Triggered vs Non-Triggered Trials')
+    ax.legend(loc='upper left', fontsize=10)
     ax.grid()
-    return lines, labels
 
 if __name__ == "__main__":
     plot_combined(data_directory, mouse_names, start_date)
