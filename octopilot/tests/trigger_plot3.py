@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 # Listing the mice we want to plot
-mouse_names = ["earthworm176", "earthworm177"]
+mouse_names = ["flamingo178", "flamingo179"]
 
 # Defining log directory location (Change based on where you're saving logs)
-data_directory = "/home/mouse/octopilot/logs"
+data_directory = "/home/mouse/octopilot/behaviorbox_logs"
 start_date = "2025-01-23"  # Date from which all columns and rows were labelled 
 
 def load_sessions_from_date(data_directory, mouse_name, start_date):
@@ -143,7 +143,7 @@ def plot_combined(data_directory, mouse_names, start_date):
         ax.tick_params(axis='x', rotation=45)
 
     # Display the figure and adjust subplot positions
-    fig.suptitle("Closed Loop Behavior Performance Summary (Earthworm)", fontsize=14)
+    fig.suptitle("Closed Loop Behavior Performance Summary (Flamingo)", fontsize=14)
     plt.subplots_adjust(hspace=0.25, top=0.9, bottom=0.1, right=0.8)  # Adjust right padding to fit the legend
     plt.show()
 
@@ -274,10 +274,10 @@ def plot_triggered_vs_non_triggered(data_directory, mouse_name, start_date, ax, 
     start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
     
     # Assign colors based on specific mouse names to make it easier to interpret
-    if mouse_name == "earthworm176":
+    if mouse_name == "flamingo178":
         color_triggered = "#1F77B4"  # Blue
         color_non_triggered = "#1F77B4"
-    elif mouse_name == "earthworm177":
+    elif mouse_name == "flamingo179":
         color_triggered = "#FF7F0E"  # Orange
         color_non_triggered = "#FF7F0E"
 
