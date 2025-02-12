@@ -290,7 +290,8 @@ class SoundGenerator_IntermittentBursts(object):
                 lowpass=lowpass,
                 highpass=highpass,
                 attenuation_file=self.attenuation_file,
-                )  
+                )
+        
         
         return sound
     
