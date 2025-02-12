@@ -264,6 +264,7 @@ class SoundGenerator_IntermittentBursts(object):
         
         Returns : Noise
         """
+        print(f'debugxyz: {params}')
         # Generate the sound
         if len(params) == 0:
             sound = None
