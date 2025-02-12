@@ -2,9 +2,9 @@
     "reward_radius": -1,
     "trial_duration": 1,
     "play_targets": true,
-    "target_log_amplitude": -1,
+    "target_log_amplitude": -2,
     "target_rate": 4,
     "target_temporal_log_std": -1.5,
-    "target_center_freq": 10000.0,
-    "target_bandwidth": 5
+    "target_center_freq": 35000.0,
+    "target_bandwidth": 60000.0
 }
