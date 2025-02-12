@@ -282,6 +282,7 @@ class SoundGenerator_IntermittentBursts(object):
             
             lowpass = params['center_freq'] - bandwidth / 2
             highpass = params['center_freq'] + bandwidth / 2
+            print(f'debugxyz: {bandwidth} {lowpass} {highpass}')
             sound = Noise(
                 blocksize=self.blocksize,
                 fs=self.fs,
