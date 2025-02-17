@@ -279,8 +279,8 @@ class SoundGenerator_IntermittentBursts(object):
             except KeyError:
                 raise ValueError(f'received malformed params: {params}')
             
-            lowpass = params['center_freq'] - bandwidth / 2
-            highpass = params['center_freq'] + bandwidth / 2
+            lowpass = params['center_freq'] + bandwidth / 2
+            highpass = params['center_freq'] - bandwidth / 2
             sound = Noise(
                 blocksize=self.blocksize,
                 fs=self.fs,

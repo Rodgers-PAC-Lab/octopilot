@@ -43,10 +43,12 @@ class TrialParameterChooser(object):
             'target_center_freq',
             'target_log_amplitude',
             'target_radius',
+            'target_bandwidth',
             'distracter_rate',
             'distracter_temporal_log_std',
             'distracter_center_freq',
             'distracter_log_amplitude',
+            'distracter_bandwidth',
             'n_distracters',
             ]
         
@@ -58,11 +60,13 @@ class TrialParameterChooser(object):
             'target_radius': 0,
             'target_center_freq': 5000,
             'target_log_amplitude': -3,
+            'target_bandwidth': 3000,
             'distracter_rate': 0,
             'distracter_temporal_log_std': -3,
             'distracter_center_freq': 5000,
             'distracter_log_amplitude': -3,
             'n_distracters': 0,
+            'distracter_bandwidth': 3000,
         }
         
         # Iterate over ranged_params and extract each
@@ -124,12 +128,14 @@ class TrialParameterChooser(object):
         range_target_temporal_log_std=None,
         range_target_center_freq=None,
         range_target_log_amplitude=None,
+        range_target_bandwidth=None,
         range_target_radius=None,
         range_distracter_rate=None,
         range_distracter_temporal_log_std=None,
         range_distracter_center_freq=None,
         range_distracter_log_amplitude=None,
         range_n_distracters=None,
+        range_distracter_bandwidth=None,
         task_name=None,
         ):
         """Init new object that will choose trial params from specified ranges.
@@ -173,6 +179,7 @@ class TrialParameterChooser(object):
         target_temporal_log_std : log(std(inter-target intervals [s]))
         target_center_freq : center freq of target sound (Hz)
         target_log_amplitude : log(amplitude of target sound)
+        target_bandwidth : bandiwdth of sound (Hz)
         distracter_* : analogous to above, but for distracter
         target_radius : number of ports on each side of goal that play targets
         n_distracters : number of ports playing distracters at distracter_rate
@@ -200,10 +207,12 @@ class TrialParameterChooser(object):
             'target_center_freq': range_target_center_freq,
             'target_log_amplitude': range_target_log_amplitude,
             'target_radius': range_target_radius,
+            'target_bandwidth': range_target_bandwidth,
             'distracter_rate': range_distracter_rate,
             'distracter_temporal_log_std': range_distracter_temporal_log_std,
             'distracter_center_freq': range_distracter_center_freq,
             'distracter_log_amplitude': range_distracter_log_amplitude,
+            'distracter_bandwidth': range_distracter_bandwidth,
             'n_distracters': range_n_distracters,
             }
         
@@ -214,6 +223,7 @@ class TrialParameterChooser(object):
             self.param2range.pop('target_center_freq')
             self.param2range.pop('target_log_amplitude')
             self.param2range.pop('target_radius')
+            self.param2range.pop('target_bandwidth')
         
         # If play_distracter is False, remove the distracter ones
         if self.play_distracters == False:
@@ -221,7 +231,8 @@ class TrialParameterChooser(object):
             self.param2range.pop('distracter_temporal_log_std')
             self.param2range.pop('distracter_center_freq')
             self.param2range.pop('distracter_log_amplitude')
-            self.param2range.pop('n_distracters')        
+            self.param2range.pop('n_distracters')     
+            self.param2range.pop('distracter_bandwidth')
 
 
         ## Calculate the possible values for each trial parameter

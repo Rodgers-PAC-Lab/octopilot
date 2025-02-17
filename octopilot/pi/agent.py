@@ -354,6 +354,7 @@ class Agent(object):
                 'temporal_log_std': msg_params['target_temporal_log_std'],
                 'center_freq': msg_params['target_center_freq'],
                 'log_amplitude': msg_params['target_log_amplitude'],
+                'bandwidth': msg_params['target_bandwidth'],
                 }
         else:
             left_params = {}
@@ -364,6 +365,7 @@ class Agent(object):
                 'temporal_log_std': msg_params['target_temporal_log_std'],
                 'center_freq': msg_params['target_center_freq'],
                 'log_amplitude': msg_params['target_log_amplitude'],
+                'bandwidth': msg_params['target_bandwidth'],
                 }
         else:
             right_params = {}
