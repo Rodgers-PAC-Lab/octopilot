@@ -42,7 +42,6 @@ class Noise:
         self.amplitude = float(amplitude)
         
         # Save optional parameters - highpass, lowpass, channel
-        print(f'debugxyz2: {highpass} {lowpass}')
         if highpass is None:
             self.highpass = None
         else:
@@ -101,14 +100,12 @@ class Noise:
         data = np.random.uniform(-1, 1, self.nsamples)
         
         # Highpass filter it
-        print(f'debugxyz1: {self.highpass}')
         if self.highpass is not None:
             bhi, ahi = scipy.signal.butter(
                 2, self.highpass / (self.fs / 2), 'high')
             data = scipy.signal.filtfilt(bhi, ahi, data)
         
         # Lowpass filter it
-        print(f'debugxyz1: {self.lowpass}')
         if self.lowpass is not None:
             blo, alo = scipy.signal.butter(
                 2, self.lowpass / (self.fs / 2), 'low')
@@ -267,7 +264,6 @@ class SoundGenerator_IntermittentBursts(object):
         
         Returns : Noise
         """
-        print(f'debugxyz: {params}')
         # Generate the sound
         if len(params) == 0:
             sound = None
@@ -285,7 +281,6 @@ class SoundGenerator_IntermittentBursts(object):
             
             lowpass = params['center_freq'] + bandwidth / 2
             highpass = params['center_freq'] - bandwidth / 2
-            print(f'debugxyz: {bandwidth} {lowpass} {highpass}')
             sound = Noise(
                 blocksize=self.blocksize,
                 fs=self.fs,
