@@ -131,9 +131,9 @@ class Noise:
             self.table = self.table * np.sqrt(10)
             
             # Apply the attenuation to each column
-            # for n_column in range(self.table.shape[1]):
-            #     self.table[:, n_column] = apply_attenuation(
-            #         self.table[:, n_column], self.attenuation, self.fs)
+            for n_column in range(self.table.shape[1]):
+                self.table[:, n_column] = apply_attenuation(
+                    self.table[:, n_column], self.attenuation, self.fs)
         
         # Break the sound table into individual chunks of length blocksize
         self.chunk()
