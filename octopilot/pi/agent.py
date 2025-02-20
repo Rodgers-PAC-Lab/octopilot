@@ -332,6 +332,13 @@ class Agent(object):
                 'center_freq': msg_params['target_center_freq'],
                 'log_amplitude': msg_params['target_log_amplitude'],
                 }
+        elif 'left_distracter_rate' in msg_params and msg_params['left_distracter_rate'] > 0:
+            left_params = {
+                'rate': msg_params['left_distracter_rate'],
+                'temporal_log_std': msg_params['distracter_temporal_log_std'],
+                'center_freq': msg_params['distracter_center_freq'],
+                'log_amplitude': msg_params['distracter_log_amplitude'],
+                }
         else:
             left_params = {}
     
@@ -341,6 +348,13 @@ class Agent(object):
                 'temporal_log_std': msg_params['target_temporal_log_std'],
                 'center_freq': msg_params['target_center_freq'],
                 'log_amplitude': msg_params['target_log_amplitude'],
+                }
+        elif 'right_distracter_rate' in msg_params and msg_params['right_distracter_rate'] > 0:
+            right_params = {
+                'rate': msg_params['right_distracter_rate'],
+                'temporal_log_std': msg_params['distracter_temporal_log_std'],
+                'center_freq': msg_params['distracter_center_freq'],
+                'log_amplitude': msg_params['distracter_log_amplitude'],
                 }
         else:
             right_params = {}
