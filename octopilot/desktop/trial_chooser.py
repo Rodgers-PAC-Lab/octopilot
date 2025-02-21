@@ -392,7 +392,7 @@ class TrialParameterChooser(object):
             # Fill the distrater rate for those ports
             port_params['distracter_rate'] = 0
             port_params.loc[
-                chosen_distracter_idx, 'distracter_rate'] = stim_distracter_rate
+                chosen_distracter_idx, 'distracter_rate'] = distracter_rate
     
         
         ## Index by port

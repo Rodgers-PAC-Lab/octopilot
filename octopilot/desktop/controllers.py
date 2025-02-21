@@ -69,6 +69,7 @@ class Dispatcher:
         self.alive_timer = None
         self.session_start_time = None
         self.session_name = None
+        self.timer_advance_trial = None
         
         # Timer for ITI
         self.timer_inter_trial_interval = None
