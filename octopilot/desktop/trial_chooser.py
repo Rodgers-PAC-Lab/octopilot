@@ -241,9 +241,9 @@ class TrialParameterChooser(object):
             # Depends on how many choices
             if param_n_choices == 1:
                 # If only 1, assert equal, and corresponding entry in 
-                # self.stim_choosing_params is a list of length one
+                # self.stim_choosing_params is an array of length one
                 assert param_min == param_max
-                self.param2possible_values[param_name] = [param_min]
+                self.param2possible_values[param_name] = np.array([param_min])
             
             else:
                 # Otherwise, linspace between min and max                
