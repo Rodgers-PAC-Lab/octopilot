@@ -237,7 +237,7 @@ class Dispatcher:
 
         # Set up timer to test if the Agent is still running
         self.last_alive_message_received = {}
-        alive_interval = 3
+        alive_interval = 30
         self.alive_timer = RepeatedTimer(
             alive_interval, self.send_alive_request)
 

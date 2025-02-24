@@ -230,7 +230,7 @@ class Agent(object):
         
         # Set up timer to test if the Dispatcher is still running and
         # sending are_you_alive requests
-        alive_interval = 5
+        alive_interval = 45
         self.alive_timer = hardware.RepeatedTimer(
             alive_interval, self.check_for_alive_requests)
     
