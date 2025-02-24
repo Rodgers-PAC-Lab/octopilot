@@ -554,8 +554,8 @@ class Dispatcher:
         if len(df) == 0:
             return
         
-        # Log
-        self.logger.info(f"received sound plan:\n{df}")
+        # Log - this is quite verbose
+        #~ self.logger.info(f"received sound plan:\n{df}")
         
         # Add trial number and identity
         df['trial_number'] = trial_number
