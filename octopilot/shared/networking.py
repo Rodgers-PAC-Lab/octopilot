@@ -304,7 +304,7 @@ class DispatcherNetworkCommunicator(object):
         # Debug print identity and message
         # Squelch the sound methods which are too frequent
         # TODO: make squelch a param
-        if 'data_hash' not in message_str:
+        if 'data_hash' not in message_str and 'sound_plan' not in message_str:
             self.logger.debug(f'received from {identity}: {message}')
 
         
@@ -354,7 +354,7 @@ class DispatcherNetworkCommunicator(object):
                 # TODO: make squelch a param
                 if 'data_hash' not in msg_params:
                     self.logger.debug(
-                        f'calling method {meth} with params {msg_params}')
+                        f'calling method {meth.__name__} with params {msg_params}')
                 meth(**msg_params)
 
     def handle_hello(self, identity_str):
