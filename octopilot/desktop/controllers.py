@@ -410,7 +410,7 @@ class Dispatcher:
                 # Set a threshold
                 threshold = (datetime.datetime.now() - 
                     datetime.timedelta(
-                    seconds=alive_timer_dispatcher_crash_threshold))
+                    seconds=self.alive_timer_dispatcher_crash_threshold))
                 
                 # Error if it's been too long
                 # TODO: initiate shutdown
