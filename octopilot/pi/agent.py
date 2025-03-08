@@ -213,9 +213,12 @@ class Agent(object):
         and a sessions is running, conclude that the Dispatcher has crashed
         and initiate critical shutdown.
         """
-        #~ self.logger.debug('received alive from dispatcher; will respond')
+        dt_now = datetime.datetime.now()
+        self.logger.debug(f'{dt_now}: received alive from dispatcher; will respond')
         self.last_alive_request_received = datetime.datetime.now()
         self.network_communicator.send_alive()
+        dt_now = datetime.datetime.now()
+        self.logger.debug(f'{dt_now}: responded to dispatcher alive request')
 
     def start_session(self):
         """Called whenever a new session is started by Dispatcher
