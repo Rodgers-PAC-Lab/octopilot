@@ -659,7 +659,7 @@ class PiNetworkCommunicator(object):
         
         # Call the method
         if meth is not None:
-            self.logger.debug(f'calling method {meth} with params {msg_params}')
+            self.logger.debug(f'calling method {meth.__name__} with params {msg_params}')
             meth(**msg_params)
     
     def send_goodbye(self):
