@@ -122,6 +122,9 @@ class Dispatcher:
             # and there's no leftover sounds from the previous trial
             self.inter_trial_interval = 0.5
         
+        # Add a little jitter to the inter-trial interval
+        self.inter_trial_interval_stdev = 0.05
+        
         # Use task_params to set TrialParameterChooser
         self.trial_parameter_chooser = (
             trial_chooser.TrialParameterChooser.from_task_params(
@@ -574,10 +577,21 @@ class Dispatcher:
             # Silence the sounds
             self.network_communicator.send_message_to_all('silence')
 
+            # Add a bit of randomness to ITI
+            this_ITI = (
+                self.inter_trial_interval + 
+                np.random.standard_normal() * self.inter_trial_interval_stdev)
+            
+            # Avoid negative ITI
+            if this_ITI < 0.001:
+                this_ITI = 0.001
+
             # Create a timer that will call self.start_trial() after
             # self.inter_trial_interval seconds
             self.timer_inter_trial_interval = threading.Timer(
                 self.inter_trial_interval, self.start_trial)
+            
+            # Start the timer
             self.timer_inter_trial_interval.start()
         else:
             # Just start trial immediately
