@@ -786,7 +786,7 @@ class Agent(object):
             last_hello_time = datetime.datetime.now()
             while True:
                 # Initial bonsai monitoring 
-                self.monitor_bonsai("decrease")
+                #~ self.monitor_bonsai("decrease")
     
                 # Used to continuously add frames of sound to the 
                 # queue until the program stops
