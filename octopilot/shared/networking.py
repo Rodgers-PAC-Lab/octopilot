@@ -437,7 +437,7 @@ class PiNetworkCommunicator(object):
         sockets with it
     set_up_poke_socket : Creates sockets and connects to the GUI
     """
-    def __init__(self, identity, gui_ip, zmq_port):
+    def __init__(self, identity, gui_ip, zmq_port, bonsai_ip, bonsai_port):
         """Init a new NetworkCommunicator
         
         This object will communicate with the GUI using a DEALER socket called
@@ -462,6 +462,9 @@ class PiNetworkCommunicator(object):
         self.zmq_port = zmq_port
         self.identity = identity
         
+        ## Storing bonsai arguments
+        self.bonsai_ip = bonsai_ip
+        self.bonsai_port = bonsai_port
 
         ## Init logger
         self.logger = NonRepetitiveLogger("test")
@@ -470,11 +473,22 @@ class PiNetworkCommunicator(object):
         self.logger.addHandler(sh)
         self.logger.setLevel(logging.DEBUG)
         
-
         ## Set up the method to call on each command
         self.command2method = {}
         
-
+        ## Bonsai init
+        #self.bonsai_ip = "192.168.11.135"
+        #self.bonsai_port = 5557
+        self.init_bonsai_socket()
+        
+        # Create a second poller object 
+        self.bonsai_poller = zmq.Poller()
+        self.bonsai_poller.register(self.bonsai_socket, zmq.POLLIN)
+        
+        # Making a state variable to keep track of information on bonsai socket
+        self.bonsai_state = None
+        self.prev_bonsai_state = None
+        
         ## Set up sockets
         self.socket_is_open = False
         self.init_socket()
@@ -524,10 +538,33 @@ class PiNetworkCommunicator(object):
         self.socket_is_open = True
         print(f"Connected to router at {self.router_ip}")  
 
+    def init_bonsai_socket(self):
+        """Create `self.bonsai_socket` and connect to Bonsai PC
+
+        """
+        ## Create socket
+        # Creating a SUB socket for communication regarding poke and poke times
+        self.bonsai_context = zmq.Context()
+        self.bonsai_socket = self.bonsai_context.socket(zmq.SUB)
+        
+        # ZMQ_Linger
+        self.bonsai_socket.setsockopt(zmq.LINGER, 100)
+
+        ## Connect to the server
+        # Connecting to the GUI IP address stored in params
+        self.bonsai_tcp = f"tcp://{self.bonsai_ip}:{self.bonsai_port}"
+        self.bonsai_socket.connect(self.bonsai_tcp) 
+        
+        # Subscribe to all incomign messages from  bonsai
+        self.bonsai_socket.subscribe(b"")
+
+        # Print acknowledgment
+        print(f"Connected to Bonsai at {self.bonsai_tcp}")  
+
     def send_hello(self):
         # Send the identity of the Raspberry Pi to the server
         self.logger.debug('sending hello')
-        self.poke_socket.send_string(f"hello") 
+        self.poke_socket.send_string(f"hello")
 
     def check_socket(self):
         # Get time
@@ -535,7 +572,6 @@ class PiNetworkCommunicator(object):
 
         # Wait for events on registered sockets. 
         # Currently polls every 100ms to check for messages 
-        #~ self.logger.debug('checking poke socket')
         socks = dict(self.poller.poll(100))
 
         # Check for incoming messages on poke_socket
@@ -552,7 +588,39 @@ class PiNetworkCommunicator(object):
     
             # Handle message
             self.handle_message(msg)
-    
+
+    def check_bonsai_socket(self):
+        """
+        Check for incoming messages on the bonsai_socket with real-time handling.
+        
+        Parameters:
+            timeout_ms (int): Timeout for polling in milliseconds.
+        """
+        bonsai_command = None
+
+        # Poll for events on registered sockets.
+        socks2 = dict(self.bonsai_poller.poll(10))
+
+        # Check if bonsai_socket has incoming messages.
+        if self.bonsai_socket in socks2 and socks2[self.bonsai_socket] == zmq.POLLIN:
+            # Process all available messages in the socket.
+            while True:
+                try:
+                    # Receive message
+                    self.prev_bonsai_state2 = self.bonsai_state
+                    self.bonsai_state = self.bonsai_socket.recv_string(flags=zmq.NOBLOCK)
+
+                    # Log received messages
+                    if self.prev_bonsai_state2 != self.bonsai_state:
+                        dt_now = datetime.datetime.now().isoformat()
+                        self.logger.debug(
+                            f'{dt_now} - Received message {self.bonsai_state} on bonsai socket'
+                        )
+                    
+                except zmq.Again:
+                    # Break the loop if no more messages are available
+                    break
+
     def handle_message(self, msg):
         """Handle a message received on poke_socket
         
@@ -593,7 +661,7 @@ class PiNetworkCommunicator(object):
         if meth is not None:
             self.logger.debug(f'calling method {meth} with params {msg_params}')
             meth(**msg_params)
-
+    
     def send_goodbye(self):
         """Send goodbye message to GUI
         

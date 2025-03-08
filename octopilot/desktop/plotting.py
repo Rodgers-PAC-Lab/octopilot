@@ -410,7 +410,7 @@ class PokePlotWidget(QWidget):
             pen=None, # no connecting line
             symbol="arrow_down",  
             symbolSize=10,
-            symbolBrush='cyan',
+            symbolBrush='c',
             symbolPen=None,
         )
         

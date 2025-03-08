@@ -13,6 +13,8 @@ params = load_params.load_pi_params()
 box_params = load_params.load_box_params(params['box'])
 params['gui_ip'] = box_params['desktop_ip']
 params['zmq_port'] = box_params['zmq_port']
+params['bonsai_ip'] = box_params['bonsai_ip']
+params['bonsai_port'] = box_params['bonsai_port']
 
 
 ## Handle daemons

@@ -10,7 +10,57 @@ import scipy.signal
 import collections
 import datetime
 
-## SETTING UP CLASSES USED TO GENERATE AUDIO
+## Helper function for attenuation
+def apply_attenuation(sig, attenuation, sample_rate):
+    ## Apply the attenuation
+    fft = np.fft.fft(sig)
+    fft_freqs = np.fft.fftfreq(len(sig)) * sample_rate
+
+    # Remove negative frequencies
+    # This assertion seems to be exactly valid, whereas the alternative calculation
+    # of adding sample_rate (modulo arithmetic) is numerically slightly off
+    # So this is probably how the symmetry is supposed to work
+    # fft_freqs[0] is 0, and fft_freqs[len(fft_freqs) // 2] is -(sample_rate / 2)
+    assert (
+        fft_freqs[1:len(fft_freqs) // 2] == 
+        -fft_freqs[len(fft_freqs) // 2 + 1:][::-1]
+        ).all()
+
+    # However this is not numerically exact for some reason
+    assert np.allclose(
+        fft[1:len(fft_freqs) // 2],
+        np.conjugate(fft[len(fft_freqs) // 2 + 1:][::-1])
+        )
+
+    # Let's just use the first half and then make it exactly symmetric
+    fft_half = fft[:len(fft_freqs) // 2]
+    fft_freqs_half = fft_freqs[:len(fft_freqs) // 2]
+
+    # interpolate
+    assert attenuation.index.values.min() <= np.min(fft_freqs_half)
+    assert attenuation.index.values.max() > np.max(fft_freqs_half)
+    attenuation_interpolated = np.interp(
+        fft_freqs_half, attenuation.index.values, attenuation.values)
+
+    # apply interpolated attenuation
+    fft_half_corrected = fft_half * 10 ** (-attenuation_interpolated / 20)
+
+    # reconstruct the rest of the fft
+    # Not sure how to handle the point in the middle, so just leave it as it 
+    # was originally, it does not seem to be equal to the DC point
+    fft_corrected = np.concatenate([
+        fft_half_corrected, 
+        [fft[len(fft_freqs) // 2]],
+        np.conjugate(fft_half_corrected)[1:][::-1]
+        ])
+
+    # Invert
+    corrected_signal = np.real(np.fft.ifft(fft_corrected))
+    
+    return corrected_signal
+    
+
+## Classes for each type of audio
 class Noise:
     """Class to define bandpass filtered white noise."""
     def __init__(self, blocksize=1024, fs=192000, duration=0.01, amplitude=0.01, channel=None, 
@@ -131,9 +181,9 @@ class Noise:
             self.table = self.table * np.sqrt(10)
             
             # Apply the attenuation to each column
-            # for n_column in range(self.table.shape[1]):
-            #     self.table[:, n_column] = apply_attenuation(
-            #         self.table[:, n_column], self.attenuation, self.fs)
+            for n_column in range(self.table.shape[1]):
+                self.table[:, n_column] = apply_attenuation(
+                    self.table[:, n_column], self.attenuation, self.fs)
         
         # Break the sound table into individual chunks of length blocksize
         self.chunk()
@@ -279,8 +329,8 @@ class SoundGenerator_IntermittentBursts(object):
             except KeyError:
                 raise ValueError(f'received malformed params: {params}')
             
-            lowpass = params['center_freq'] - bandwidth / 2
-            highpass = params['center_freq'] + bandwidth / 2
+            lowpass = params['center_freq'] + bandwidth / 2
+            highpass = params['center_freq'] - bandwidth / 2
             sound = Noise(
                 blocksize=self.blocksize,
                 fs=self.fs,
@@ -290,7 +340,8 @@ class SoundGenerator_IntermittentBursts(object):
                 lowpass=lowpass,
                 highpass=highpass,
                 attenuation_file=self.attenuation_file,
-                )  
+                )
+        
         
         return sound
     

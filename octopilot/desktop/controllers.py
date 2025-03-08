@@ -7,6 +7,7 @@ import datetime
 import logging
 import io
 import threading
+import numpy as np
 import pandas
 from ..shared.misc import RepeatedTimer
 from ..shared.logtools import NonRepetitiveLogger
@@ -131,6 +132,7 @@ class Dispatcher:
         self._log_trial_header_row()
         self._log_poke_header_row()
         self._log_sound_header_row()
+        self._log_volume_header_row()
         
         # This one writes its own header row
         self._log_sound_plan_header_row_written = False
@@ -152,6 +154,7 @@ class Dispatcher:
             'sound_plan': self.handle_sound_plan,
             'goodbye': self.handle_goodbye,
             'alive': self.recv_alive,
+            'volume_change': self.handle_volume
             }
         
         
@@ -178,6 +181,9 @@ class Dispatcher:
         
         # Trial index (None if not running)
         self.current_trial = None
+        
+        # Volume adjustment
+        self.trigger_trial = False
         
         # Keep track of which ports have been poked on this trial
         self.ports_poked_this_trial = set()
@@ -247,6 +253,10 @@ class Dispatcher:
         self.goal_port, self.trial_parameters, self.port_parameters = (
             self.trial_parameter_chooser.choose(self.previously_rewarded_port)
             )
+
+        # Choose whether the trial sound will be adjusted
+        self.trigger_trial = np.random.random() < 0.5
+        self.trial_parameters['trigger_trial'] = self.trigger_trial
 
         # Set start time as now (note that Pi will not receive the message 
         # until a bit later)
@@ -431,6 +441,10 @@ class Dispatcher:
         finally:
             self.stop_session()
     
+    def handle_volume(self, trial_number, identity, volume, volume_time):
+        """Store the flash time"""
+        self._log_volume(trial_number, identity, volume, volume_time)
+    
     def handle_flash(self, trial_number, identity, flash_time):
         """Store the flash time"""
         self._log_flash(trial_number, identity, flash_time)
@@ -593,7 +607,7 @@ class Dispatcher:
         # Order as follows: sort the param_names, prepend and postpend a few
         # that are not contained within param_names
         param_names = (
-            ['trial_number', 'start_time', 'goal_port'] + 
+            ['trial_number', 'start_time', 'goal_port', 'trigger'] + 
             sorted(param_names) + 
             ['reward_time']
             )
@@ -619,9 +633,13 @@ class Dispatcher:
         
         # First pop trial_number
         trial_number = self.trial_parameters.pop('trial_number')
+        trigger_trial = self.trial_parameters.pop('trigger_trial')
         
         # Begin with these hardcoded ones
-        str_to_log = f'{trial_number},{self.trial_start_time},{self.goal_port},'
+        str_to_log = (
+            f'{trial_number},{self.trial_start_time},'
+            f'{self.goal_port},{trigger_trial},'
+            )
         
         # Add trial_parameters in alphabetical order
         for key in sorted(self.trial_parameters.keys()):
@@ -630,6 +648,7 @@ class Dispatcher:
         # Add trial_number back to trial_parameters, in case anything depends
         # on it
         self.trial_parameters['trial_number'] = trial_number
+        self.trial_parameters['trigger_trial'] = trigger_trial
         
         # End with reward_time
         str_to_log += str(reward_time)
@@ -664,6 +683,20 @@ class Dispatcher:
         """Record that a flash occurred"""
         with open(os.path.join(self.sandbox_path, 'flashes.csv'), 'a') as fi:
             fi.write(f'{trial_number},{identity},{flash_time}\n')
+    
+    def _log_volume_header_row(self):
+        """Write out the header row of volume_changes.csv
+        
+        Currently this is hard-coded
+        """
+        with open(os.path.join(self.sandbox_path, 'volume_changes.csv'), 'a') as fi:
+            fi.write('trial_number,rpi,volume,volume_time\n')
+        
+    def _log_volume(self, trial_number, identity, volume ,volume_time):
+        """Record that a flash occurred"""
+        with open(os.path.join(self.sandbox_path, 'volume_changes.csv'), 'a') as fi:
+            fi.write(f'{trial_number},{identity}, {volume},{volume_time}\n')
+
 
     def _log_sound_header_row(self):
         """Write out the header row of pokes.csv
