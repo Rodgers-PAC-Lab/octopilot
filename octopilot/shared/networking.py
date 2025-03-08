@@ -588,7 +588,7 @@ class PiNetworkCommunicator(object):
             try:
                 # Non-blocking recv
                 # If there is no message, this raises zmq.error.Again
-                msg = self.poke_socket.recv_string()  
+                msg = self.poke_socket.recv_string(flags=zmq.NOBLOCK)  
             except zmq.error.Again:
                 # No message available, break out of the loop
                 break
