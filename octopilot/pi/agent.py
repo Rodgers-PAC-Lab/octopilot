@@ -601,7 +601,6 @@ class Agent(object):
         dt: str
             Isoformat string when the sound was played
         """
-        return
         # This is only an approximate hash because it excludes the
         # middle of the data
         data_hash = hash(str(data))
