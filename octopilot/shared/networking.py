@@ -244,9 +244,6 @@ class DispatcherNetworkCommunicator(object):
         """
         msg = "set_trial_parameters;"
         for key, value in kwargs.items():
-            if key == 'left_reward':
-                print(f'the type of left_reward is {type(value)}')
-                
             # Infer dtyp
             if hasattr(value, '__len__'):
                 dtyp = 'str'
