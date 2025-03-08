@@ -594,6 +594,7 @@ class PiNetworkCommunicator(object):
                 break
 
             # Log received message
+            dt_now = datetime.datetime.now()
             self.logger.debug(
                 f'{dt_now} - Received message {msg} on poke socket')
 
