@@ -593,13 +593,8 @@ class PiNetworkCommunicator(object):
                 # No message available, break out of the loop
                 break
 
-            # Log received message
-            dt_now = datetime.datetime.now()
-            self.logger.debug(
-                f'{dt_now} - Received message {msg} on poke socket')
-
             # Handle the received message
-            self.handle_message(identity, message)
+            self.handle_message(msg)
             n_handled_messages += 1
         
     def check_bonsai_socket(self):
@@ -647,7 +642,8 @@ class PiNetworkCommunicator(object):
             of arguments formed from the remaining strings.
         """
         # Log
-        self.logger.debug(f'received message: {msg}')
+        dt_now = datetime.datetime.now()
+        self.logger.debug(f'{dt_now}: received message: {msg}')
         
         # Split on semicolon
         tokens = msg.strip().split(';')
