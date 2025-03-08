@@ -68,6 +68,8 @@ class Dispatcher:
         self.session_is_running = False
         self.last_alive_message_received = {}
         self.alive_timer = None
+        self.alive_timer_send_interval = 30
+        self.alive_timer_dispatcher_crash_threshold = 60
         self.session_start_time = None
         self.session_name = None
         self.timer_advance_trial = None
@@ -243,9 +245,10 @@ class Dispatcher:
 
         # Set up timer to test if the Agent is still running
         self.last_alive_message_received = {}
-        alive_interval = 30
         self.alive_timer = RepeatedTimer(
-            alive_interval, self.send_alive_request)
+            self.alive_timer_send_interval, 
+            self.send_alive_request,
+            )
 
     def start_trial(self):
         ## Choose and broadcast reward_port
@@ -374,18 +377,53 @@ class Dispatcher:
         #~ self.network_communicator.command2method = {}
 
     def send_alive_request(self):
+        """Send alive request to agents.
+        
+        Also checks if it's been too long since we've heard from them.
+        
+        alive_timer_test_interval : 
+            Seconds between calls to this function
+            This sets the speed with which problems are detected
+            Can be somewhat frequent because this call is fast
+        
+        alive_timer_agent_crash_threshold : 
+            Seconds before deciding that the dispatcher has crashed
+            Must be longer than alive_timer_send_interval
+            If this is too short, we might false-positive crash
+            If this is too long, it will take a while for agents to shut down
+        
+        alive_timer_send_interval : 
+            Seconds between sending of 'alive' requests
+            If this is too frequent, we waste time (and potentially increase
+            risk of zmq threading crash)
+            If this is too slow, we won't know when a crash happens
+        
+        alive_timer_dispatcher_crash_threshold : 
+            Seconds before deciding that the agents have crashed
+            Must be longer than alive_timer_send_interval        
+        """
         # Warn if it's been too long
         for identity in self.network_communicator.connected_agents:
             if identity in self.last_alive_message_received.keys():
                 last_time = self.last_alive_message_received[identity]
-                threshold = datetime.datetime.now() - datetime.timedelta(seconds=4)
+                
+                # Set a threshold
+                threshold = (datetime.datetime.now() - 
+                    datetime.timedelta(
+                    seconds=alive_timer_dispatcher_crash_threshold))
+                
+                # Error if it's been too long
+                # TODO: initiate shutdown
                 if last_time < threshold:
                     self.logger.error(f'no recent alive responses from {identity}')
-            else:
-                self.logger.warning(f'{identity} is not in last_alive_message_received')
             
-            # TODO: initiate shutdown
+            else:
+                # Warn that we haven't heard from this one before
+                # TODO: initialize with expected identities to avoid this warn
+                self.logger.warning(
+                    f'{identity} is not in last_alive_message_received')
         
+        # Send the alive request
         self.network_communicator.send_alive_request()
 
     def update(self):

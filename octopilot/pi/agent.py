@@ -99,6 +99,8 @@ class Agent(object):
         self.alive_timer = None
         self.last_alive_request_received = datetime.datetime.now()
         self.critical_shutdown = False
+        self.alive_timer_test_interval = 5
+        self.alive_timer_agent_crash_threshold = 45
         
         # Variable to save params for each trial
         self.prev_trial_params = None
@@ -239,26 +241,43 @@ class Agent(object):
         
         # Set up timer to test if the Dispatcher is still running and
         # sending are_you_alive requests
-        alive_interval = 45
         self.alive_timer = hardware.RepeatedTimer(
-            alive_interval, self.check_for_alive_requests)
+            self.alive_timer_test_interval,
+            self.check_for_alive_requests,
+            )
     
     def check_for_alive_requests(self):
         """Periodically called during a session to see if the Dispatcher running
         
+        alive_timer_test_interval : 
+            Seconds between calls to this function
+            This sets the speed with which problems are detected
+            Can be somewhat frequent because this call is fast
+        
+        alive_timer_agent_crash_threshold : 
+            Seconds before deciding that the dispatcher has crashed
+            Must be longer than alive_timer_send_interval
+            If this is too short, we might false-positive crash
+            If this is too long, it will take a while for agents to shut down
+        
+        alive_timer_send_interval : On Dispatcher
+            Seconds between sending of 'alive' requests
+            If this is too frequent, we waste time (and potentially increase
+            risk of zmq threading crash)
+            If this is too slow, we won't know when a crash happens
+        
+        alive_timer_dispatcher_crash_threshold : On Dispatcher
+            Seconds before deciding that the agents have crashed
+            Must be longer than alive_timer_send_interval
+        
         """
+        # Set the threshold as alive_timer_crash_threshold seconds ago
         dt_now = datetime.datetime.now()
-        threshold1 = dt_now - datetime.timedelta(seconds=5)
-        threshold2 = dt_now - datetime.timedelta(seconds=15)
+        threshold = dt_now - datetime.timedelta(
+            seconds=self.alive_timer_agent_crash_threshold)
         
-        if self.last_alive_request_received >= threshold1:
-            #self.logger.debug('dispatcher is alive')
-            pass
-        
-        elif self.last_alive_request_received >= threshold2:
-            self.logger.error('dispatcher has crashed')
-        
-        else:
+        # If the last received request was before that, then shut down
+        if self.last_alive_request_received < threshold:
             self.logger.critical('dispatcher has crashed; shutting down')
             self.critical_shutdown = True
     
