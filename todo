@@ -1,3 +1,4 @@
 add checkbox in laucher for debug mode
 stop timer when session stops
 automatically start session when start
+more useful warning when someone starts a session but the old session terminal is still open
