@@ -22,6 +22,8 @@ import time
 import os
 import json
 import logging
+import threading
+import datetime
 
 # Qt imports
 from PyQt5 import QtWidgets
@@ -136,20 +138,14 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         arena_widget_container.layout().addWidget(self.arena_widget)
 
         # Create PerformanceMetricDisplay
-        # Needs to be created before start_button is set up
         self.performance_metric_display_widget = (
             plotting.PerformanceMetricDisplay(self.dispatcher))
 
-        # Create self.start_button and connect it to self.start_sequence
-        self.set_up_start_button()
-        
-        # Create self.start_button and connect it to self.stop_sqeuence
-        # and to self.save_results_to_csv
+        # Create self.stop_button and connect it to self.stop_sqeuence
         self.set_up_stop_button()
         
         # Creating vertical layout for start and stop buttons
         start_stop_layout = QVBoxLayout()
-        start_stop_layout.addWidget(self.start_button)
         start_stop_layout.addWidget(self.stop_button)        
         
         # Also add PerformanceMetricDisplay
@@ -189,9 +185,61 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         self.show()
 
         
-        ## Connecting signals to the respective slots/methods 
+        ## Prepare to start session
         # Wait till after the OctopilotSessionWindow is fully initialized
+        # This timer calls Dispatcher.update, which is what actually handles
+        # messages and enables the Agents to connect when ready
         self.timer_dispatcher.start(timer_dispatcher_period_ms)
+        
+        # Start a timer to start the session
+        # See documentation in self.start_session about why this has to be a 
+        # timer
+        self.start_session_timer = QTimer(self)
+        self.start_session_timer.timeout.connect(self.start_session)
+        self.start_session_timer.start(500)
+
+    def start_session(self):
+        """Called by self.start_session_timer to start session
+        
+        We want to start the session right away, but this can't go in 
+        __init__, because the timers don't start running until __init__ is
+        done, and we need some timers to be running to update the dispatcher
+        and handle messages from the agent.
+        
+        Every time this function is called by self.start_session_timer, it
+        checks if all the Agents are connected. If not, nothing happens. If so,
+        self.dispatcher.start_session() starts the session, and we also start
+        the plot widgets.
+        
+        Finaly self.start_session_timer is stopped so that we don't start
+        twice.
+        """
+        # Log 
+        self.logger.info(
+            f'{datetime.datetime.now(): } '
+            'MainWindow attempting to start session...')
+        
+        # Wait until Pis are connected
+        if not self.dispatcher.network_communicator.check_if_all_pis_connected():
+            self.logger.info(
+                'waiting for Agents to connect before starting...')
+            return
+
+        # Start the dispatcher and the updates
+        self.dispatcher.start_session()
+        
+        # Error if it failed to start (e.g., a Pi disconnected)
+        if not self.dispatcher.session_is_running:
+            raise ValueError('dispatcher failed to start!')
+
+        # TODO: Instead of these objects having their own timers, 
+        # OctopilotSessionWindow should keep track of that
+        self.poke_plot_widget.start_plot()
+        self.arena_widget.start()
+        self.performance_metric_display_widget.start()        
+        
+        # Don't start the session again
+        self.start_session_timer.stop()
 
     def _set_up_exception_handling(self):
         self.exception_occurred = False 
@@ -236,34 +284,12 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         if self.exception_occurred:
             self.setStyleSheet("background-color: red;") 
 
-    def set_up_start_button(self):
-        """Create a start button and connect to self.start_sequence"""
-        # Create button
-        self.start_button = QPushButton("Start Session")
-        
-        # Set style
-        self.start_button.setStyleSheet(
-            "background-color : green; color: white;") 
-
-        # Start the dispatcher and the updates
-        # TODO: Handle the case where the dispatcher doesn't actually start
-        # because it's not ready
-        self.start_button.clicked.connect(self.dispatcher.start_session)
-
-        # TODO: Instead of these objects having their own timers, 
-        # OctopilotSessionWindow should keep track of that
-        self.start_button.clicked.connect(self.poke_plot_widget.start_plot)
-        self.start_button.clicked.connect(self.arena_widget.start)
-        self.start_button.clicked.connect(self.performance_metric_display_widget.start)
-
     def set_up_stop_button(self):
-        """Create a start button and connect to self.start_sequence"""
+        """Create a stop button and connect to self.stop_session and plot stops
+        
+        """
         # Create button
         self.stop_button = QPushButton("Stop Session")
-        
-        # Set style
-        self.start_button.setStyleSheet(
-            "background-color : green; color: white;") 
         
         # Stop the dispatcher and the updates
         self.stop_button.clicked.connect(self.dispatcher.stop_session)
