@@ -188,7 +188,16 @@ class DispatcherNetworkCommunicator(object):
         
         self.context = zmq.Context()
         self.zmq_socket = self.context.socket(zmq.ROUTER)
-        self.zmq_socket.bind(f"tcp://*:{zmq_port}")
+        
+        # This will raise ZMQError if the port is already in use, most
+        # commonly by another currently running session
+        try:
+            self.zmq_socket.bind(f"tcp://*:{zmq_port}")
+        except zmq.error.ZMQError as e:
+            raise zmq.error.ZMQError(
+                'Cannot connect - check for and close any currently running '
+                'octopilot sessions\n' + str(e)
+                )
     
     def check_if_all_pis_connected(self):
         """"Returns True if all pis in self.expected_identies are connected"""
