@@ -294,6 +294,8 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         # Stop the dispatcher and the updates
         self.stop_button.clicked.connect(self.dispatcher.stop_session)
         self.stop_button.clicked.connect(self.poke_plot_widget.stop_plot)
+        self.stop_button.clicked.connect(
+            self.performance_metric_display_widget.stop)
 
     def closeEvent(self, event):
         """Executes when the window is closed
