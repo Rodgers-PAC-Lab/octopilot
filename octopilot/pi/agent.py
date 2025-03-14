@@ -248,6 +248,9 @@ class Agent(object):
             self.alive_timer_test_interval,
             self.check_for_alive_requests,
             )
+        
+        # Mark the last alive time as now, the time the timer was started
+        self.last_alive_request_received = datetime.datetime.now()
     
     def check_for_alive_requests(self):
         """Periodically called during a session to see if the Dispatcher running
