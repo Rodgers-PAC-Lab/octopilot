@@ -9,6 +9,7 @@ from ..shared import load_params
 # This defines standard QApplication
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QTableWidget, QTableWidgetItem, QVBoxLayout, QPushButton
 from PyQt5 import QtCore, QtGui
+import PyQt5.QtWidgets
 
 import functools
 import datetime
@@ -209,19 +210,29 @@ class LauncherWindow(QWidget):
                 functools.partial(self.start_session_from_qb, qb))
             self.table_widget.setCellWidget(n_row, 3, qb)
 
-        # Create a layout
+        # Create a checkbox for debug mode
+        self.debug_check_box_label = PyQt5.QtWidgets.QLabel(self)
+        self.debug_check_box_label.setText('debug mode')
+        self.debug_check_box = PyQt5.QtWidgets.QCheckBox(self)
+        self.debug_check_box_layout = PyQt5.QtWidgets.QHBoxLayout()
+        self.debug_check_box_layout.addWidget(self.debug_check_box_label)
+        self.debug_check_box_layout.addWidget(self.debug_check_box)
+
+        # Initialize state of checkbox
+        if args.debug:
+            self.debug_check_box.setChecked(True)
+
+        # Create a layout and add items to it
         self.layout = QVBoxLayout()
-        
-        # Add table to the layout
         self.layout.addWidget(self.table_widget)
+        self.layout.addLayout(self.debug_check_box_layout)
         
         # Set the layout
         self.setLayout(self.layout)
         
         # Position in the upper left corner
-        self.resize(350, 1000)
+        self.resize(400, 1000)
         self.move(0, 0)
-        
 
     def start_session_from_row_idx(self, n_row):
         """Use data from row in self.table_widget to start octopilot session
@@ -242,6 +253,9 @@ class LauncherWindow(QWidget):
         box_params = load_params.load_box_params(box)
         ypos = box_params['ypos_of_gui']
         
+        # Get state of debug check box
+        debug = self.debug_check_box.isChecked()
+        
         # Call start_octopilot_gui_in_new_terminal with that data
         # TODO: keep track of this process
         proc = start_octopilot_gui_in_new_terminal(
@@ -249,7 +263,7 @@ class LauncherWindow(QWidget):
             box=box,
             task=task,
             ypos=ypos,
-            keep_window_open=args.debug,
+            keep_window_open=debug,
         )
 
     def start_session_from_qb(self, row_qb):
