@@ -98,6 +98,7 @@ def start_octopilot_gui_in_new_terminal(
     popen_args = [
         'gnome-terminal', 
         f'--working-directory={sandbox_path}',
+        '--hide-menubar',
         '--geometry=%dx%d+%d+%d' % (ncols, nrows, xpos, ypos),
         '--zoom=%0.2f' % zoom,  
         '--', # used to be -x
@@ -160,6 +161,9 @@ class LauncherWindow(QWidget):
     def __init__(self, mouse_records):
         # Super init for QWidget
         super().__init__()
+        
+        # Keep track of launched processes
+        self.proc_l = []
         
         # Set window title
         self.setWindowTitle('Octopilot Launcher')
@@ -233,7 +237,7 @@ class LauncherWindow(QWidget):
         # Position in the upper left corner
         self.resize(400, 1000)
         self.move(0, 0)
-
+    
     def start_session_from_row_idx(self, n_row):
         """Use data from row in self.table_widget to start octopilot session
         
@@ -257,7 +261,6 @@ class LauncherWindow(QWidget):
         debug = self.debug_check_box.isChecked()
         
         # Call start_octopilot_gui_in_new_terminal with that data
-        # TODO: keep track of this process
         proc = start_octopilot_gui_in_new_terminal(
             mouse=mouse,
             box=box,
@@ -265,6 +268,9 @@ class LauncherWindow(QWidget):
             ypos=ypos,
             keep_window_open=debug,
         )
+        
+        # Store
+        self.proc_l.append(proc)
 
     def start_session_from_qb(self, row_qb):
         """Start the session associated with the push button for this row.
