@@ -15,7 +15,6 @@ import atexit
 
 # shared defines all widgets
 from . import main_window
-from . import watchtower
 from ..shared import load_params
 from ..shared.logtools import NonRepetitiveLogger
 
@@ -72,18 +71,6 @@ def main(box, task, mouse, sandbox_path=None):
     task_params = load_params.load_task_params(args.task)
     mouse_params = load_params.load_mouse_params(args.mouse)
     
-    # Pull out camera name needed below
-    try:
-        camera_name = box_params['camera']
-        logger.info(f'will use camera {camera_name}')
-    except KeyError:
-        camera_name = None
-        logger.info('warning: no camera specified')
-    
-    if camera_name == '':
-        logger.info('warning: camera is specified as empty string')
-        camera_name = None
-    
     # Apparently QApplication needs sys.argv for some reason
     # https://stackoverflow.com/questions/27940378/why-do-i-need-sys-argv-to-start-a-qapplication-in-pyqt
     app = QApplication(sys.argv)
@@ -92,21 +79,10 @@ def main(box, task, mouse, sandbox_path=None):
     # https://stackoverflow.com/questions/4938723/what-is-the-correct-way-to-make-my-pyqt-application-quit-when-killed-from-the-co
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-    watchtower_connection_up = False
+    # This try/finally is no longer necessary, but kept in case we need
+    # to put some kind of shutdown code
     retcode = 0 
     try:
-        ## Start saving video (if camera specified)
-        watchtowerurl = 'https://192.168.11.121:4343'
-        if camera_name is not None:
-            # Setup
-            watchtower_connection_up, apit = watchtower.watchtower_setup(
-                watchtowerurl, logger=logger)
-
-            # Start save
-            if watchtower_connection_up:
-                watchtower_connection_up = watchtower.watchtower_start_save(
-                    watchtowerurl, apit, camera_name, logger)
-        
         
         ## Instantiate an OctopilotSessionWindow
         win = main_window.OctopilotSessionWindow(
@@ -121,20 +97,12 @@ def main(box, task, mouse, sandbox_path=None):
         # https://forum.qt.io/topic/128580/why-is-widget-show-blocked-if-placing-long-running-code-right-after-it/2
         win.show()
         
-        
         # This line sets the event-loop and blocks until the window is closed
         retcode = app.exec()
         logger.info(f'app.exec completed with retcode {retcode}')
 
     finally:
-        logger.info('shutting down watchtower')
-        
-        ## Always stop save even if it crashes
-        # The problem is that this line doesn't run if the terminal window is closed
-        # Try this xprop hack: https://forums.linuxmint.com/viewtopic.php?t=300908
-        if camera_name is not None and watchtower_connection_up:
-            watchtower_connection_up = watchtower.watchtower_stop_save(
-                watchtowerurl, apit, camera_name, logger)        
+        pass
     
     # Wait a few seconds for any errors to be visible
     time.sleep(2)

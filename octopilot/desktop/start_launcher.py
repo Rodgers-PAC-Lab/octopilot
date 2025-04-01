@@ -19,6 +19,7 @@ import signal
 import subprocess
 import glob
 import os
+import time
 import pandas
 
 # Helper function
@@ -90,6 +91,10 @@ def start_octopilot_gui_in_new_terminal(
     if keep_window_open:
         bash_command += '; read'    
 
+    # Generate a unique window name
+    window_name = f'Terminal for {box} {mouse} {task}'
+    #~ window_name = 'asdf'
+
     # Form the full list of Popen args, which are used to start the
     # gnome-terminal window and then run the bash_command inside it
     # Note: bash_command should NOT be enclosed in quotes here, because that
@@ -101,6 +106,7 @@ def start_octopilot_gui_in_new_terminal(
         '--hide-menubar',
         '--geometry=%dx%d+%d+%d' % (ncols, nrows, xpos, ypos),
         '--zoom=%0.2f' % zoom,  
+        f'--title={window_name}',
         '--', # used to be -x
         'bash', '-l', '-c',
         bash_command,
@@ -112,6 +118,13 @@ def start_octopilot_gui_in_new_terminal(
     # Popen
     # TODO: keep track of this process in Launcher
     proc = subprocess.Popen(popen_args)
+    
+    # Remove the title bar
+    time.sleep(1)
+    os.system(
+        'xprop -f _MOTIF_WM_HINTS 32c -set _MOTIF_WM_HINTS '
+        '"0x2, 0x0, 0x2, 0x0, 0x0" ' 
+        f'-name "{window_name}"')
     
     return proc
 

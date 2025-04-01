@@ -32,6 +32,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget
 from PyQt5.QtCore import QObject, pyqtSignal, QThread, QTimer
 
 # From this module
+from . import watchtower
 from . import plotting
 from . import controllers
 from ..shared.logtools import NonRepetitiveLogger
@@ -100,6 +101,24 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         
         ## This sets up self._exception_hook to handle any unexpected errors
         self._set_up_exception_handling()
+        
+        
+        ## Store params (TODO: add others)
+        self.box_params = box_params
+
+        # Pull out camera name if available
+        try:
+            self.camera_name = self.box_params['camera']
+            self.logger.info(f'will use camera {self.camera_name}')
+        except KeyError:
+            self.camera_name = None
+            self.logger.info('warning: no camera specified')
+        
+        if self.camera_name == '':
+            self.logger.info('warning: camera is specified as empty string')
+            self.camera_name = None
+        
+        self.watchtowerurl = 'https://192.168.11.121:4343'
         
         
         ## Create the Dispatcher that will run the task
@@ -214,18 +233,50 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         Finaly self.start_session_timer is stopped so that we don't start
         twice.
         """
-        # Log 
+        
+        ## Log 
         self.logger.info(
             f'{datetime.datetime.now(): } '
             'MainWindow attempting to start session...')
         
-        # Wait until Pis are connected
+        
+        ## Wait until Pis are connected
         if not self.dispatcher.network_communicator.check_if_all_pis_connected():
             self.logger.info(
                 'waiting for Agents to connect before starting...')
             return
 
-        # Start the dispatcher and the updates
+
+        ## Start saving video (if camera specified)
+        if self.camera_name is not None:
+            # Setup
+            self.watchtower_connection_up, self.watchtower_apit = (
+                watchtower.watchtower_setup(self.watchtowerurl, logger=self.logger))
+            
+            # Start save
+            if self.watchtower_connection_up:
+                # Stop save if it's saving
+                self.logger.debug('telling watchtower to stop save')
+                self.watchtower_connection_up = (
+                    watchtower.watchtower_stop_save(
+                        self.watchtowerurl, 
+                        self.watchtower_apit, 
+                        self.camera_name, 
+                        self.logger))
+                
+                # Start save
+                self.logger.debug('telling watchtower to start save')
+                self.watchtower_connection_up = (
+                    watchtower.watchtower_start_save(
+                        self.watchtowerurl, 
+                        self.watchtower_apit, 
+                        self.camera_name, 
+                        self.logger))
+            else:
+                self.logger.warning('could not initialize watchtower!')
+
+        
+        ## Start the dispatcher and the updates
         self.dispatcher.start_session()
         
         # Error if it failed to start (e.g., a Pi disconnected)
@@ -241,6 +292,25 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         # Don't start the session again
         self.start_session_timer.stop()
 
+    def stop_watchtower_save(self):
+        """Called by stop_session. Stops watchtower save"""
+        ## Always stop save even if it crashes
+        # The problem is that this line doesn't run if the terminal window is closed
+        # Try this xprop hack: https://forums.linuxmint.com/viewtopic.php?t=300908
+        if self.camera_name is not None:
+            if self.watchtower_connection_up:
+                self.logger.debug('telling watchtower to stop save')
+                self.watchtower_connection_up = (
+                    watchtower.watchtower_stop_save(
+                        self.watchtowerurl, 
+                        self.watchtower_apit, 
+                        self.camera_name, 
+                        self.logger))
+            else:
+                self.logger.warning(
+                    'cannot tell watchtower to stop save because '
+                    'connection is not up')
+    
     def _set_up_exception_handling(self):
         self.exception_occurred = False 
         
@@ -292,17 +362,26 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         self.stop_button = QPushButton("Stop Session")
         
         # Stop the dispatcher and the updates
+        # TODO: stop timer_dispatcher here?
         self.stop_button.clicked.connect(self.dispatcher.stop_session)
         self.stop_button.clicked.connect(self.poke_plot_widget.stop_plot)
         self.stop_button.clicked.connect(
             self.performance_metric_display_widget.stop)
+        self.stop_button.clicked.connect(self.stop_watchtower_save)
 
     def closeEvent(self, event):
         """Executes when the window is closed
         
-        Send 'exit' signal to all IP addresses bound to the GUI
+        This goes through the same sequence of events from stop_button
         """
-        # Iterate through identities and send 'exit' message
+        # TODO: any need to stop the widgets?
+        # TODO: make a single stop_session function, and put all of these in 
+        # it, and have stop_button call that same function.
         self.timer_dispatcher.stop()
         self.dispatcher.stop_session()
+        
+        self.stop_watchtower_save()
+        
+        # TODO: how to stop watchtower save if it's force-quit?
+        
         event.accept()
