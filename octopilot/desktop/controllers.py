@@ -68,8 +68,11 @@ class Dispatcher:
         self.session_is_running = False
         self.last_alive_message_received = {}
         self.alive_timer = None
+        self.alive_timer_send_interval = 30
+        self.alive_timer_dispatcher_crash_threshold = 60
         self.session_start_time = None
         self.session_name = None
+        self.timer_advance_trial = None
         
         # Timer for ITI
         self.timer_inter_trial_interval = None
@@ -99,7 +102,7 @@ class Dispatcher:
             self.pi_names.append(pi['name'])
 
         # Initialize trial history (requires self.ports)
-        self.reset_history()
+        self.init_history()
 
         
         ## Parse task_params
@@ -118,6 +121,9 @@ class Dispatcher:
             # It's best if this is long enough that the Pis can be informed
             # and there's no leftover sounds from the previous trial
             self.inter_trial_interval = 0.5
+        
+        # Add a little jitter to the inter-trial interval
+        self.inter_trial_interval_stdev = 0.05
         
         # Use task_params to set TrialParameterChooser
         self.trial_parameter_chooser = (
@@ -165,11 +171,10 @@ class Dispatcher:
             )
         self.marshaller.start()
 
-    def reset_history(self):
+    def init_history(self):
         """Set all history variables to defaults
         
-        This happens on init and on every stop_session
-        This is how you can tell no session is running
+        This happens on init
         """
         # Identity of last_rewarded_port (to avoid repeats)
         self.previously_rewarded_port = None 
@@ -218,21 +223,22 @@ class Dispatcher:
                 'ignoring start_session because not all pis connected')
             return
         
-        # Set the initial_time to now
-        self.session_start_time = datetime.datetime.now() 
-        self.logger.info(f'Starting session at {self.session_start_time}')
-        
-        # Deal with case where the old sessions is still going
+        # Do not start if we're already running (this should no longer be
+        # possible now that this is not a clickable button)
         if self.session_is_running:
             # Log
-            self.logger.error('session is started but session is running')
+            self.logger.warning('session is started but session is running')
             
-            # Reset history
-            self.reset_history()    
+            # Return without doing anything
+            return
         
         # Flag that it has started
         self.session_is_running = True
 
+        # Set the initial_time to now
+        self.session_start_time = datetime.datetime.now() 
+        self.logger.info(f'Starting session at {self.session_start_time}')
+        
         # Tell the agent to start the session
         # TODO: wait for acknowledgement of start
         self.network_communicator.send_start()
@@ -242,9 +248,10 @@ class Dispatcher:
 
         # Set up timer to test if the Agent is still running
         self.last_alive_message_received = {}
-        alive_interval = 3
         self.alive_timer = RepeatedTimer(
-            alive_interval, self.send_alive_request)
+            self.alive_timer_send_interval, 
+            self.send_alive_request,
+            )
 
     def start_trial(self):
         ## Choose and broadcast reward_port
@@ -359,9 +366,7 @@ class Dispatcher:
 
         
         ## Reset history when a new session is started 
-        self.reset_history()    
-
-        # Flag that it has started
+        # Flag that it has stopped
         self.session_is_running = False
         
         
@@ -373,18 +378,53 @@ class Dispatcher:
         #~ self.network_communicator.command2method = {}
 
     def send_alive_request(self):
+        """Send alive request to agents.
+        
+        Also checks if it's been too long since we've heard from them.
+        
+        alive_timer_test_interval : 
+            Seconds between calls to this function
+            This sets the speed with which problems are detected
+            Can be somewhat frequent because this call is fast
+        
+        alive_timer_agent_crash_threshold : 
+            Seconds before deciding that the dispatcher has crashed
+            Must be longer than alive_timer_send_interval
+            If this is too short, we might false-positive crash
+            If this is too long, it will take a while for agents to shut down
+        
+        alive_timer_send_interval : 
+            Seconds between sending of 'alive' requests
+            If this is too frequent, we waste time (and potentially increase
+            risk of zmq threading crash)
+            If this is too slow, we won't know when a crash happens
+        
+        alive_timer_dispatcher_crash_threshold : 
+            Seconds before deciding that the agents have crashed
+            Must be longer than alive_timer_send_interval        
+        """
         # Warn if it's been too long
         for identity in self.network_communicator.connected_agents:
             if identity in self.last_alive_message_received.keys():
                 last_time = self.last_alive_message_received[identity]
-                threshold = datetime.datetime.now() - datetime.timedelta(seconds=4)
+                
+                # Set a threshold
+                threshold = (datetime.datetime.now() - 
+                    datetime.timedelta(
+                    seconds=self.alive_timer_dispatcher_crash_threshold))
+                
+                # Error if it's been too long
+                # TODO: initiate shutdown
                 if last_time < threshold:
                     self.logger.error(f'no recent alive responses from {identity}')
-            else:
-                self.logger.warning(f'{identity} is not in last_alive_message_received')
             
-            # TODO: initiate shutdown
+            else:
+                # Warn that we haven't heard from this one before
+                # TODO: initialize with expected identities to avoid this warn
+                self.logger.warning(
+                    f'{identity} is not in last_alive_message_received')
         
+        # Send the alive request
         self.network_communicator.send_alive_request()
 
     def update(self):
@@ -408,38 +448,6 @@ class Dispatcher:
             if proc.returncode is not None:
                 self.logger.warning(f'ssh proc for {agent} is not running')
         
-    def main_loop(self, verbose=True):
-        """Main loop of Worker
-
-        """
-        try:
-            self.logger.info('starting main_loop')
-            
-            while True:
-                # Check for messages
-                self.network_communicator.check_for_messages()
-                
-                # Check if we're all connected
-                if self.network_communicator.check_if_all_pis_connected():
-                    # Start if it needs to start
-                    # TODO: this should be started by a button
-                    if self.current_trial is None:
-                        self.start_session()
-                else:
-                    # We're not all connnected
-                    self.logger.info(
-                        'waiting for {} to connect; only {} connected'.format(
-                        ', '.join(self.network_communicator.pi_names),
-                        ', '.join(self.network_communicator.connected_agents),
-                    ))
-                    time.sleep(.2)
-            
-        except KeyboardInterrupt:
-            self.logger.info('shutting down')
-        
-        finally:
-            self.stop_session()
-    
     def handle_volume(self, trial_number, identity, volume, volume_time):
         """Store the flash time"""
         self._log_volume(trial_number, identity, volume, volume_time)
@@ -535,10 +543,21 @@ class Dispatcher:
             # Silence the sounds
             self.network_communicator.send_message_to_all('silence')
 
+            # Add a bit of randomness to ITI
+            this_ITI = (
+                self.inter_trial_interval + 
+                np.random.standard_normal() * self.inter_trial_interval_stdev)
+            
+            # Avoid negative ITI
+            if this_ITI < 0.001:
+                this_ITI = 0.001
+
             # Create a timer that will call self.start_trial() after
             # self.inter_trial_interval seconds
             self.timer_inter_trial_interval = threading.Timer(
                 self.inter_trial_interval, self.start_trial)
+            
+            # Start the timer
             self.timer_inter_trial_interval.start()
         else:
             # Just start trial immediately
@@ -567,8 +586,8 @@ class Dispatcher:
         if len(df) == 0:
             return
         
-        # Log
-        self.logger.info(f"received sound plan:\n{df}")
+        # Log - this is quite verbose
+        #~ self.logger.info(f"received sound plan:\n{df}")
         
         # Add trial number and identity
         df['trial_number'] = trial_number

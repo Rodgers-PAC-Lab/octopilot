@@ -205,6 +205,13 @@ class PerformanceMetricDisplay(QWidget):
         # error occurs it will spam the terminal
         self.timer_update.start(250)
     
+    def stop(self):
+        """Stop updating the elapsed time
+        
+        Called by main_window.stop_button. 
+        """
+        self.timer_update.stop()
+    
     def update(self):
         ## Get data from dispatcher
         # Number of pokes total

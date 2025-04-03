@@ -180,11 +180,24 @@ class DispatcherNetworkCommunicator(object):
         # Note that ZMQ sockets cannot be shared across threads
         # The use of a lock is discouraged, but I'm not sure if it's known
         # to not work, or they just don't like it
+        # We use it because the alive_timer runs in its own thread and needs
+        # to send messages
+        # TODO: rewrite alive_timer so that it just sets a flag and doesn't
+        # actually send the message in another thread
         self.zmq_socket_lock = threading.Lock()
         
         self.context = zmq.Context()
         self.zmq_socket = self.context.socket(zmq.ROUTER)
-        self.zmq_socket.bind(f"tcp://*:{zmq_port}")
+        
+        # This will raise ZMQError if the port is already in use, most
+        # commonly by another currently running session
+        try:
+            self.zmq_socket.bind(f"tcp://*:{zmq_port}")
+        except zmq.error.ZMQError as e:
+            raise zmq.error.ZMQError(
+                'Cannot connect - check for and close any currently running '
+                'octopilot sessions\n' + str(e)
+                )
     
     def check_if_all_pis_connected(self):
         """"Returns True if all pis in self.expected_identies are connected"""
@@ -240,9 +253,6 @@ class DispatcherNetworkCommunicator(object):
         """
         msg = "set_trial_parameters;"
         for key, value in kwargs.items():
-            if key == 'left_reward':
-                print(f'the type of left_reward is {type(value)}')
-                
             # Infer dtyp
             if hasattr(value, '__len__'):
                 dtyp = 'str'
@@ -263,22 +273,35 @@ class DispatcherNetworkCommunicator(object):
     def check_for_messages(self):
         """Check self.zmq_socket for messages.
         
-        If a message is available: return identity, messages
-        Otherwise: return None
+        This is called at certain intervals by `Dispatcher.update`
+        All available messages will be handled (not just one)
+        For each one, `self.handle_message` is called
         """
-        ## Check for messages
-        message_received = True
-        try:
-            # Without NOBLOCK, this will hang until a message is received
-            # TODO: use Poller here?
-            identity, message = self.zmq_socket.recv_multipart(
-                flags=zmq.NOBLOCK)
-        except zmq.error.Again:
-            message_received = False
+        # Count how many messages we handle
+        n_handled_messages = 0
+        
+        # Continue forever until all messages handled
+        while True:
+            # Receive a message if possible
+            try:
+                # Non-blocking recv
+                # If there is no message, this raises zmq.error.Again
+                identity, message = self.zmq_socket.recv_multipart(
+                    flags=zmq.NOBLOCK)
+            except zmq.error.Again:
+                # No message available, break out of the loop
+                break
 
-        # If there's no message received, there is nothing to do
-        if message_received:
+            # Handle the received message
             self.handle_message(identity, message)
+            n_handled_messages += 1
+        
+        #~ # Log (quite verbose)
+        #~ if n_handled_messages > 0:
+            #~ dt_now = datetime.datetime.now()
+            #~ self.logger.debug(
+                #~ f'{dt_now}: check_for_messages done; handled '
+                #~ f'{n_handled_messages} messages')
     
     def handle_message(self, identity, message):
         """Handle a message received on poke_socket
@@ -304,7 +327,7 @@ class DispatcherNetworkCommunicator(object):
         # Debug print identity and message
         # Squelch the sound methods which are too frequent
         # TODO: make squelch a param
-        if 'data_hash' not in message_str:
+        if 'data_hash' not in message_str and 'sound_plan' not in message_str:
             self.logger.debug(f'received from {identity}: {message}')
 
         
@@ -354,7 +377,7 @@ class DispatcherNetworkCommunicator(object):
                 # TODO: make squelch a param
                 if 'data_hash' not in msg_params:
                     self.logger.debug(
-                        f'calling method {meth} with params {msg_params}')
+                        f'calling method {meth.__name__} with params {msg_params}')
                 meth(**msg_params)
 
     def handle_hello(self, identity_str):
@@ -492,11 +515,6 @@ class PiNetworkCommunicator(object):
         ## Set up sockets
         self.socket_is_open = False
         self.init_socket()
-        
-        # Creating a poller object for both sockets that will be used to 
-        # continuously check for incoming messages
-        self.poller = zmq.Poller()
-        self.poller.register(self.poke_socket, zmq.POLLIN)
     
     def init_socket(self):
         """Create `self.poke_socket` and connect to GUI
@@ -567,28 +585,24 @@ class PiNetworkCommunicator(object):
         self.poke_socket.send_string(f"hello")
 
     def check_socket(self):
-        # Get time
-        dt_now = datetime.datetime.now().isoformat()
+        # Count how many messages we handle
+        n_handled_messages = 0
+        
+        # Continue forever until all messages handled
+        while True:
+            # Receive a message if possible
+            try:
+                # Non-blocking recv
+                # If there is no message, this raises zmq.error.Again
+                msg = self.poke_socket.recv_string(flags=zmq.NOBLOCK)  
+            except zmq.error.Again:
+                # No message available, break out of the loop
+                break
 
-        # Wait for events on registered sockets. 
-        # Currently polls every 100ms to check for messages 
-        socks = dict(self.poller.poll(100))
-
-        # Check for incoming messages on poke_socket
-        if self.poke_socket in socks and socks[self.poke_socket] == zmq.POLLIN:
-            # Waiting to receive message strings that control the main loop
-            # Is this blocking?
-            # I think the 'if' is only satisfied if there is something to
-            # receive, so it doesn't matter if it's blocking
-            msg = self.poke_socket.recv_string()  
-            
-            # Receive message
-            self.logger.debug(
-                f'{dt_now} - Received message {msg} on poke socket')
-    
-            # Handle message
+            # Handle the received message
             self.handle_message(msg)
-
+            n_handled_messages += 1
+        
     def check_bonsai_socket(self):
         """
         Check for incoming messages on the bonsai_socket with real-time handling.
@@ -634,7 +648,8 @@ class PiNetworkCommunicator(object):
             of arguments formed from the remaining strings.
         """
         # Log
-        self.logger.debug(f'received message: {msg}')
+        dt_now = datetime.datetime.now()
+        self.logger.debug(f'{dt_now}: received message: {msg}')
         
         # Split on semicolon
         tokens = msg.strip().split(';')
@@ -659,7 +674,7 @@ class PiNetworkCommunicator(object):
         
         # Call the method
         if meth is not None:
-            self.logger.debug(f'calling method {meth} with params {msg_params}')
+            self.logger.debug(f'calling method {meth.__name__} with params {msg_params}')
             meth(**msg_params)
     
     def send_goodbye(self):
