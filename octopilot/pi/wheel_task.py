@@ -148,14 +148,14 @@ wl = hardware.WheelListener(pi)
 #~ sound_player = shared.SoundPlayer(audio_cycle=audio_cycle)
 
 # Solenoid
-pi.set_mode(26, pigpio.OUTPUT)
-pi.write(26, 0)
+pi.set_mode(6, pigpio.OUTPUT)
+pi.write(6, 0)
 
 def reward(duration=0.05):
     # Activate solenoid
-    pi.write(26, 1)
+    pi.write(6, 1)
     time.sleep(duration)
-    pi.write(26, 0)    
+    pi.write(6, 0)    
 
 #~ tl.touch_trigger = reward
 
