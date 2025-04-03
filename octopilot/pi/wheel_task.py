@@ -20,7 +20,7 @@ import time
 import datetime
 import jack
 import numpy as np
-import shared
+#import shared
 import os
 import itertools
 from . import hardware
