@@ -37,11 +37,12 @@ import time
 import datetime
 import jack
 import numpy as np
-import shared
+#~ import shared
 import os
 import itertools
 import importlib
-importlib.reload(shared)
+#~ importlib.reload(shared)
+from . import hardware
 
 ## Killing previous pigpiod and jackd background processes
 os.system('sudo killall pigpiod')
@@ -138,13 +139,13 @@ audio_cycle = itertools.cycle([
 pi = pigpio.pi()
 
 # Define object for listening to wheel
-wl = shared.WheelListener(pi)
+wl = hardware.WheelListener(pi)
 
 # Define object for listening to touches
 #~ tl = shared.TouchListener(pi, debug_print=True)
 
 # Define a client to play sounds
-sound_player = shared.SoundPlayer(audio_cycle=audio_cycle)
+#~ sound_player = shared.SoundPlayer(audio_cycle=audio_cycle)
 
 # Solenoid
 pi.set_mode(26, pigpio.OUTPUT)
@@ -219,8 +220,8 @@ finally:
     # This stops it from playing sound
     # Could also unregister ports, etc, but this doesn't seem necessary
     # https://jackclient-python.readthedocs.io/en/0.4.5/
-    sound_player.client.deactivate()
-    sound_player.client.close()
+    #~ sound_player.client.deactivate()
+    #~ sound_player.client.close()
     
     # Some stuff gets printed to the output later, this sleep gives it time
     time.sleep(1)
