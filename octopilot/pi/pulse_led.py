@@ -1,8 +1,11 @@
+# Run this first: sudo pigpiod -t 0 -l -x 1111110000111111111111110000 
+
+
 import pigpio
 import time
 
 pig = pigpio.pi()
-pin = 26
+pin = 13
 pig.set_mode(pin, pigpio.OUTPUT)
 pig.set_PWM_frequency(pin, 8000) # 8KHz is fastest with default pigpio
 print(pig.get_PWM_frequency(pin))
