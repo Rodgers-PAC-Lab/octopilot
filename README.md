@@ -59,7 +59,8 @@ Activate that venv.
 Install dependencies
 
     sudo apt install jackd # say yes if it asks about real-time priority
-    pip install pyzmq pigpio numpy pandas ipython scipy JACK-Client
+    pip install pyzmq pigpio numpy pandas ipython scipy JACK-Client 
+    pip install RPi.GPIO # new
 
 Reboot after install jackd. For more info about installing jack: https://jackclient-python.readthedocs.io/en/0.5.4/installation.html#requirements
 
