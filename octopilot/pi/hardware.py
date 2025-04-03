@@ -197,15 +197,25 @@ class Nosepoke(object):
         self.pig.write(self.red_pin, 0)
 
 class WheelListener(object):
-    def __init__(self, pi):
-        # Global variables
+    def __init__(self, pi, debug_print=False):
+        """Initialize a new WheelListener
+        
+        pi : pigpio.pi
+        debug_print : bool
+            If True, then print messages on every touch
+        """
+        # Store provided arguments
         self.pi = pi
+        self.debug_print = debug_print
+        
+        # Set up logs for position and state
         self.position = 0
         self.event_log = []
         self.state_log = []
         self.a_state = 0
         self.b_state = 0
         
+        # Set up callbacks
         self.pi.callback(17, pigpio.RISING_EDGE, self.pulseA_detected)
         self.pi.callback(27, pigpio.RISING_EDGE, self.pulseB_detected)
         self.pi.callback(17, pigpio.FALLING_EDGE, self.pulseA_down)
@@ -251,7 +261,7 @@ class WheelListener(object):
         self.state_log.append(
             '{}{}_{}'.format(self.a_state, self.b_state, self.position))
 
-    def do_nothing(self):
+    def report(self):
         print("current position: {}".format(self.position))
-        print(''.join(self.event_log[-60:]))
-        print('\t'.join(self.state_log[-4:]))
+        print('events: ' + ''.join(self.event_log[-60:]))
+        print('states: ' + '\t'.join(self.state_log[-4:]))
