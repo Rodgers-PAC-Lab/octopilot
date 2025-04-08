@@ -10,6 +10,8 @@ and to talk to the Dispatcher agent running on the desktop
 Eventually, we may need to define distinct PiController for different kinds
 of tasks. Most of the task-specific logic should be contained within this
 object. Other objects should be mostly agnostic to the task rules. 
+
+TODO: remove NonRepetitiveLogger where possible
 """
 
 import datetime
@@ -24,7 +26,10 @@ from ..shared.networking import PiNetworkCommunicator
 from ..shared.logtools import NonRepetitiveLogger
 
 class Agent(object):
-    """Object to control the flow of behavioral sessions
+    """Parent object that runs behavioral sessions on the Pi.
+    
+    This object is never instantiated directly. One of its child classes
+    that implements a specific task is instantiated instead.
     
     This object waits to be told what types of sound to play (e.g., rate,
     amplitude, etc) and it can read and write pins through pigpio. It can
@@ -38,7 +43,7 @@ class Agent(object):
     SoundQueuer at the beginning of each trial, and to tell SoundQueuer
     when to stop at the end of the trial.
     """
-    def __init__(self, params, start_networking=True, dummy_sound_queuer=False):
+    def __init__(self, params, start_networking=True):
         """Initialize a new Agent
         
         Arguments
@@ -51,10 +56,16 @@ class Agent(object):
             This would mainly be useful in setting up a new task without
             also having to figure out the networking and Dispatcher at the 
             same time.
-        dummy_sound_queuer : bool
-            If True, use a dummy queuer that never provides any audio
-            TODO: remove?
+        
+        Flow
+        ----
+        * Initialize self.logger
+        * Store self.params, self.pig, self.identity, etc
+        * Set up alive timers
+        * Set up sound generator, sound queuer, sound player
+        * Optionally start networking
         """
+        
         ## Init logger
         self.logger = NonRepetitiveLogger("test")
         sh = logging.StreamHandler()
@@ -74,11 +85,6 @@ class Agent(object):
         # Name self by hostname
         self.identity = socket.gethostname()
 
-        # Name my ports
-        # Currently this is hardcoded here and in load_params.load_box_params
-        self.left_port_name = f'{self.identity}_L'
-        self.right_port_name = f'{self.identity}_R'
-
         # Whether the session is running
         self.session_running = False
         
@@ -87,23 +93,20 @@ class Agent(object):
         # as an int
         self.trial_number = -1
         
-        # Randomly choosing to manipulate sound in trial
-        self.manipulation_probability = 0.5
-        self.is_manipulation_trial = None
-        
-        # It will keep running until this is set by self.exit() and then 
-        # it is noticed by self.mainloop()
+        # This object will keep running (in self.main_loop) until either of
+        # these values is set True
         self.shutdown = False
+        self.critical_shutdown = False
     
-        # How long it's been since we received an alive request
+        # Use this timer to handle alive requests
         self.alive_timer = None
         self.last_alive_request_received = datetime.datetime.now()
-        self.critical_shutdown = False
         self.alive_timer_test_interval = 5
         self.alive_timer_agent_crash_threshold = 45
         
         # Variable to save params for each trial
         self.prev_trial_params = None
+        
         
         ## Initialize sound_generator
         # This object generates frames of audio
@@ -116,7 +119,7 @@ class Agent(object):
             attenuation_file='/home/pi/attenuation.csv',
             )
         
-        # Set
+        # Set to no sound at first
         self.sound_generator.set_audio_parameters(
             left_params={},
             right_params={},
@@ -146,39 +149,6 @@ class Agent(object):
             pigpio_handle=self.pig,
             )
         
-        
-        ## Set up nosepokes
-        # TODO: don't activate callbacks until explicitly told to do so
-        # Init left nosepoke
-        self.left_nosepoke = hardware.Nosepoke(
-            name=self.left_port_name,
-            pig=self.pig,
-            poke_pin=self.params['left_nosepoke'], 
-            poke_sense=True, 
-            solenoid_pin=self.params['left_solenoid'],
-            red_pin=self.params['left_led_red'], 
-            green_pin=self.params['left_led_green'], 
-            blue_pin=self.params['left_led_blue'], 
-            )
-        
-        # Init right_nosepoke
-        self.right_nosepoke = hardware.Nosepoke(
-            name=self.right_port_name,
-            pig=self.pig,
-            poke_pin=self.params['right_nosepoke'], 
-            poke_sense=True, 
-            solenoid_pin=self.params['right_solenoid'],
-            red_pin=self.params['right_led_red'], 
-            green_pin=self.params['right_led_green'], 
-            blue_pin=self.params['right_led_blue'], 
-            )            
-
-        # Autopoke
-        # This simulates the presence of a mouse, which may be poking before
-        # the session actually starts
-        self.left_nosepoke.autopoke_start(rate=0)
-        self.right_nosepoke.autopoke_start(rate=0)
-
         
         ## Optionally set up networking
         if start_networking:
@@ -230,15 +200,6 @@ class Agent(object):
         # Log
         self.logger.info('starting session')
         
-        # Add handles to report pokes and rewards
-        # Hook up the poke in and reward callbacks
-        # TODO: add a callback that terminates the audio upon reward
-        # TODO: add a callback that plays an error sound upon incorrect poke
-        self.left_nosepoke.handles_poke_in.append(self.report_poke)
-        self.left_nosepoke.handles_reward.append(self.report_reward)
-        self.right_nosepoke.handles_poke_in.append(self.report_poke)
-        self.right_nosepoke.handles_reward.append(self.report_reward)
-        
         # Set session_running
         self.session_running = True
         
@@ -287,10 +248,278 @@ class Agent(object):
             self.logger.critical('dispatcher has crashed; shutting down')
             self.critical_shutdown = True
     
+    def report_trial_start(self, dt):
+        """Called by Agent when new trial. Reports to GUI by ZMQ.
+        
+        dt : str, isoformatted time of synchronization flash
+        """
+        # Send to GUI
+        self.network_communicator.poke_socket.send_string(
+            f'flash;'
+            f'trial_number={self.trial_number}=int;'
+            f'flash_time={dt}=str'
+            )          
+    
+    def exit(self):
+        """Shut down objects
+        
+        This is in a finally in the mainloop
+        """
+        self.logger.info('beginning exit')
+        self.stop_session()
+        
+        # Deactivating the Sound Player before closing the program
+        self.sound_player.client.deactivate()
+        
+        # Stop jack
+        self.sound_player.client.close()
+        
+        # Stops the pigpio connection
+        self.pig.stop()
+        
+        # Close all sockets and contexts
+        if self.network_communicator is not None:
+            self.network_communicator.send_goodbye()
+            self.network_communicator.close()   
+        
+        self.logger.info('done exit')
+
+    def main_loop(self):
+        """Loop forever until told to stop, then exit
+        
+        This method is called by start_cli. It will loop until told to stop. 
+        All other methods of this object are called asynchronously.
+        
+        On each loop, it will:
+        * self.sound_queuer.append_sound_to_queue_as_needed
+        * self.network_communicator.check_socket
+        * Check the values of self.critical_shutdown and self.shutdown
+        
+        It will stop looping once
+        * self.critical_shutdown is set True (this triggers an exception)
+        * self.shutdown is set True
+        * KeyboardInterrupt is received (only works in CLI mode)
+        
+        After exiting the loop it will
+        * Call self.exit
+        """
+        try:
+            self.logger.info('starting mainloop')
+
+            ## Loop until KeyboardInterrupt or exit message received
+            last_hello_time = datetime.datetime.now()
+            while True:
+                # Initial bonsai monitoring 
+                # TODO: move this somewhere else
+                # self.monitor_bonsai("decrease")
+    
+                # Used to continuously add frames of sound to the 
+                # queue until the program stops
+                self.sound_queuer.append_sound_to_queue_as_needed()
+                
+                # start, reward, etc
+                if self.network_communicator is not None:
+                    self.network_communicator.check_socket()
+
+                if self.critical_shutdown:
+                    self.logger.critical('critical shutdown')
+                    raise ValueError('critical shutdown')
+                
+                if self.shutdown:
+                    self.logger.info('shutdown detected')
+                    break
+                
+                # If there's nothing in the main loop, not even a sleep,
+                # then for some reason this leads to XRun errors
+                # Perhaps the interpreter is optimizing away the mainloop
+                # time.sleep(0) prevents this from happening
+                time.sleep(0)
+
+        except KeyboardInterrupt:
+            print('KeyboardInterrupt received, shutting down')
+            
+        finally:
+            # Shut down all network, sound, and hardware
+            self.exit()
+            self.logger.info('agent done')
+
+class SoundSeekingAgent(Agent):
+    """Child of Agent that instantiates the sound-seeking task on a single Pi.
+    
+    """
+    def __init__(self, *args, **kwargs):
+        """Initialize a new OctagonTask
+        
+        Flow
+        * Calls Agent.__init__. See that method for arguments.
+        * Initializes self.left_nosepoke and self.right_nosepoke
+        """
+
+        ## Call Agent.__init___
+        super().__init__(*args, **kwargs)
+    
+        
+        ## Set up nosepokes
+        # Name my ports
+        # Currently this is hardcoded here and in load_params.load_box_params
+        self.left_port_name = f'{self.identity}_L'
+        self.right_port_name = f'{self.identity}_R'
+
+        # Init left nosepoke
+        # The callbacks aren't set until start_session
+        self.left_nosepoke = hardware.Nosepoke(
+            name=self.left_port_name,
+            pig=self.pig,
+            poke_pin=self.params['left_nosepoke'], 
+            poke_sense=True, 
+            solenoid_pin=self.params['left_solenoid'],
+            red_pin=self.params['left_led_red'], 
+            green_pin=self.params['left_led_green'], 
+            blue_pin=self.params['left_led_blue'], 
+            )
+        
+        # Init right_nosepoke
+        self.right_nosepoke = hardware.Nosepoke(
+            name=self.right_port_name,
+            pig=self.pig,
+            poke_pin=self.params['right_nosepoke'], 
+            poke_sense=True, 
+            solenoid_pin=self.params['right_solenoid'],
+            red_pin=self.params['right_led_red'], 
+            green_pin=self.params['right_led_green'], 
+            blue_pin=self.params['right_led_blue'], 
+            )            
+
+        # Autopoke
+        # This simulates the presence of a mouse, which may be poking before
+        # the session actually starts
+        self.left_nosepoke.autopoke_start(rate=0)
+        self.right_nosepoke.autopoke_start(rate=0)    
+
+    def start_session(self):
+        """Start a new session in the sound-seeking task.
+        
+        Flow
+        ---
+        * Calls Agent.start_session
+        * Sets up the handles in the nosepokes for reporting pokes and rewards
+        """
+        # Call Agent.start_session
+        super().start_session()
+        
+        # Add handles to report pokes and rewards
+        # Hook up the poke in and reward callbacks
+        # TODO: add a callback that plays an error sound upon incorrect poke
+        self.left_nosepoke.handles_poke_in.append(self.report_poke)
+        self.left_nosepoke.handles_reward.append(self.report_reward)
+        self.right_nosepoke.handles_poke_in.append(self.report_poke)
+        self.right_nosepoke.handles_reward.append(self.report_reward)
+
+    def report_poke(self, port_name, poke_time):
+        """Called by Nosepoke upon poke. Reports to Dispatcher by ZMQ.
+        
+        """
+        # Log
+        self.logger.info(f'reporting poke on {port_name} at {poke_time}')
+        
+        # Report to Dispatcher
+        self.network_communicator.poke_socket.send_string(
+            f'poke;'
+            f'trial_number={self.trial_number}=int;'
+            f'port_name={port_name}=str;'
+            f'poke_time={poke_time}=str'
+            )
+    
+    def report_reward(self, port_name, poke_time):
+        """Called by Nosepoke upon reward. Reports to Dispatcher by ZMQ.
+        
+        """
+        # Log
+        self.logger.info(f'reporting reward on {port_name} at {poke_time}')
+        
+        # Report to Dispatcher
+        self.network_communicator.poke_socket.send_string(
+            f'reward;'
+            f'trial_number={self.trial_number}=int;'
+            f'port_name={port_name}=str;'
+            f'poke_time={poke_time}=str'
+            )            
+
+    def report_sound(self, data, last_frame_time, frames_since_cycle_start, dt):
+        """Called by SoundPlayer when audio is played. Reports to Dispatcher.
+        
+        Arguments
+        ---
+        data : 2d array
+            The actual sound that is played
+        last_frame_time, frames_since_cycle_start : int
+            Timing data from jack.client
+        dt: str
+            Isoformat string when the sound was played
+        """
+        # This is only an approximate hash because it excludes the
+        # middle of the data
+        data_hash = hash(str(data))
+        
+        # Determine which channel is playing sound
+        data_left = data[:, 0].std()
+        data_right = data[:, 1].std()
+        
+        # Report to Dispatcher
+        self.network_communicator.poke_socket.send_string(
+            f'sound;'
+            f'trial_number={self.trial_number}=int;'
+            f'data_left={data_left}=float;'
+            f'data_right={data_right}=float;'
+            f'last_frame_time={last_frame_time}=int;'
+            f'frames_since_cycle_start={frames_since_cycle_start}=int;'
+            f'data_hash={data_hash}=int;'
+            f'dt={dt}=str'
+            )  
+
+    def report_sound_plan(self, sound_plan):
+        """Called by SoundGenerator when new plan made. Reports to Dispatcher.
+        
+        sound_plan : DataFrame
+            Plan for sound to play
+        """
+        # The first time this is called, the network_communicator hasn't
+        # been instantiated yet
+        try:
+            self.network_communicator
+        except AttributeError:
+            return
+        
+        # Report to Dispatcher
+        self.network_communicator.poke_socket.send_string(
+            f'sound_plan;'
+            f'trial_number={self.trial_number}=int;'
+            f'sound_plan={sound_plan.to_csv(index=None)}=str'
+            )  
+    
     def set_trial_parameters(self, **msg_params):
         """Called upon receiving set_trial_parameters from GUI
         
+        This function sets everything in motion for a new trial.
+        
+        Arguments
+        ---
+        A dict of msg_params, which may include:
+            'trial_number' :
+            'left_reward', 'right_reward' : if True, arm the port
+                Defaults to False
+            'left_*', 'right_*' : sound parameters
+        
+        Flow
+        ---
+        * Flash the LEDs
+        * Update self.trial_number
+        * self.report_trial_start
+        * Optionally arm ports for reward
+        * Parse any sound parameters and send to 
+          self.sound_generator.set_audio_parameters
         """
+        
         ## Flash an LED
         # Use this to determine when the flash was done in local timebase
         timestamp = datetime.datetime.now().isoformat()
@@ -306,6 +535,7 @@ class Agent(object):
 
         ## Log
         self.logger.debug(f'setting trial parameters: {msg_params}')
+
         
         ## If not running, issue error
         # Because this might indicate that something has gone wrong
@@ -320,54 +550,42 @@ class Agent(object):
         # the correct trial number
         self.trial_number = msg_params['trial_number']
         
-        # Get the trigger trial
-        self.is_manipulation_trial = msg_params['trigger_trial']
-        
-        # Making it so that the first 1-2 trials are not trigger trials 
-        if self.trial_number == 0 or self.trial_number == 1:
-            self.is_manipulation_trial = False
-        else:
-            pass
-
-        
-        # Determine association with True or False based on probability
-        if self.is_manipulation_trial == True:
-            self.logger.info(f'Trial {self.trial_number} will change sound')
-        else:
-            self.logger.info(f'Trial {self.trial_number} will not change sound')
-
     
         ## Log trial start (after trial number update)
         # Report trial start
         self.report_trial_start(timestamp)
         
         
-        ## Handle reward
-        # Pop reward out separately, with default False
+        ## Use 'left_reward' and 'right_reward' in msg_params to arm pokes
+        # TODO: disarm all nosepokes immediately upon reward, not just
+        # the one that was rewarded
+
+        # Pop left reward out separately, with default False
         if 'left_reward' in msg_params:
             left_reward = msg_params.pop('left_reward')
         else:
             left_reward = False
+
+        # Optionally arm left reward
+        if left_reward:
+            self.logger.info(f'arming left nosepoke for reward')
+            self.left_nosepoke.reward_armed = True
+        else:
+            self.left_nosepoke.reward_armed = False
         
+        # Pop right reward out separately, with default False
         if 'right_reward' in msg_params:
             right_reward = msg_params.pop('right_reward')
         else:
             right_reward = False
         
-        # Get rewarded port
-        if left_reward:
-            self.logger.info(f'arming left nosepoke for reward')
-            self.left_nosepoke.reward_armed = True
-        else:
-            # TODO: disarm all nosepokes immediately upon reward, not just
-            # the one that was rewarded
-            self.left_nosepoke.reward_armed = False
-
+        # Optionally arm right reward
         if right_reward:
             self.logger.info(f'arming right nosepoke for reward')
             self.right_nosepoke.reward_armed = True
         else:
             self.right_nosepoke.reward_armed = False
+        
         
         ## Split into left_params and right_params
         # TODO: make this more flexible
@@ -409,6 +627,7 @@ class Agent(object):
         else:
             right_params = {}
     
+    
         ## Use those params to set the new sounds
         self.logger.info(
             'setting audio parameters. '
@@ -422,9 +641,106 @@ class Agent(object):
         self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed()   
 
+    def stop_sounds(self):
+        """Silence the sounds
+        
+        This is triggered by the ZMQ command 'silence', which is issued
+        by the Dispatcher during the ITI. 
+        
+        It is also called by self.stop_session.
+        """
+        # Silence sound generation
+        self.sound_generator.set_audio_parameters(
+            left_params={},
+            right_params={},
+            )
+        
+        # Empty the queue of sound
+        self.sound_queuer.empty_queue()        
 
-    ## Note: Multiplying log amplitude decreases volume and dividing increases it 
+    def stop_session(self):
+        """Runs when a session is stopped
+        
+        Flow
+        ----
+        * It turns off all active LEDs, 
+        * resets all the variables used for tracking to None, 
+        * stops playing sound,
+        * and empties the queue.
+        """
+        self.logger.info('beginning stop_session')
+
+        # Stops any nosepoke autopoking
+        self.left_nosepoke.autopoke_stop()
+        self.right_nosepoke.autopoke_stop()
+        
+        # Remove all handles from nose pokes
+        try:
+            self.left_nosepoke.handles_poke_in.remove(self.report_poke)
+        except ValueError:
+            self.logger.error('stop received but handle not in list')
+        
+        try:
+            self.left_nosepoke.handles_reward.remove(self.report_reward)
+        except ValueError:
+            self.logger.error('stop received but handle not in list')
+        
+        try:
+            self.right_nosepoke.handles_poke_in.remove(self.report_poke)
+        except ValueError:
+            self.logger.error('stop received but handle not in list')
+        
+        try:
+            self.right_nosepoke.handles_reward.remove(self.report_reward)
+        except ValueError:
+            self.logger.error('stop received but handle not in list')
+        
+        # Stop checking for alive requests
+        if self.alive_timer is None:
+            self.logger.error('stop received but alive_timer is None')
+        else:
+            self.alive_timer.stop()
+
+        # Silence sound generation
+        self.stop_sounds()
+        
+        # Stop running
+        self.session_running = False
+
+        # Mark as shutdown for next mainloop
+        self.shutdown = True
+
+class BonsaiOctagonTask(OctagonTask):
+    """Version with Bonsai closed-loop volume control
+    
+    """
+    def __init__(self):
+        # Randomly choosing to manipulate sound in trial
+        self.manipulation_probability = 0.5
+        self.is_manipulation_trial = None
+
+    def set_trial_parameters(self, **msg_params):
+        super().set_trial_parameters()
+
+        # Get the trigger trial
+        self.is_manipulation_trial = msg_params['trigger_trial']
+
+        
+        # Making it so that the first 1-2 trials are not trigger trials 
+        if self.trial_number == 0 or self.trial_number == 1:
+            self.is_manipulation_trial = False
+        else:
+            pass
+
+        
+        # Determine association with True or False based on probability
+        if self.is_manipulation_trial == True:
+            self.logger.info(f'Trial {self.trial_number} will change sound')
+        else:
+            self.logger.info(f'Trial {self.trial_number} will not change sound')        
+
     def increase_volume(self):
+        ## Note: Multiplying log amplitude decreases volume and dividing increases it 
         volume = "increase"
         volume_time = datetime.datetime.now()
         
@@ -541,6 +857,7 @@ class Agent(object):
             print('Decreasing Volume')
             self.report_volume_change(volume, volume_time)
             self.sound_queuer.append_sound_to_queue_as_needed()
+        
         else:
             pass
     
@@ -578,19 +895,6 @@ class Agent(object):
         else:
             pass
  
-    def report_poke(self, port_name, poke_time):
-        """Called by Nosepoke upon poke. Reports to GUI by ZMQ.
-        
-        """
-        self.logger.info(f'reporting poke on {port_name} at {poke_time}')
-        # Send 'poke;poke_name' to GUI
-        self.network_communicator.poke_socket.send_string(
-            f'poke;'
-            f'trial_number={self.trial_number}=int;'
-            f'port_name={port_name}=str;'
-            f'poke_time={poke_time}=str'
-            )
-        
     def report_volume_change(self, volume, volume_time):
         """Called by agent when volume is changed. Reports to GUI by ZMQ.
         """
@@ -602,221 +906,67 @@ class Agent(object):
             f'volume={volume}=str;'
             f'volume_time={volume_time}=str'
             )
+
+class WheelTask(Agent):
+    """Version of Agent that runs the WheelTask"""
     
-    def report_reward(self, port_name, poke_time):
-        """Called by Nosepoke upon reward. Reports to GUI by ZMQ.
-        """
-        self.logger.info(f'reporting reward on {port_name} at {poke_time}')
+    def __init__(*args, **kwargs):
+        ## Call Agent.__init___
+        super().__init__(*args, **kwargs)
+    
         
-        # Send 'reward;poke_name' to GUI
+        ## TODO: set up Wheel here
+    
+    def start_session():
+        # Call Agent.start_session
+        super().start_session()
+        
+        # Add handles to WheelController
+    
+    def report_reward(self, reward_time):
+        """Called by WheelController upon reward. Reports to Dispatcher by ZMQ.
+        
+        """
+        # Log
+        self.logger.info(f'reporting reward at {reward_time}')
+        
+        # Report to Dispatcher
         self.network_communicator.poke_socket.send_string(
             f'reward;'
             f'trial_number={self.trial_number}=int;'
-            f'port_name={port_name}=str;'
-            f'poke_time={poke_time}=str'
-            )            
-
-    def report_sound(self, data, last_frame_time, frames_since_cycle_start, dt):
-        """Called by SoundPlayer when audio is played. Reports to GUI by ZMQ.
-        
-        data : 2d array
-            The actual sound that is played
-        last_frame_time, frames_since_cycle_start : int
-            Timing data from jack.client
-        dt: str
-            Isoformat string when the sound was played
-        """
-        # This is only an approximate hash because it excludes the
-        # middle of the data
-        data_hash = hash(str(data))
-        
-        # Determine which channel is playing sound
-        data_left = data[:, 0].std()
-        data_right = data[:, 1].std()
-        
-        # Send 'reward;poke_name' to GUI
-        self.network_communicator.poke_socket.send_string(
-            f'sound;'
-            f'trial_number={self.trial_number}=int;'
-            f'data_left={data_left}=float;'
-            f'data_right={data_right}=float;'
-            f'last_frame_time={last_frame_time}=int;'
-            f'frames_since_cycle_start={frames_since_cycle_start}=int;'
-            f'data_hash={data_hash}=int;'
-            f'dt={dt}=str'
-            )  
-
-    def report_sound_plan(self, sound_plan):
-        """Called by SoundGenerator when new plan. Reports to GUI by ZMQ.
-        
-        sound_plan : DataFrame
-            Plan for sound to play
-        """
-        # The first time this is called, the network_communicator hasn't
-        # been instantiated yet
-        try:
-            self.network_communicator
-        except AttributeError:
-            return
-        
-        # Send to GUI
-        self.network_communicator.poke_socket.send_string(
-            f'sound_plan;'
-            f'trial_number={self.trial_number}=int;'
-            f'sound_plan={sound_plan.to_csv(index=None)}=str'
+            f'reward_time={reward_time}=str'
             )  
     
-    def report_trial_start(self, dt):
-        """Called by Agent when new trial. Reports to GUI by ZMQ.
-        
-        dt : str, isoformatted time of synchronization flash
-        """
-        # Send to GUI
-        self.network_communicator.poke_socket.send_string(
-            f'flash;'
-            f'trial_number={self.trial_number}=int;'
-            f'flash_time={dt}=str'
-            )          
-    
-    def stop_sounds(self):
-        """Silence the sounds
-        
-        This is called at the end of each trial during the ITI, and again
-        at the end of the session.
-        """
-        # Silence sound generation
-        self.sound_generator.set_audio_parameters(
-            left_params={},
-            right_params={},
-            )
-        
-        # Empty the queue of sound
-        self.sound_queuer.empty_queue()        
-    
-    def stop_session(self):
-        """Runs when a session is stopped
-        
-        Flow
-        ----
-        * It turns off all active LEDs, 
-        * resets all the variables used for tracking to None, 
-        * stops playing sound,
-        * and empties the queue.
-        """
-        self.logger.info('beginning stop_session')
-        try:
-            self.left_nosepoke.handles_poke_in.remove(self.report_poke)
-        except ValueError:
-            self.logger.error('stop received but handle not in list')
-        
-        try:
-            self.left_nosepoke.handles_reward.remove(self.report_reward)
-        except ValueError:
-            self.logger.error('stop received but handle not in list')
-        
-        try:
-            self.right_nosepoke.handles_poke_in.remove(self.report_poke)
-        except ValueError:
-            self.logger.error('stop received but handle not in list')
-        
-        try:
-            self.right_nosepoke.handles_reward.remove(self.report_reward)
-        except ValueError:
-            self.logger.error('stop received but handle not in list')
-        
-        # Stop checking for alive requests
-        if self.alive_timer is None:
-            self.logger.error('stop received but alive_timer is None')
-        else:
-            self.alive_timer.stop()
+    def set_trial_parameters():
+        ## Flash an LED
+        # Use this to determine when the flash was done in local timebase
+        timestamp = datetime.datetime.now().isoformat()
 
-        # Silence sound generation
-        self.stop_sounds()
+        # TODO: make LED to flash
+
+
+        ## Log
+        self.logger.debug(f'setting trial parameters: {msg_params}')
+
+
+        ## Update trial number
+        # Do this first, because some of the sound functions need to know
+        # the correct trial number
+        self.trial_number = msg_params['trial_number']
+        
+    
+        ## Log trial start (after trial number update)
+        # Report trial start
+        self.report_trial_start(timestamp)
+        
+        
+        ## TODO: update sound parameters here
+    
+    def stop_session():
+        # TODO: shutdown handles
         
         # Stop running
         self.session_running = False
 
         # Mark as shutdown for next mainloop
         self.shutdown = True
-
-    def exit(self):
-        """Shut down objects
-        
-        This is in a finally in the mainloop
-        """
-        self.logger.info('beginning exit')
-        self.stop_session()
-        
-        # Deactivating the Sound Player before closing the program
-        self.sound_player.client.deactivate()
-        
-        # Stop jack
-        self.sound_player.client.close()
-        
-        # Stops the pigpio connection
-        self.pig.stop()
-        
-        # Stops any nosepoke autopoking
-        self.left_nosepoke.autopoke_stop()
-        self.right_nosepoke.autopoke_stop()
-        
-        # Close all sockets and contexts
-        if self.network_communicator is not None:
-            self.network_communicator.send_goodbye()
-            self.network_communicator.close()   
-        
-        self.logger.info('done exit')
-
-    def handle_reward(self):
-        # TODO: open valve here
-        
-        # Silence sound generation
-        self.sound_generator.set_audio_parameters(
-            left_params={},
-            right_params={},
-            )
-        
-        # Empty the queue of already generated sound
-        self.sound_queuer.empty_queue()        
-
-        
-    def main_loop(self):
-        """Loop forever until told to stop, then exit"""
-        try:
-            self.logger.info('starting mainloop')
-
-            ## Loop until KeyboardInterrupt or exit message received
-            last_hello_time = datetime.datetime.now()
-            while True:
-                # Initial bonsai monitoring 
-                self.monitor_bonsai("decrease")
-    
-                # Used to continuously add frames of sound to the 
-                # queue until the program stops
-                self.sound_queuer.append_sound_to_queue_as_needed()
-                
-                # start, reward, etc
-                if self.network_communicator is not None:
-                    self.network_communicator.check_socket()
-
-                if self.critical_shutdown:
-                    self.logger.critical('critical shutdown')
-                    raise ValueError('critical shutdown')
-                
-                if self.shutdown:
-                    self.logger.info('shutdown detected')
-                    break
-                
-                # If there's nothing in the main loop, not even a sleep,
-                # then for some reason this leads to XRun errors
-                # Perhaps the interpreter is optimizing away the mainloop
-                # time.sleep(0) prevents this from happening
-                time.sleep(0)
-
-        except KeyboardInterrupt:
-            print('KeyboardInterrupt received, shutting down')
-            
-        finally:
-            # Shut down all network, sound, and hardware
-            self.exit()
-            self.logger.info('agent done')
