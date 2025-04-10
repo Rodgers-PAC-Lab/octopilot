@@ -4,11 +4,11 @@
     "right_nosepoke_type": "901",
     "left_nosepoke": 8,
     "right_nosepoke": 15,
-    "left_led_red": 22,
+    "left_led_red": 17,
     "right_led_red": 11,
     "left_led_green": 27,
     "right_led_green": 9,
-    "left_led_blue": 17,
+    "left_led_blue": 22,
     "right_led_blue": 10,
     "left_solenoid": 6,
     "right_solenoid": 26    
