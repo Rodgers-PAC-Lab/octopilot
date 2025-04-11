@@ -60,7 +60,7 @@ def main(box, task, mouse, sandbox_path=None):
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     # Instantiate an OctopilotSessionWindow
-    win = main_window.OctopilotSessionWindow(
+    win = main_window.WheelSessionWindow(
         box_params=box_params, 
         task_params=task_params, 
         mouse_params=mouse_params, 

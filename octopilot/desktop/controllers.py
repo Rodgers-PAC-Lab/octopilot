@@ -15,18 +15,9 @@ from ..shared.networking import DispatcherNetworkCommunicator
 from . import pi_marshaller
 from . import trial_chooser
 
-class Dispatcher:
-    """Handles task logic
+class Dispatcher(object):
+    """Parent class"""
     
-    It handles the logic of starting sessions, stopping sessions, 
-    choosing reward ports
-    sending messages to the pis (about reward ports), sending acknowledgements 
-    for completed trials (needs to be changed).
-    The Worker class also handles tracking information regarding each 
-    poke / trial and saving them to a csv file.
-    
-    """
-
     def __init__(self, box_params, task_params, mouse_params, sandbox_path):
         """Initialize a new worker
         
@@ -75,14 +66,290 @@ class Dispatcher:
         self.timer_advance_trial = None
         
         # Timer for ITI
-        self.timer_inter_trial_interval = None
+        self.timer_inter_trial_interval = None    
 
-        
+
         ## Store
         self.box_params = box_params
         self.task_params = task_params
         self.mouse_params = mouse_params
         self.sandbox_path = sandbox_path
+
+
+        ## Parse task_params
+        # Pop out the trial duration, if present
+        # Pop because TrialParameterChooser can't parse this one
+        if 'trial_duration' in task_params:
+            self.trial_duration = task_params.pop('trial_duration')
+        else:
+            self.trial_duration = None
+        
+        # Same with ITI
+        if 'inter_trial_interval' in task_params:
+            self.inter_trial_interval = task_params.pop('inter_trial_interval')
+        else:
+            # Set default
+            # It's best if this is long enough that the Pis can be informed
+            # and there's no leftover sounds from the previous trial
+            self.inter_trial_interval = 0.5
+        
+        # Add a little jitter to the inter-trial interval
+        self.inter_trial_interval_stdev = 0.05
+
+    def start_session(self, verbose=True):
+        """Start a session"""
+        # Do not start if all pis not connected
+        if not self.network_communicator.check_if_all_pis_connected():
+            self.logger.warning(
+                'ignoring start_session because not all pis connected')
+            return
+        
+        # Do not start if we're already running (this should no longer be
+        # possible now that this is not a clickable button)
+        if self.session_is_running:
+            # Log
+            self.logger.warning('session is started but session is running')
+            
+            # Return without doing anything
+            return
+        
+        # Flag that it has started
+        self.session_is_running = True
+
+        # Set the initial_time to now
+        self.session_start_time = datetime.datetime.now() 
+        self.logger.info(f'Starting session at {self.session_start_time}')
+        
+        # Tell the agent to start the session
+        # TODO: wait for acknowledgement of start
+        self.network_communicator.send_start()
+        
+        # Start the first trial
+        self.start_trial()
+
+        # Set up timer to test if the Agent is still running
+        self.last_alive_message_received = {}
+        self.alive_timer = RepeatedTimer(
+            self.alive_timer_send_interval, 
+            self.send_alive_request,
+            )
+
+    def stop_session(self):
+        """Stop the session
+        
+        Called by QMetaObject.invokeMethod in arena_widget.stop_sequence
+        
+        Flow
+        * Stops self.timer and disconnects it from self.update_Pi
+        * Clears recorded data
+        """
+     
+        """Send a stop message to the pi"""
+        ## Stop the timers
+        # Alive timer
+        if self.alive_timer is None:
+            self.logger.error('stopping session but no alive timer')
+        else:
+            # Syntax is different becasue this is a repeating timer
+            self.alive_timer.stop()
+        
+        # Advance trial timer
+        if self.timer_advance_trial is not None:
+            self.timer_advance_trial.cancel()
+        
+        # Inter trial interval timer
+        if self.timer_inter_trial_interval is not None:
+            self.timer_inter_trial_interval.cancel()
+        
+        
+        ## Send a stop message to each pi
+        self.network_communicator.send_message_to_all('stop')
+
+        
+        ## Reset history when a new session is started 
+        # Flag that it has stopped
+        self.session_is_running = False
+        
+        
+        ## Log
+        self.logger.info('done with stop_session')
+
+        # We want to be able to process the final goodbye so commenting this 
+        # out. But what if it keeps sending poke messages?
+        #~ self.network_communicator.command2method = {}
+
+    def timed_advance_trial(self):
+        """Advance trial without reward
+        
+        Typically this is called by a timer during the passive task. The
+        trial is logged and the next one is started.
+        """
+        # Log that no reward was given
+        self.previously_rewarded_port = None
+
+        # Log the trial
+        pseudo_reward_time = datetime.datetime.now().isoformat()
+        self._log_trial(pseudo_reward_time)
+
+        # Start the ITI or the next trial, depending
+        self.start_iti_or_start_trial()
+    
+    def start_iti_or_start_trial(self):
+        # Optionally start a timer to advance the trial
+        if self.inter_trial_interval is not None:
+            # Silence the sounds
+            self.network_communicator.send_message_to_all('silence')
+
+            # Add a bit of randomness to ITI
+            this_ITI = (
+                self.inter_trial_interval + 
+                np.random.standard_normal() * self.inter_trial_interval_stdev)
+            
+            # Avoid negative ITI
+            if this_ITI < 0.001:
+                this_ITI = 0.001
+
+            # Create a timer that will call self.start_trial() after
+            # self.inter_trial_interval seconds
+            self.timer_inter_trial_interval = threading.Timer(
+                self.inter_trial_interval, self.start_trial)
+            
+            # Start the timer
+            self.timer_inter_trial_interval.start()
+        else:
+            # Just start trial immediately
+            self.start_trial()                
+        
+    def recv_alive(self, identity):
+        """Log that we know the Agent is out there
+        
+        This is useful in the case that the Dispatcher has been restarted
+        """
+        #~ self.logger.info(
+            #~ f'received alive from agent {identity}')# at {datetime.datetime.now()}')        
+        
+        # Log that this happened
+        self.last_alive_message_received[identity] = datetime.datetime.now()
+
+    def send_alive_request(self):
+        """Send alive request to agents.
+        
+        Also checks if it's been too long since we've heard from them.
+        
+        alive_timer_test_interval : 
+            Seconds between calls to this function
+            This sets the speed with which problems are detected
+            Can be somewhat frequent because this call is fast
+        
+        alive_timer_agent_crash_threshold : 
+            Seconds before deciding that the dispatcher has crashed
+            Must be longer than alive_timer_send_interval
+            If this is too short, we might false-positive crash
+            If this is too long, it will take a while for agents to shut down
+        
+        alive_timer_send_interval : 
+            Seconds between sending of 'alive' requests
+            If this is too frequent, we waste time (and potentially increase
+            risk of zmq threading crash)
+            If this is too slow, we won't know when a crash happens
+        
+        alive_timer_dispatcher_crash_threshold : 
+            Seconds before deciding that the agents have crashed
+            Must be longer than alive_timer_send_interval        
+        """
+        # Warn if it's been too long
+        for identity in self.network_communicator.connected_agents:
+            if identity in self.last_alive_message_received.keys():
+                last_time = self.last_alive_message_received[identity]
+                
+                # Set a threshold
+                threshold = (datetime.datetime.now() - 
+                    datetime.timedelta(
+                    seconds=self.alive_timer_dispatcher_crash_threshold))
+                
+                # Error if it's been too long
+                # TODO: initiate shutdown
+                if last_time < threshold:
+                    self.logger.error(f'no recent alive responses from {identity}')
+            
+            else:
+                # Warn that we haven't heard from this one before
+                # TODO: initialize with expected identities to avoid this warn
+                self.logger.warning(
+                    f'{identity} is not in last_alive_message_received')
+        
+        # Send the alive request
+        self.network_communicator.send_alive_request()
+
+    def update(self):
+        """Called by timer_dispatcher in MainWindow"""
+        # Check for messages
+        self.network_communicator.check_for_messages()
+        
+        # Print status if not all connected
+        if not self.network_communicator.check_if_all_pis_connected():
+            self.logger.info(
+                'waiting for {} to connect; only {} connected'.format(
+                ', '.join(self.network_communicator.pi_names),
+                ', '.join(self.network_communicator.connected_agents),
+            ))
+        
+        # TODO: test if "start_next_trial" datetime flag set
+        
+        # Check if procs are running
+        for agent, proc in self.marshaller.agent2proc.items():
+            proc.poll()
+            if proc.returncode is not None:
+                self.logger.warning(f'ssh proc for {agent} is not running')
+
+    def handle_goodbye(self, identity):
+        self.logger.info(f'goodbye received from: {identity}')
+        
+        # remove from connected
+        self.network_communicator.remove_identity_from_connected(identity)
+        
+        # TODO: stop the session if we've lost quorum
+        if self.session_is_running and not self.network_communicator.check_if_all_pis_connected():
+            self.logger.error('session stopped due to early goodbye')
+            self.stop_session()
+
+class SoundSeekingDispatcher(Dispatcher):
+    """Handles task logic
+    
+    It handles the logic of starting sessions, stopping sessions, 
+    choosing reward ports
+    sending messages to the pis (about reward ports), sending acknowledgements 
+    for completed trials (needs to be changed).
+    The Worker class also handles tracking information regarding each 
+    poke / trial and saving them to a csv file.
+    
+    """
+
+    def __init__(self, box_params, task_params, mouse_params, sandbox_path):
+        """Initialize a new worker
+        
+        Arguments
+        ---------
+        box_params : dict, parameters of the box
+        task_params : dict, parameters of the task
+        mouse_params : dict, parameters of the mouse
+        sandbox_path : path to where files should be stored
+        
+        Instance variables
+        ------------------
+        ports : list of port names (e.g., 'rpi27_L'
+        port positions: list of port angular positions (e.g., 90 for East)
+        pi_ip_addresses: list of Pi IP addresses
+        pi_names: list of Pi names (e.g., 'rpi27')
+        
+        The length of self.port_names and self.port_positions is double that
+        of self.pi_names and self.pi_ip_addresses, because each Pi has two 
+        ports.
+        """
+        
+        
+        ## Super
+        super().__init__(box_params, task_params, mouse_params, sandbox_path)
 
         
         ## Extract the port names, pi names, and ip addresses from box_params
@@ -105,25 +372,7 @@ class Dispatcher:
         self.init_history()
 
         
-        ## Parse task_params
-        # Pop out the trial duration, if present
-        # Pop because TrialParameterChooser can't parse this one
-        if 'trial_duration' in task_params:
-            self.trial_duration = task_params.pop('trial_duration')
-        else:
-            self.trial_duration = None
-        
-        # Same with ITI
-        if 'inter_trial_interval' in task_params:
-            self.inter_trial_interval = task_params.pop('inter_trial_interval')
-        else:
-            # Set default
-            # It's best if this is long enough that the Pis can be informed
-            # and there's no leftover sounds from the previous trial
-            self.inter_trial_interval = 0.5
-        
-        # Add a little jitter to the inter-trial interval
-        self.inter_trial_interval_stdev = 0.05
+
         
         # Use task_params to set TrialParameterChooser
         self.trial_parameter_chooser = (
@@ -203,55 +452,6 @@ class Dispatcher:
         
         # History (simple lists)
         self.history_of_ports_poked_per_trial = []
-    
-    def recv_alive(self, identity):
-        """Log that we know the Agent is out there
-        
-        This is useful in the case that the Dispatcher has been restarted
-        """
-        #~ self.logger.info(
-            #~ f'received alive from agent {identity}')# at {datetime.datetime.now()}')        
-        
-        # Log that this happened
-        self.last_alive_message_received[identity] = datetime.datetime.now()
-    
-    def start_session(self, verbose=True):
-        """Start a session"""
-        # Do not start if all pis not connected
-        if not self.network_communicator.check_if_all_pis_connected():
-            self.logger.warning(
-                'ignoring start_session because not all pis connected')
-            return
-        
-        # Do not start if we're already running (this should no longer be
-        # possible now that this is not a clickable button)
-        if self.session_is_running:
-            # Log
-            self.logger.warning('session is started but session is running')
-            
-            # Return without doing anything
-            return
-        
-        # Flag that it has started
-        self.session_is_running = True
-
-        # Set the initial_time to now
-        self.session_start_time = datetime.datetime.now() 
-        self.logger.info(f'Starting session at {self.session_start_time}')
-        
-        # Tell the agent to start the session
-        # TODO: wait for acknowledgement of start
-        self.network_communicator.send_start()
-        
-        # Start the first trial
-        self.start_trial()
-
-        # Set up timer to test if the Agent is still running
-        self.last_alive_message_received = {}
-        self.alive_timer = RepeatedTimer(
-            self.alive_timer_send_interval, 
-            self.send_alive_request,
-            )
 
     def start_trial(self):
         ## Choose and broadcast reward_port
@@ -333,121 +533,6 @@ class Dispatcher:
         else:
             self.timer_advance_trial = None
 
-    def stop_session(self):
-        """Stop the session
-        
-        Called by QMetaObject.invokeMethod in arena_widget.stop_sequence
-        
-        Flow
-        * Stops self.timer and disconnects it from self.update_Pi
-        * Clears recorded data
-        """
-     
-        """Send a stop message to the pi"""
-        ## Stop the timers
-        # Alive timer
-        if self.alive_timer is None:
-            self.logger.error('stopping session but no alive timer')
-        else:
-            # Syntax is different becasue this is a repeating timer
-            self.alive_timer.stop()
-        
-        # Advance trial timer
-        if self.timer_advance_trial is not None:
-            self.timer_advance_trial.cancel()
-        
-        # Inter trial interval timer
-        if self.timer_inter_trial_interval is not None:
-            self.timer_inter_trial_interval.cancel()
-        
-        
-        ## Send a stop message to each pi
-        self.network_communicator.send_message_to_all('stop')
-
-        
-        ## Reset history when a new session is started 
-        # Flag that it has stopped
-        self.session_is_running = False
-        
-        
-        ## Log
-        self.logger.info('done with stop_session')
-
-        # We want to be able to process the final goodbye so commenting this 
-        # out. But what if it keeps sending poke messages?
-        #~ self.network_communicator.command2method = {}
-
-    def send_alive_request(self):
-        """Send alive request to agents.
-        
-        Also checks if it's been too long since we've heard from them.
-        
-        alive_timer_test_interval : 
-            Seconds between calls to this function
-            This sets the speed with which problems are detected
-            Can be somewhat frequent because this call is fast
-        
-        alive_timer_agent_crash_threshold : 
-            Seconds before deciding that the dispatcher has crashed
-            Must be longer than alive_timer_send_interval
-            If this is too short, we might false-positive crash
-            If this is too long, it will take a while for agents to shut down
-        
-        alive_timer_send_interval : 
-            Seconds between sending of 'alive' requests
-            If this is too frequent, we waste time (and potentially increase
-            risk of zmq threading crash)
-            If this is too slow, we won't know when a crash happens
-        
-        alive_timer_dispatcher_crash_threshold : 
-            Seconds before deciding that the agents have crashed
-            Must be longer than alive_timer_send_interval        
-        """
-        # Warn if it's been too long
-        for identity in self.network_communicator.connected_agents:
-            if identity in self.last_alive_message_received.keys():
-                last_time = self.last_alive_message_received[identity]
-                
-                # Set a threshold
-                threshold = (datetime.datetime.now() - 
-                    datetime.timedelta(
-                    seconds=self.alive_timer_dispatcher_crash_threshold))
-                
-                # Error if it's been too long
-                # TODO: initiate shutdown
-                if last_time < threshold:
-                    self.logger.error(f'no recent alive responses from {identity}')
-            
-            else:
-                # Warn that we haven't heard from this one before
-                # TODO: initialize with expected identities to avoid this warn
-                self.logger.warning(
-                    f'{identity} is not in last_alive_message_received')
-        
-        # Send the alive request
-        self.network_communicator.send_alive_request()
-
-    def update(self):
-        """Called by timer_dispatcher in MainWindow"""
-        # Check for messages
-        self.network_communicator.check_for_messages()
-        
-        # Print status if not all connected
-        if not self.network_communicator.check_if_all_pis_connected():
-            self.logger.info(
-                'waiting for {} to connect; only {} connected'.format(
-                ', '.join(self.network_communicator.pi_names),
-                ', '.join(self.network_communicator.connected_agents),
-            ))
-        
-        # TODO: test if "start_next_trial" datetime flag set
-        
-        # Check if procs are running
-        for agent, proc in self.marshaller.agent2proc.items():
-            proc.poll()
-            if proc.returncode is not None:
-                self.logger.warning(f'ssh proc for {agent} is not running')
-        
     def handle_volume(self, trial_number, identity, volume, volume_time):
         """Store the flash time"""
         self._log_volume(trial_number, identity, volume, volume_time)
@@ -521,48 +606,6 @@ class Dispatcher:
         # Start the ITI or the next trial, depending
         self.start_iti_or_start_trial()
 
-    def timed_advance_trial(self):
-        """Advance trial without reward
-        
-        Typically this is called by a timer during the passive task. The
-        trial is logged and the next one is started.
-        """
-        # Log that no reward was given
-        self.previously_rewarded_port = None
-
-        # Log the trial
-        pseudo_reward_time = datetime.datetime.now().isoformat()
-        self._log_trial(pseudo_reward_time)
-
-        # Start the ITI or the next trial, depending
-        self.start_iti_or_start_trial()
-    
-    def start_iti_or_start_trial(self):
-        # Optionally start a timer to advance the trial
-        if self.inter_trial_interval is not None:
-            # Silence the sounds
-            self.network_communicator.send_message_to_all('silence')
-
-            # Add a bit of randomness to ITI
-            this_ITI = (
-                self.inter_trial_interval + 
-                np.random.standard_normal() * self.inter_trial_interval_stdev)
-            
-            # Avoid negative ITI
-            if this_ITI < 0.001:
-                this_ITI = 0.001
-
-            # Create a timer that will call self.start_trial() after
-            # self.inter_trial_interval seconds
-            self.timer_inter_trial_interval = threading.Timer(
-                self.inter_trial_interval, self.start_trial)
-            
-            # Start the timer
-            self.timer_inter_trial_interval.start()
-        else:
-            # Just start trial immediately
-            self.start_trial()                
-    
     def handle_sound(self, trial_number, identity, data_left, data_right, 
         data_hash, last_frame_time, frames_since_cycle_start, dt):
         """Called whenever a 'sound' message is received
@@ -595,17 +638,6 @@ class Dispatcher:
         
         # Log
         self._log_sound_plan(df)
-    
-    def handle_goodbye(self, identity):
-        self.logger.info(f'goodbye received from: {identity}')
-        
-        # remove from connected
-        self.network_communicator.remove_identity_from_connected(identity)
-        
-        # TODO: stop the session if we've lost quorum
-        if self.session_is_running and not self.network_communicator.check_if_all_pis_connected():
-            self.logger.error('session stopped due to early goodbye')
-            self.stop_session()
     
     def _log_trial_header_row(self):
         """Write the header row of trials.csv
@@ -753,3 +785,205 @@ class Dispatcher:
         # Write out
         with open(os.path.join(self.sandbox_path, 'sound_plans.csv'), 'a') as fi:
             fi.write(txt)
+
+
+class WheelDispatcher(Dispatcher):
+    """Handles task logic
+
+    """
+
+    def __init__(self, box_params, task_params, mouse_params, sandbox_path):
+        """Initialize a new worker
+        
+        """
+        
+        ## Super
+        super().__init__(box_params, task_params, mouse_params, sandbox_path)
+
+        
+        ## Extract the port names, pi names, and ip addresses from box_params
+        self.pi_names = []
+        self.pi_ip_addresses = []
+        for pi in box_params['connected_pis']:
+            # Name and IP address of each Pi
+            self.pi_ip_addresses.append(pi['ip'])
+            self.pi_names.append(pi['name'])
+
+        # Initialize trial history (requires self.ports)
+        self.init_history()
+
+        
+        #~ ## Parse task_params
+        #~ # Pop out the trial duration, if present
+        #~ # Pop because TrialParameterChooser can't parse this one
+        #~ if 'trial_duration' in task_params:
+            #~ self.trial_duration = task_params.pop('trial_duration')
+        #~ else:
+            #~ self.trial_duration = None
+        
+        #~ # Same with ITI
+        #~ if 'inter_trial_interval' in task_params:
+            #~ self.inter_trial_interval = task_params.pop('inter_trial_interval')
+        #~ else:
+            #~ # Set default
+            #~ # It's best if this is long enough that the Pis can be informed
+            #~ # and there's no leftover sounds from the previous trial
+            #~ self.inter_trial_interval = 0.5
+        
+        #~ # Add a little jitter to the inter-trial interval
+        #~ self.inter_trial_interval_stdev = 0.05
+        
+        #~ # Use task_params to set TrialParameterChooser
+        #~ self.trial_parameter_chooser = (
+            #~ trial_chooser.TrialParameterChooser.from_task_params(
+            #~ port_names=self.port_names,
+            #~ task_params=task_params,
+            #~ ))
+        
+        
+        #~ ## Write out header rows of log files
+        #~ self._log_trial_header_row()
+        #~ self._log_poke_header_row()
+        #~ self._log_sound_header_row()
+        #~ self._log_volume_header_row()
+        
+        #~ # This one writes its own header row
+        #~ self._log_sound_plan_header_row_written = False
+        
+
+        ## Initialize network communicator and tell it what pis to expect
+        self.network_communicator = DispatcherNetworkCommunicator(
+            pi_names=self.pi_names,
+            zmq_port=box_params['zmq_port'],
+            )
+        
+        # What to do on each command
+        # TODO: disconnect these handles after session is stopped
+        self.network_communicator.command2method = {
+            #~ 'poke': self.handle_poke,
+            'reward': self.handle_reward,
+            'flash': self.handle_flash,
+            'sound': self.handle_sound,
+            #~ 'sound_plan': self.handle_sound_plan,
+            'goodbye': self.handle_goodbye,
+            'alive': self.recv_alive,
+            #~ 'volume_change': self.handle_volume
+            }
+        
+        
+        ## Start the Agents
+        self.marshaller = pi_marshaller.PiMarshaller(
+            agent_names=self.pi_names,
+            ip_addresses=self.pi_ip_addresses,
+            sandbox_path=self.sandbox_path,
+            )
+        self.marshaller.start()
+
+    def init_history(self):
+        """Set all history variables to defaults
+        
+        This happens on init
+        """
+        # Identity of last_rewarded_port (to avoid repeats)
+        self.previously_rewarded_port = None 
+        self.goal_port = None
+
+        # Start time
+        self.trial_start_time = None
+        
+        # Trial index (None if not running)
+        self.current_trial = None
+        
+        #~ # Volume adjustment
+        #~ self.trigger_trial = False
+        
+        #~ # Keep track of which ports have been poked on this trial
+        #~ self.ports_poked_this_trial = set()
+        
+        #~ # History (dict by port)
+        #~ self.history_of_pokes = {}
+        #~ self.history_of_rewarded_correct_pokes = {}
+        #~ self.history_of_rewarded_incorrect_pokes = {}
+        #~ for port in self.port_names:
+            #~ self.history_of_pokes[port] = []
+            #~ self.history_of_rewarded_correct_pokes[port] = []
+            #~ self.history_of_rewarded_incorrect_pokes[port] = []
+        
+        #~ # History (simple lists)
+        #~ self.history_of_ports_poked_per_trial = []
+    
+    def start_trial(self):
+        ## Choose and broadcast reward_port
+        #~ # Choose trial parameters
+        #~ self.goal_port, self.trial_parameters, self.port_parameters = (
+            #~ self.trial_parameter_chooser.choose(self.previously_rewarded_port)
+            #~ )
+        self.trial_parameters = {}
+
+        #~ # Choose whether the trial sound will be adjusted
+        #~ self.trigger_trial = np.random.random() < 0.5
+        #~ self.trial_parameters['trigger_trial'] = self.trigger_trial
+
+        # Set start time as now (note that Pi will not receive the message 
+        # until a bit later)
+        self.trial_start_time = datetime.datetime.now()
+
+        # Set up new trial index
+        if self.current_trial is None:
+            self.current_trial = 0
+        else:
+            self.current_trial += 1
+
+        # Add trial number to trial_parameters, so that the Pi can use
+        # this to label the pokes that come back
+        self.trial_parameters['trial_number'] = self.current_trial
+
+        # Log
+        self.logger.info(
+            f'starting trial {self.current_trial}; '
+            f'start time={self.trial_start_time}; '
+            #~ f'goal port={self.goal_port}; '
+            f'trial parameters=:\n{self.trial_parameters}; '
+            #~ f'port_parameters=:\n{self.port_parameters}'
+            )
+        
+        # Send the parameters to each pi
+        for pi_name in self.pi_names:
+            # Make a copy
+            pi_params = self.trial_parameters.copy()
+            
+            # Send start to each Pi
+            self.network_communicator.send_trial_parameters_to_pi(
+                pi_name, **pi_params)
+        
+        # Optionally start a timer to advance the trial
+        if self.trial_duration is not None:
+            self.timer_advance_trial = threading.Timer(
+                self.trial_duration, self.timed_advance_trial)
+            self.timer_advance_trial.start()
+        else:
+            self.timer_advance_trial = None
+
+    def handle_flash(self, trial_number, identity, flash_time):
+        """Store the flash time"""
+        return
+        self._log_flash(trial_number, identity, flash_time)
+    
+    def handle_reward(self, trial_number, identity, port_name, poke_time):
+        
+        # Start the ITI or the next trial, depending
+        self.start_iti_or_start_trial()
+
+    def handle_sound(self, trial_number, identity, data_left, data_right, 
+        data_hash, last_frame_time, frames_since_cycle_start, dt):
+        """Called whenever a 'sound' message is received
+        
+        All of these parameters are logged by self._log_sound
+        """
+        # Log the sound
+        self._log_sound(
+            trial_number, identity, data_left, data_right, 
+            data_hash, last_frame_time, frames_since_cycle_start, dt)
+
+    def _log_trial(self, *args, **kwargs):
+        pass
