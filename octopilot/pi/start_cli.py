@@ -31,7 +31,7 @@ jackd_proc = daemons.start_jackd(verbose=True)
 # TODO: if there is an error in agent.Agent.__init__, this script will hang
 # after printing "jackd successfully killed"
 try:
-    hc = agent.Agent(params=params, start_networking=True)
+    hc = agent.WheelTask(params=params, start_networking=True)
     hc.main_loop()
 except:
     raise

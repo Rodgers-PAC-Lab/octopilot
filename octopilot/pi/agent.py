@@ -710,7 +710,7 @@ class SoundSeekingAgent(Agent):
         # Mark as shutdown for next mainloop
         self.shutdown = True
 
-class BonsaiOctagonTask(OctagonTask):
+class BonsaiOctagonTask(SoundSeekingAgent):
     """Version with Bonsai closed-loop volume control
     
     """
@@ -910,14 +910,14 @@ class BonsaiOctagonTask(OctagonTask):
 class WheelTask(Agent):
     """Version of Agent that runs the WheelTask"""
     
-    def __init__(*args, **kwargs):
+    def __init__(self, *args, **kwargs):
         ## Call Agent.__init___
         super().__init__(*args, **kwargs)
     
         
         ## TODO: set up Wheel here
     
-    def start_session():
+    def start_session(self):
         # Call Agent.start_session
         super().start_session()
         
@@ -937,7 +937,19 @@ class WheelTask(Agent):
             f'reward_time={reward_time}=str'
             )  
     
-    def set_trial_parameters():
+    def report_sound_plan(self, *args, **kwargs):
+        # Currently required by parent class
+        pass
+    
+    def report_sound(self, *args, **kwargs):
+        # Currently required by parent class
+        pass
+
+    def stop_sounds(self, *args, **kwargs):
+        # Currently required by something
+        pass
+    
+    def set_trial_parameters(self, *args, **kwargs):
         ## Flash an LED
         # Use this to determine when the flash was done in local timebase
         timestamp = datetime.datetime.now().isoformat()
@@ -946,13 +958,13 @@ class WheelTask(Agent):
 
 
         ## Log
-        self.logger.debug(f'setting trial parameters: {msg_params}')
+        #~ self.logger.debug(f'setting trial parameters: {msg_params}')
 
 
         ## Update trial number
         # Do this first, because some of the sound functions need to know
         # the correct trial number
-        self.trial_number = msg_params['trial_number']
+        #~ self.trial_number = msg_params['trial_number']
         
     
         ## Log trial start (after trial number update)
@@ -962,7 +974,7 @@ class WheelTask(Agent):
         
         ## TODO: update sound parameters here
     
-    def stop_session():
+    def stop_session(self):
         # TODO: shutdown handles
         
         # Stop running
