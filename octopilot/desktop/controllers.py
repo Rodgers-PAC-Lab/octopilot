@@ -859,11 +859,13 @@ class WheelDispatcher(Dispatcher):
         
         # What to do on each command
         # TODO: disconnect these handles after session is stopped
+        # TODO: move shared methods to parent
         self.network_communicator.command2method = {
             #~ 'poke': self.handle_poke,
             'reward': self.handle_reward,
             'flash': self.handle_flash,
             'sound': self.handle_sound,
+            'wheel': self.handle_wheel,
             #~ 'sound_plan': self.handle_sound_plan,
             'goodbye': self.handle_goodbye,
             'alive': self.recv_alive,
@@ -894,23 +896,13 @@ class WheelDispatcher(Dispatcher):
         # Trial index (None if not running)
         self.current_trial = None
         
-        #~ # Volume adjustment
-        #~ self.trigger_trial = False
+        # History
+        self.history_of_wheel_position = []
+        self.history_of_wheel_time = []
+        self.history_of_wheel_trial = []
         
-        #~ # Keep track of which ports have been poked on this trial
-        #~ self.ports_poked_this_trial = set()
-        
-        #~ # History (dict by port)
-        #~ self.history_of_pokes = {}
-        #~ self.history_of_rewarded_correct_pokes = {}
-        #~ self.history_of_rewarded_incorrect_pokes = {}
-        #~ for port in self.port_names:
-            #~ self.history_of_pokes[port] = []
-            #~ self.history_of_rewarded_correct_pokes[port] = []
-            #~ self.history_of_rewarded_incorrect_pokes[port] = []
-        
-        #~ # History (simple lists)
-        #~ self.history_of_ports_poked_per_trial = []
+        # Reward history
+        self.history_of_rewards = []
     
     def start_trial(self):
         ## Choose and broadcast reward_port
@@ -964,12 +956,20 @@ class WheelDispatcher(Dispatcher):
         else:
             self.timer_advance_trial = None
 
+    def handle_wheel(self, identity, trial_number, wheel_position, wheel_time):
+        # Append to history
+        self.history_of_wheel_position.append(wheel_position)
+        self.history_of_wheel_time.append(wheel_time)
+        self.history_of_wheel_trial.append(trial_number)
+        
+        # TODO: log to disk
+
     def handle_flash(self, trial_number, identity, flash_time):
         """Store the flash time"""
         return
         self._log_flash(trial_number, identity, flash_time)
     
-    def handle_reward(self, trial_number, identity, port_name, poke_time):
+    def handle_reward(self, identity, trial_number, reward_time):
         
         # Start the ITI or the next trial, depending
         self.start_iti_or_start_trial()
