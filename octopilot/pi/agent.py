@@ -1026,22 +1026,36 @@ class WheelTask(Agent):
         # Currently required by something
         pass
     
-    def set_trial_parameters(self, *args, **kwargs):
+    def set_trial_parameters(self, **msg_params):
         ## Flash an LED
         # Use this to determine when the flash was done in local timebase
         timestamp = datetime.datetime.now().isoformat()
 
-        # TODO: make LED to flash
+        #~ # Log the time of the flash
+        #~ # Do this after the flash itself so that we don't jitter
+        #~ self.left_nosepoke.turn_on_red_led()
+        #~ self.right_nosepoke.turn_on_red_led()
+        #~ time.sleep(.3)
+        #~ self.left_nosepoke.turn_off_red_led()
+        #~ self.right_nosepoke.turn_off_red_led()
 
 
         ## Log
-        #~ self.logger.debug(f'setting trial parameters: {msg_params}')
+        self.logger.debug(f'setting trial parameters: {msg_params}')
+
+        
+        ## If not running, issue error
+        # Because this might indicate that something has gone wrong
+        if not self.session_running:
+            self.logger.error(
+                f'received trial parameters but session is not running')
+            return
 
 
         ## Update trial number
         # Do this first, because some of the sound functions need to know
         # the correct trial number
-        #~ self.trial_number = msg_params['trial_number']
+        self.trial_number = msg_params['trial_number']
         
     
         ## Log trial start (after trial number update)
@@ -1049,7 +1063,36 @@ class WheelTask(Agent):
         self.report_trial_start(timestamp)
         
         
-        ## TODO: update sound parameters here
+        ## Split into left_params and right_params
+        left_params = {
+            'rate': 4, #msg_params['left_target_rate'],
+            'temporal_log_std': -1, #msg_params['target_temporal_log_std'],
+            'center_freq': 10000, #msg_params['target_center_freq'],
+            'log_amplitude': -2, #msg_params['target_log_amplitude'],
+            'bandwidth': 3000, #msg_params['target_bandwidth'],
+            }
+
+        right_params = {
+            'rate': 4, #msg_params['left_target_rate'],
+            'temporal_log_std': -1, #msg_params['target_temporal_log_std'],
+            'center_freq': 10000, #msg_params['target_center_freq'],
+            'log_amplitude': -2, #msg_params['target_log_amplitude'],
+            'bandwidth': 3000, #msg_params['target_bandwidth'],
+            }
+    
+    
+        ## Use those params to set the new sounds
+        self.logger.info(
+            'setting audio parameters. '
+            f'LEFT={left_params}. RIGHT={right_params}')
+        self.sound_generator.set_audio_parameters(left_params, right_params)
+        
+        # Saving these params to be modified by other methods
+        self.prev_trial_params = msg_params
+        
+        # Empty and refill the queue with new sounds
+        self.sound_queuer.empty_queue()
+        self.sound_queuer.append_sound_to_queue_as_needed()   
     
     def stop_session(self):
         # TODO: shutdown handles
