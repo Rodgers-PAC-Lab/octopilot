@@ -916,50 +916,89 @@ class WheelTask(Agent):
         super().__init__(*args, **kwargs)
     
         
-        ## Set up Wheel here
-        self.wheel_listener = hardware.WheelListener(
-            self.pig,
-            report_callback=self.report_wheel)
+        ## Set up Wheel
+        self.wheel_listener = hardware.WheelListener(self.pig)
 
-        self.wheel_reward_thresh = 150
-        self.last_rewarded_position = 0
-        self.last_reported_time = datetime.datetime.now()
-        self.last_reward_time = datetime.datetime.now()
+
+        ## Set up reward
+        self.solenoid_pin = 6
+        self.pig.set_mode(self.solenoid_pin, pigpio.OUTPUT)
+
+        
+        ## Reward size parameters
+        # As time_since_last_reward increases, reward gets exponentially smaller
+        # When time_since_last_reward == reward_decay, the reward size
+        # is 63.7% of full. 
+        # As reward_decay increases, mouse has to wait longer 
+        self.reward_decay = 0.5
+        self.max_reward = .05
+        self.wheel_reward_thresh = 1000
+
+        # These are initialized later
+        self.last_rewarded_position = None
+        self.last_reported_time = None
+        self.last_reward_time = None
     
     def start_session(self):
         # Call Agent.start_session
         super().start_session()
         
-        # TODO: Add handles to WheelController
-        # Instead, create a timer for the wheel to report
-        
-        #~ self.wheel_timer = hardware.RepeatedTimer(
-            #~ 1,
-            #~ self.report_wheel,
-            #~ )
+        # Start wheel listening
+        self.wheel_listener.report_callback = self.report_wheel
+
+        # Initialize wheel parameters
+        self.last_rewarded_position = 0
+        self.last_reported_time = datetime.datetime.now()
+        self.last_reward_time = datetime.datetime.now()
         
     def report_wheel(self):
         """Called by self.wheel_listener every time the wheel moves"""
-        self.wheel_position = self.wheel_listener.position
+        # Get wheel position
+        wheel_position = self.wheel_listener.position
 
-        if np.abs(self.wheel_position - self.last_rewarded_position) > self.wheel_reward_thresh:
+        # Get time
+        now = datetime.datetime.now()        
+        
+        # Report to Dispatcher
+        if np.mod(wheel_position, 100) == 0:
+            self.network_communicator.poke_socket.send_string(
+                f'wheel;'
+                f'trial_number={self.trial_number}=int;'
+                f'wheel_position={wheel_position}=int;'
+                f'wheel_time={now.isoformat()}=str'
+                )
+
+        # Reward if it's moved far enough
+        # TODO: move to another method?
+        if np.abs(wheel_position - 
+                self.last_rewarded_position) > self.wheel_reward_thresh:
+            
             # Set last rewarded position to current position
-            self.last_rewarded_position = self.wheel_position
-            current_time = datetime.datetime.now()
+            self.last_rewarded_position = wheel_position
             
             # Reward
-            time_since_last_reward = (current_time - self.last_reward_time).total_seconds()
-            
-            # As time_since_last_reward increases, reward gets exponentially smaller
-            # When time_since_last_reward == reward_decay, the reward size
-            # is 63.7% of full. 
-            # As reward_decay increases, mouse has to wait longer 
-            reward_decay = 0.5
-            max_reward = .05
-            reward_size = max_reward * (
-                1 - np.exp(-time_since_last_reward / reward_decay))
-            reward(reward_size)
-            self.last_reward_time = current_time
+            time_since_last_reward = (
+                now - self.last_reward_time).total_seconds()
+            reward_size = self.max_reward * (
+                1 - np.exp(-time_since_last_reward / self.reward_decay))
+            self.reward(reward_size)
+            self.last_reward_time = now
+
+    def reward(self, reward_size):
+        # Log
+        self.logger.info(f'rewarding for {reward_size} s')
+        
+        # Get current time
+        reward_time = datetime.datetime.now()
+        
+        # Issue reward
+        # TODO: rewrite with threading to avoid delay
+        self.pig.write(self.solenoid_pin, 1)
+        time.sleep(reward_size)
+        self.pig.write(self.solenoid_pin, 0)
+        
+        # Report
+        self.report_reward(reward_time)
     
     def report_reward(self, reward_time):
         """Called by WheelController upon reward. Reports to Dispatcher by ZMQ.

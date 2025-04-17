@@ -200,6 +200,9 @@ class WheelListener(object):
     def __init__(self, pi, report_callback=None):
         """Initialize a new WheelListener
         
+        A decent turn will increment `position` every 1 ms.
+        A full rotation is a few thousand positions.
+        
         pi : pigpio.pi
         report_callback : method or None
             If not None, this method is called every time the state changes.
