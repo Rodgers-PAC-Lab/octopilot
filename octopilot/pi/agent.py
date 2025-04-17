@@ -18,8 +18,9 @@ import datetime
 import logging
 import socket
 import time
-import pigpio
 import random 
+import numpy as np
+import pigpio
 from . import hardware
 from . import sound
 from ..shared.networking import PiNetworkCommunicator
@@ -915,13 +916,50 @@ class WheelTask(Agent):
         super().__init__(*args, **kwargs)
     
         
-        ## TODO: set up Wheel here
+        ## Set up Wheel here
+        self.wheel_listener = hardware.WheelListener(
+            self.pig,
+            report_callback=self.report_wheel)
+
+        self.wheel_reward_thresh = 150
+        self.last_rewarded_position = 0
+        self.last_reported_time = datetime.datetime.now()
+        self.last_reward_time = datetime.datetime.now()
     
     def start_session(self):
         # Call Agent.start_session
         super().start_session()
         
-        # Add handles to WheelController
+        # TODO: Add handles to WheelController
+        # Instead, create a timer for the wheel to report
+        
+        #~ self.wheel_timer = hardware.RepeatedTimer(
+            #~ 1,
+            #~ self.report_wheel,
+            #~ )
+        
+    def report_wheel(self):
+        """Called by self.wheel_listener every time the wheel moves"""
+        self.wheel_position = self.wheel_listener.position
+
+        if np.abs(self.wheel_position - self.last_rewarded_position) > self.wheel_reward_thresh:
+            # Set last rewarded position to current position
+            self.last_rewarded_position = self.wheel_position
+            current_time = datetime.datetime.now()
+            
+            # Reward
+            time_since_last_reward = (current_time - self.last_reward_time).total_seconds()
+            
+            # As time_since_last_reward increases, reward gets exponentially smaller
+            # When time_since_last_reward == reward_decay, the reward size
+            # is 63.7% of full. 
+            # As reward_decay increases, mouse has to wait longer 
+            reward_decay = 0.5
+            max_reward = .05
+            reward_size = max_reward * (
+                1 - np.exp(-time_since_last_reward / reward_decay))
+            reward(reward_size)
+            self.last_reward_time = current_time
     
     def report_reward(self, reward_time):
         """Called by WheelController upon reward. Reports to Dispatcher by ZMQ.

@@ -197,16 +197,16 @@ class Nosepoke(object):
         self.pig.write(self.red_pin, 0)
 
 class WheelListener(object):
-    def __init__(self, pi, debug_print=False):
+    def __init__(self, pi, report_callback=None):
         """Initialize a new WheelListener
         
         pi : pigpio.pi
-        debug_print : bool
-            If True, then print messages on every touch
+        report_callback : method or None
+            If not None, this method is called every time the state changes.
         """
         # Store provided arguments
         self.pi = pi
-        self.debug_print = debug_print
+        self.report_callback = report_callback
         
         # Set up logs for position and state
         self.position = 0
@@ -231,6 +231,9 @@ class WheelListener(object):
         self.state_log.append(
             '{}{}_{}'.format(self.a_state, self.b_state, self.position))
 
+        if self.report_callback is not None:
+            self.report_callback()
+
     def pulseB_detected(self, pin, level, tick):
         self.event_log.append('B')
         self.b_state = 1
@@ -241,6 +244,9 @@ class WheelListener(object):
         self.state_log.append(
             '{}{}_{}'.format(self.a_state, self.b_state, self.position))
 
+        if self.report_callback is not None:
+            self.report_callback()
+    
     def pulseA_down(self, pin, level, tick):
         self.event_log.append('a')
         self.a_state = 0
@@ -251,6 +257,9 @@ class WheelListener(object):
         self.state_log.append(
             '{}{}_{}'.format(self.a_state, self.b_state, self.position))
 
+        if self.report_callback is not None:
+            self.report_callback()
+    
     def pulseB_down(self, pin, level, tick):
         self.event_log.append('b')
         self.b_state = 0
@@ -261,6 +270,9 @@ class WheelListener(object):
         self.state_log.append(
             '{}{}_{}'.format(self.a_state, self.b_state, self.position))
 
+        if self.report_callback is not None:
+            self.report_callback()
+    
     def report(self):
         print("current position: {}".format(self.position))
         print('events: ' + ''.join(self.event_log[-60:]))
