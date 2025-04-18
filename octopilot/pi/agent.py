@@ -959,6 +959,17 @@ class WheelTask(Agent):
         # Get time
         now = datetime.datetime.now()        
         
+        # Update lr_weight
+        # TODO: this should be done with a multiprocessing.Event or similar
+        # TODO: update lr_weight based on change in wheel position since last update
+        weight = wheel_position / 1000
+        if weight < -1:
+            weight = -1
+        if weight > 1:
+            weight = 1
+        weight = (weight / 2) + 0.5
+        self.sound_player.lr_weight = weight
+        
         # Report to Dispatcher
         if np.mod(wheel_position, 100) == 0:
             self.network_communicator.poke_socket.send_string(
@@ -970,6 +981,8 @@ class WheelTask(Agent):
 
         # Reward if it's moved far enough
         # TODO: move to another method?
+        # Note: in the full task, the reward is issued only for centering the
+        # sound, not just moving the wheel
         if np.abs(wheel_position - 
                 self.last_rewarded_position) > self.wheel_reward_thresh:
             
@@ -1064,6 +1077,7 @@ class WheelTask(Agent):
         
         
         ## Split into left_params and right_params
+        # For the wheel task, we use left sound only, and reweight it later
         left_params = {
             'rate': 4, #msg_params['left_target_rate'],
             'temporal_log_std': -1, #msg_params['target_temporal_log_std'],
@@ -1073,11 +1087,6 @@ class WheelTask(Agent):
             }
 
         right_params = {
-            'rate': 4, #msg_params['left_target_rate'],
-            'temporal_log_std': -1, #msg_params['target_temporal_log_std'],
-            'center_freq': 10000, #msg_params['target_center_freq'],
-            'log_amplitude': -2, #msg_params['target_log_amplitude'],
-            'bandwidth': 3000, #msg_params['target_bandwidth'],
             }
     
     
@@ -1086,6 +1095,9 @@ class WheelTask(Agent):
             'setting audio parameters. '
             f'LEFT={left_params}. RIGHT={right_params}')
         self.sound_generator.set_audio_parameters(left_params, right_params)
+        
+        # Set lr weight back to center
+        self.sound_player.lr_weight = 0.5
         
         # Saving these params to be modified by other methods
         self.prev_trial_params = msg_params

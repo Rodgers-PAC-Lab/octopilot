@@ -702,6 +702,10 @@ class SoundPlayer(object):
         self.frame_rate_warning_already_issued = False
         
         
+        ## Left/right weighting for wheel task
+        self.lr_weight = 0.5
+        
+        
         ## Create the contained jack.Client
         # Creating a jack client
         self.client = jack.Client(self.name)
@@ -754,10 +758,6 @@ class SoundPlayer(object):
         * Frame is converted to float32
         * Each column of frame is written to the outports
         """
-        # Optional debug message
-        #~ if verbose:
-            #~ print('process called')
-        
         # Try to get audio data from self.sound_queue
         queue_is_empty = False
         try:
@@ -801,6 +801,17 @@ class SoundPlayer(object):
         data = data.astype('float32')
         
         
+        ## This is for the wheel task only
+        ## Take the left column as mono input, and apply L/R variable weighting
+        # self.lr_weight == 0 : all on the left
+        # self.lr_weight == 0.5 : equal
+        # self.lr_weight == 1 : all on the right
+        mono = data[:, 0]
+        data = np.transpose([
+            mono * (1 - self.lr_weight),
+            mono * self.lr_weight,
+            ])
+        
         ## Report when a sound plays
         # Get the std of the data: a loud sound has data_std .03
         data_std = data.std()
@@ -826,18 +837,8 @@ class SoundPlayer(object):
                 lft = self.client.last_frame_time
                 fscs = self.client.frames_since_cycle_start
                 dt = datetime.datetime.now().isoformat()
-                #~ print('data std is {} with hash {} at {} + {} ie {}'.format(
-                    #~ data_std, 
-                    #~ data_hash,
-                    #~ lft,
-                    #~ fscs,
-                    #~ dt
-                    #~ ))
-                
-                # Would be better to queue these reports in some way
-                #~ with self.q_nonzero_blocks_lock:
-                    #~ self.q_nonzero_blocks.put_nowait((data_hash, lft, fscs, dt))
-                
+
+                # TODO: multiprocessing.queue these reports instead
                 # Report
                 self.report_method(
                     data=data,
