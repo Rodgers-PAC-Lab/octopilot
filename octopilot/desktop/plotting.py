@@ -296,19 +296,35 @@ class PerformanceMetricDisplay(QWidget):
         # Update timing
         if time_from_session_start_sec is not None:
             self.time_label.setText(
-                'elapsed time: {}'.format(int(time_from_session_start_sec)))
+            self.time_label.setText(
+                "elapsed time: {}".format(
+                    self.format_time(int(time_from_session_start_sec))
+                )
+            )
         else:
             self.time_label.setText(
                 'elapsed time: NA')
         
         if time_from_last_poke is not None:
             self.poke_time_label.setText(
-                'time since poke: {}'.format(int(time_from_last_poke)))
+                "time since poke: {}".format(
+                    self.format_time(int(time_from_last_poke))
+                )
+            )
+
         else:
             self.poke_time_label.setText(
                 'time since poke: NA')
             
-
+    @staticmethod
+    def format_time(seconds):
+        hours, remainder = divmod(seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        match hours > 0:
+            case True:
+                return f"{hours:02}:{minutes:02}:{seconds:02}"
+            case False:
+                return f"{minutes:02}:{seconds:02}"
 
 ## Widget to plot pokes
 class PokePlotWidget(QWidget):
