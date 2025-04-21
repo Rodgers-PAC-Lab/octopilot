@@ -956,7 +956,12 @@ class WheelDispatcher(Dispatcher):
         else:
             self.timer_advance_trial = None
 
-    def handle_wheel(self, identity, trial_number, wheel_position, wheel_time):
+    def handle_wheel(self, 
+        identity, trial_number, wheel_position, wheel_time, clipped_position,
+        weight):
+        """Handle an update about the wheel's position.
+        
+        """
         # Append to history
         self.history_of_wheel_position.append(wheel_position)
         self.history_of_wheel_time.append(wheel_time)
