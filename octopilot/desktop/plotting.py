@@ -296,7 +296,6 @@ class PerformanceMetricDisplay(QWidget):
         # Update timing
         if time_from_session_start_sec is not None:
             self.time_label.setText(
-            self.time_label.setText(
                 "elapsed time: {}".format(
                     self.format_time(int(time_from_session_start_sec))
                 )
