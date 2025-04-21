@@ -918,7 +918,7 @@ class WheelTask(Agent):
         
         ## Set up Wheel
         self.wheel_listener = hardware.WheelListener(self.pig)
-
+        
 
         ## Set up reward
         self.solenoid_pin = 6
@@ -926,18 +926,37 @@ class WheelTask(Agent):
 
         
         ## Reward size parameters
+        # This is the size of a regular reward
+        self.max_reward = .05
+
         # As time_since_last_reward increases, reward gets exponentially smaller
         # When time_since_last_reward == reward_decay, the reward size
         # is 63.7% of full. 
         # As reward_decay increases, mouse has to wait longer 
+        # 300 clicks is about 20 deg (easy)
+        self.reward_for_spinning = True
         self.reward_decay = 0.5
-        self.max_reward = .05
-        self.wheel_reward_thresh = 1000
+        self.wheel_reward_thresh = 300 
+        
+        # This defines the range in which turning the wheel changes the sound
+        # Every trial starts at either max or min
+        # 1000 clicks is about 60 deg
+        self.wheel_max = 1000
+        self.wheel_min = -1000
+        
+        # This is how close the mouse has to get to the reward zone
+        # This can be small, just not so small that the mouse spins right 
+        # through it before it checks, which is probably pretty hard to do
+        # 100 clicks is about 6 deg
+        self.reward_range = 100
 
         # These are initialized later
         self.last_rewarded_position = None
         self.last_reported_time = None
         self.last_reward_time = None
+        self.clipped_position = 0
+        self.last_raw_position = 0
+        self.reward_delivered = False
     
     def start_session(self):
         # Call Agent.start_session
@@ -953,56 +972,114 @@ class WheelTask(Agent):
         
     def report_wheel(self):
         """Called by self.wheel_listener every time the wheel moves"""
-        # Get wheel position
-        wheel_position = self.wheel_listener.position
-
-        # Get time
+        
+        ## Get time
         now = datetime.datetime.now()        
         
-        # Update lr_weight
+        
+        ## Update wheel positions
+        # At the beginning of each trial
+        # self.last_raw_position = self.wheel_listener.position
+        # self.clipped_position = random
+        
+        # Get actual wheel position
+        wheel_position = self.wheel_listener.position
+        
+        # Compute movement since last_raw_position and update it
+        diff = wheel_position - self.last_raw_position
+        self.last_raw_position = wheel_position
+        
+        # Clip the new position
+        self.clipped_position += diff
+        
+        if self.clipped_position > self.wheel_max:
+            self.clipped_position = self.wheel_max
+        
+        if self.clipped_position < self.wheel_min:
+            self.clipped_position = self.wheel_min
+        
+        
+        ## Update lr_weight
+        # Compute the weight within the min/max range
+        position_within_range = (
+            (self.clipped_position - self.wheel_min) / 
+            (self.wheel_max - self.wheel_min))
+        
+        # Clip to [0, 1], just in case we left the clipped range somehow
+        if position_within_range < 0:
+            position_within_range = 0
+        elif position_within_range > 1:
+            position_within_range = 1
+        
+        def convert_position_to_weight(position, max_db=40):
+            # Map this onto (R-L) in dB [-10, 10]
+            db_diff = (position - 0.5) * 2 * max_db
+            
+            # Map this db_diff onto a R/L ratio
+            lr_ratio = 10 ** (db_diff / 20)
+            
+            # Map R/L ratio onto weight of R
+            weight = lr_ratio / (lr_ratio + 1)
+            
+            return weight
+        
+        weight = convert_position_to_weight(position_within_range)
+        
+        # Update the weight in sound player, using the range [0, 1]
         # TODO: this should be done with a multiprocessing.Event or similar
-        # TODO: update lr_weight based on change in wheel position since last update
-        weight = wheel_position / 1000
-        if weight < -1:
-            weight = -1
-        if weight > 1:
-            weight = 1
-        weight = (weight / 2) + 0.5
         self.sound_player.lr_weight = weight
         
-        # Report to Dispatcher
+        
+        ## Report to Dispatcher
         if np.mod(wheel_position, 100) == 0:
             self.network_communicator.poke_socket.send_string(
                 f'wheel;'
                 f'trial_number={self.trial_number}=int;'
                 f'wheel_position={wheel_position}=int;'
+                f'clipped_position={self.clipped_position}=int;'
+                f'weight={weight}=float;'
                 f'wheel_time={now.isoformat()}=str'
                 )
 
-        # Reward if it's moved far enough
-        # TODO: move to another method?
-        # Note: in the full task, the reward is issued only for centering the
-        # sound, not just moving the wheel
-        if np.abs(wheel_position - 
+        
+        ## Reward conditions
+        if (np.abs(self.clipped_position) < self.reward_range) and not self.reward_delivered:
+            # Within target range
+            # Reward and end trial
+            self.reward(self.max_reward)
+
+        elif self.reward_for_spinning and np.abs(wheel_position - 
                 self.last_rewarded_position) > self.wheel_reward_thresh:
             
+            # Shaping stage: reward if it's moved far enough
             # Set last rewarded position to current position
             self.last_rewarded_position = wheel_position
             
-            # Reward
+            # Update reward size using temporal discounting
             time_since_last_reward = (
                 now - self.last_reward_time).total_seconds()
             reward_size = self.max_reward * (
                 1 - np.exp(-time_since_last_reward / self.reward_decay))
-            self.reward(reward_size)
             self.last_reward_time = now
+            
+            # Reward but do not end trial
+            self.reward(reward_size, report=False)
 
-    def reward(self, reward_size):
-        # Log
-        self.logger.info(f'rewarding for {reward_size} s')
+    def reward(self, reward_size, report=True):
+        """Open the reward port and optionally report to Dispatcher
         
+        reward_size : numeric
+            Duration that the solenoid is open, in ms
+        
+        report : bool
+            If True, call self.report_reward
+            This likely triggers the trial to end, which we may not want
+        """
         # Get current time
         reward_time = datetime.datetime.now()
+        
+        # Log
+        self.logger.info(f'{[reward_time]} rewarding for {reward_size} s')
         
         # Issue reward
         # TODO: rewrite with threading to avoid delay
@@ -1011,7 +1088,12 @@ class WheelTask(Agent):
         self.pig.write(self.solenoid_pin, 0)
         
         # Report
-        self.report_reward(reward_time)
+        if report:
+            # This prevents multiple rewards per trial (excluding non-reported 
+            # rewards)
+            self.reward_delivered = True
+
+            self.report_reward(reward_time)
     
     def report_reward(self, reward_time):
         """Called by WheelController upon reward. Reports to Dispatcher by ZMQ.
@@ -1070,7 +1152,7 @@ class WheelTask(Agent):
         # the correct trial number
         self.trial_number = msg_params['trial_number']
         
-    
+        
         ## Log trial start (after trial number update)
         # Report trial start
         self.report_trial_start(timestamp)
@@ -1105,6 +1187,20 @@ class WheelTask(Agent):
         # Empty and refill the queue with new sounds
         self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed()   
+        
+        
+        ## Update other trial parameters
+        # Starting position - TODO get from Dispatcher
+        if np.random.random() < 0.5:
+            self.clipped_position = self.wheel_min
+        else:
+            self.clipped_position = self.wheel_max
+
+        # Everything should be locked to raw position at the start of the trial
+        self.last_raw_position = self.wheel_listener.position
+        
+        # Prevents multiple rewards
+        self.reward_delivered = False
     
     def stop_session(self):
         # TODO: shutdown handles
