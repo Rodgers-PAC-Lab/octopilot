@@ -1,7 +1,10 @@
 ## Main script that runs the main launcher app on the desktop
 # Run this script as follows:
-#   python3 -m paclab_sukrith.gui.start_launcher
-
+#   python3 -m octopilot.desktop.start_launcher
+# 
+# This is the highest-level way to start octopilot. This script will use Popen
+# to run "python3 -m octopilot.desktop.start_gui" with specific parameters
+# for mouse, task, and box. 
 
 ## Module imports
 from ..shared import load_params
