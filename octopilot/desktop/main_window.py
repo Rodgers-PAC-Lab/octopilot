@@ -368,7 +368,8 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         self.stop_button.clicked.connect(
             self.performance_metric_display_widget.stop)
         self.stop_button.clicked.connect(self.stop_watchtower_save)
-        self.stop_button.clicked.connect(lambda *_: self.stop_button.setText("Session stopped"))
+        self.stop_button.clicked.connect(
+            lambda *_: self.stop_button.setText("Session stopped"))
 
     def closeEvent(self, event):
         """Executes when the window is closed
@@ -380,7 +381,6 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         # it, and have stop_button call that same function.
         self.timer_dispatcher.stop()
         self.dispatcher.stop_session()
-        
         self.stop_watchtower_save()
         
         # TODO: how to stop watchtower save if it's force-quit?
