@@ -42,7 +42,7 @@ Detailed documentation for all parameters in each of these files may be found in
 
     conda create --name octopilot
     conda activate octopilot
-    conda install pyqt==5.15.10 pyzmq pyqtgraph==0.13.1 numpy pandas ipython
+    conda install pyqt==5.15.10 pyzmq pyqtgraph==0.13.1 numpy pandas ipython urllib3 requests
     pip install pyqt-toast-notification
 
 ## Requirements for Pi
