@@ -304,6 +304,7 @@ class OctopilotSessionWindow(SessionWindow):
         self.stop_button.clicked.connect(self.poke_plot_widget.stop_plot)
         self.stop_button.clicked.connect(
             self.performance_metric_display_widget.stop)
+        self.stop_button.clicked.connect(lambda *_: self.stop_button.setText("Session stopped"))
 
     def closeEvent(self, event):
         """Executes when the window is closed
@@ -314,6 +315,7 @@ class OctopilotSessionWindow(SessionWindow):
         self.timer_dispatcher.stop()
         self.dispatcher.stop_session()
         event.accept()
+<<<<<<< HEAD
 
 class WheelSessionWindow(SessionWindow):
     """Main window of the GUI that arranges all the widgets.
