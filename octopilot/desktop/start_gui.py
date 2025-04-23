@@ -9,14 +9,21 @@ import os
 import argparse
 import sys
 import signal
+import logging
+import time
+import atexit
 
 # shared defines all widgets
 from . import main_window
 from ..shared import load_params
+from ..shared.logtools import NonRepetitiveLogger
 
 # This defines standard QApplication
 from PyQt5.QtWidgets import QApplication
 
+# https://docs.python.org/3/library/atexit.html
+def goodbye(name, adjective):
+    print('Goodbye %s, it was %s to meet you.' % (name, adjective))
 
 ## This is the function that is actually run
 def main(box, task, mouse, sandbox_path=None):
@@ -39,6 +46,19 @@ def main(box, task, mouse, sandbox_path=None):
     for logfiles, and then start the MainWindow of the GUI, which will then
     run the task.
     """
+    # this only works if the process ends nicely, not if the terminal 
+    # window is closed
+    atexit.register(goodbye, 'Donny', 'nice')
+    
+
+    
+    logger = NonRepetitiveLogger("start_gui.__main__")
+    sh = logging.StreamHandler()
+    sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
+    logger.addHandler(sh)
+    logger.setLevel(logging.DEBUG)
+    
+
     ## Set sandbox_path
     if sandbox_path is None:
         # Use the current working directory
@@ -50,7 +70,7 @@ def main(box, task, mouse, sandbox_path=None):
     box_params = load_params.load_box_params(args.box)
     task_params = load_params.load_task_params(args.task)
     mouse_params = load_params.load_mouse_params(args.mouse)
-
+    
     # Apparently QApplication needs sys.argv for some reason
     # https://stackoverflow.com/questions/27940378/why-do-i-need-sys-argv-to-start-a-qapplication-in-pyqt
     app = QApplication(sys.argv)
@@ -59,20 +79,36 @@ def main(box, task, mouse, sandbox_path=None):
     # https://stackoverflow.com/questions/4938723/what-is-the-correct-way-to-make-my-pyqt-application-quit-when-killed-from-the-co
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-    # Instantiate an OctopilotSessionWindow
-    win = main_window.WheelSessionWindow(
-        box_params=box_params, 
-        task_params=task_params, 
-        mouse_params=mouse_params, 
-        sandbox_path=sandbox_path,
-        )
+    # This try/finally is no longer necessary, but kept in case we need
+    # to put some kind of shutdown code
+    retcode = 0 
+    try:
+        
+        ## Instantiate an OctopilotSessionWindow
+        win = main_window.WheelSessionWindow(
+            box_params=box_params, 
+            task_params=task_params, 
+            mouse_params=mouse_params, 
+            sandbox_path=sandbox_path,
+            )
 
-    # Show it
-    win.show()
+        # Show it
+        # This line is not blocking (although it might block Qt event loop)
+        # https://forum.qt.io/topic/128580/why-is-widget-show-blocked-if-placing-long-running-code-right-after-it/2
+        win.show()
+        
+        # This line sets the event-loop and blocks until the window is closed
+        retcode = app.exec()
+        logger.info(f'app.exec completed with retcode {retcode}')
+
+    finally:
+        pass
     
-    # Exit when app exec
-    sys.exit(app.exec())    
-
+    # Wait a few seconds for any errors to be visible
+    time.sleep(2)
+    
+    # Now exit with retcode
+    sys.exit(retcode)
 
 # This handles argparse in case we're calling from the command line
 if __name__ == '__main__':
