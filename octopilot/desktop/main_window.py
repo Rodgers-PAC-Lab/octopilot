@@ -280,6 +280,41 @@ class OctopilotSessionWindow(SessionWindow):
         self.start_session_timer.timeout.connect(self.start_session)
         self.start_session_timer.start(500)
 
+    def set_up_stop_button(self):
+        """Create a stop button and connect to self.stop_session and plot stops
+        
+        """
+        # Create button
+        self.stop_button = QPushButton("Stop Session")
+        
+        # Stop the dispatcher and the updates
+        self.stop_button.clicked.connect(self.dispatcher.stop_session)
+        self.stop_button.clicked.connect(self.poke_plot_widget.stop_plot)
+        self.stop_button.clicked.connect(
+            self.performance_metric_display_widget.stop)
+        self.stop_button.clicked.connect(self.stop_watchtower_save)
+        self.stop_button.clicked.connect(
+            lambda *_: self.stop_button.setText("Session stopped"))
+
+    def stop_watchtower_save(self):
+        """Called by stop_session. Stops watchtower save"""
+        ## Always stop save even if it crashes
+        # The problem is that this line doesn't run if the terminal window is closed
+        # Try this xprop hack: https://forums.linuxmint.com/viewtopic.php?t=300908
+        if self.camera_name is not None:
+            if self.watchtower_connection_up:
+                self.logger.debug('telling watchtower to stop save')
+                self.watchtower_connection_up = (
+                    watchtower.watchtower_stop_save(
+                        self.watchtowerurl, 
+                        self.watchtower_apit, 
+                        self.camera_name, 
+                        self.logger))
+            else:
+                self.logger.warning(
+                    'cannot tell watchtower to stop save because '
+                    'connection is not up')
+
     def start_session(self):
         """Called by self.start_session_timer to start session
         
@@ -355,42 +390,6 @@ class OctopilotSessionWindow(SessionWindow):
         # Don't start the session again
         self.start_session_timer.stop()
 
-    def set_up_stop_button(self):
-        """Create a stop button and connect to self.stop_session and plot stops
-        
-        """
-        # Create button
-        self.stop_button = QPushButton("Stop Session")
-        
-        # Stop the dispatcher and the updates
-        self.stop_button.clicked.connect(self.dispatcher.stop_session)
-        self.stop_button.clicked.connect(self.poke_plot_widget.stop_plot)
-        self.stop_button.clicked.connect(
-            self.performance_metric_display_widget.stop)
-        self.stop_button.clicked.connect(lambda *_: self.stop_button.setText("Session stopped"))
-
-    def stop_watchtower_save(self):
-        """Called by stop_session. Stops watchtower save"""
-        ## Always stop save even if it crashes
-        # The problem is that this line doesn't run if the terminal window is closed
-        # Try this xprop hack: https://forums.linuxmint.com/viewtopic.php?t=300908
-        if self.camera_name is not None:
-            if self.watchtower_connection_up:
-                self.logger.debug('telling watchtower to stop save')
-                self.watchtower_connection_up = (
-                    watchtower.watchtower_stop_save(
-                        self.watchtowerurl, 
-                        self.watchtower_apit, 
-                        self.camera_name, 
-                        self.logger))
-            else:
-                self.logger.warning(
-                    'cannot tell watchtower to stop save because '
-                    'connection is not up')
-    
-    def _set_up_exception_handling(self):
-        self.exception_occurred = False 
-
     def closeEvent(self, event):
         """Executes when the window is closed
         
@@ -399,6 +398,9 @@ class OctopilotSessionWindow(SessionWindow):
         # Iterate through identities and send 'exit' message
         self.timer_dispatcher.stop()
         self.dispatcher.stop_session()
+        self.stop_watchtower_save()
+        
+        # TODO: how to stop watchtower save if it's force-quit?
         event.accept()
 
 class WheelSessionWindow(SessionWindow):
@@ -568,10 +570,6 @@ class WheelSessionWindow(SessionWindow):
         #~ self.stop_button.clicked.connect(
             #~ self.performance_metric_display_widget.stop)
 
-        self.stop_button.clicked.connect(self.stop_watchtower_save)
-        self.stop_button.clicked.connect(
-            lambda *_: self.stop_button.setText("Session stopped"))
-
     def closeEvent(self, event):
         """Executes when the window is closed
         
@@ -582,8 +580,4 @@ class WheelSessionWindow(SessionWindow):
         # it, and have stop_button call that same function.
         self.timer_dispatcher.stop()
         self.dispatcher.stop_session()
-        self.stop_watchtower_save()
-        
-        # TODO: how to stop watchtower save if it's force-quit?
-        
         event.accept()
