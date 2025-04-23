@@ -1,7 +1,7 @@
 ## Main script that runs the GUI on the desktop
-# Must be run in "octopilot" conda environment
-# Run this script as follows:
-#   python3 -m paclab_sukrith.gui.start_gui BOXNAME TASKNAME MOUSENAME
+# Typically this script is launched by start_launcher.py 
+# But you can also invoke manually like this:
+#   python3 -m octopilot.desktop.start_gui BOXNAME TASKNAME MOUSENAME
 
 
 ## Module imports
