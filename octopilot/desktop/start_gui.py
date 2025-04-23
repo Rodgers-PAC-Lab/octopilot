@@ -11,7 +11,6 @@ import sys
 import signal
 import logging
 import time
-import atexit
 
 # shared defines all widgets
 from . import main_window
@@ -21,9 +20,6 @@ from ..shared.logtools import NonRepetitiveLogger
 # This defines standard QApplication
 from PyQt5.QtWidgets import QApplication
 
-# https://docs.python.org/3/library/atexit.html
-def goodbye(name, adjective):
-    print('Goodbye %s, it was %s to meet you.' % (name, adjective))
 
 ## This is the function that is actually run
 def main(box, task, mouse, sandbox_path=None):
@@ -47,8 +43,9 @@ def main(box, task, mouse, sandbox_path=None):
     run the task.
     """
     # this only works if the process ends nicely, not if the terminal 
-    # window is closed
-    atexit.register(goodbye, 'Donny', 'nice')
+    # window is closed. So it's not that useful
+    # # https://docs.python.org/3/library/atexit.html
+    # atexit.register(goodbye, 'Donny', 'nice')
     
 
     
