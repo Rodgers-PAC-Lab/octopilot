@@ -368,6 +368,7 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         self.stop_button.clicked.connect(
             self.performance_metric_display_widget.stop)
         self.stop_button.clicked.connect(self.stop_watchtower_save)
+        self.stop_button.clicked.connect(lambda *_: self.stop_button.setText("Session stopped"))
 
     def closeEvent(self, event):
         """Executes when the window is closed
