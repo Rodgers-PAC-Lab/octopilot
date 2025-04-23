@@ -1,5 +1,14 @@
 """The Dispatcher handles the interaction with the Agent on each Pi.
 
+The parent class `Dispatcher` implements features shared by all tasks.
+Child classes implement task-specific features. 
+
+The `Dispatcher` is instantiated by one of the classes in `main_window`,
+which calls its `update` function regularly. Other plotting objects in
+`main_window` may get their information from the dispatcher's attributes.
+
+The dispatcher itself doesn't do any plotting or GUI operations. What it does
+do is run the task by interacting with `Agent`s running on each pi.
 """
 import os
 import time
@@ -16,10 +25,74 @@ from . import pi_marshaller
 from . import trial_chooser
 
 class Dispatcher(object):
-    """Parent class"""
+    """Parent class implementing features shared across all tasks.
+    
+    Attributes
+    ---
+    * logger
+    * session_is_running : bool
+    * session_start_time : datetime or None
+    * session_name : str or None
+    
+    Attributes relating to trial duration and inter-trial interval
+    ---
+    * trial_duration : numeric or None
+    * inter_trial_interval : numeric or None
+    * inter_trial_interval_stdev : numeric or None
+    * timer_advance_trial : timer or None
+    
+    Attributes relating to alive timer
+    ---
+    * last_alive_message_received : dict
+    * alive_timer 
+    * alive_timer_send_interval : numeric
+    * alive_timer_dispatcher_crash_threshold : numeric
+    
+    Attributes that are often defined by the child class
+    ---
+    * network_communicator
+    * marshaller
+    
+    Methods (general)
+    ---
+    * __init__
+    * update : The main function that is recurringly called and performs most
+      of the non-event-driven activity of this object. At the moment, this is
+      mainly just checking for network messages and handling them.
+    * handle_goodbye : Handles "goodbye" messages from the `Agent`s by 
+      keeping track of which `Agent`s have left.
+
+    Methods for starting and stopping sessions and trials
+    ---
+    * start_session : Start the session by instantiating new variables and
+      telling the `Agent`s to start.
+    * stop_session : Stop the session
+    * timed_advance_trial : Helper function that is called by a `Timer` in
+      order to start trials on a certain timed schedule, rather than when
+      a certain event occurs.
+    * start_iti_or_start_trial : Called by timed_advance_trial and also by
+      handle_reward, which are the two functions that can end a trial. This
+      function will either start a timed ITI, or it will instead immediately
+      call start_trial.
+
+    Methods relating to "alive" functionality
+    ---
+    * recv_alive : Called whenever an "alive" message is received, in order
+      to log these messages.
+    * send_alive_request : Checks if "alive" messages have been received, and
+      sends alive requests to the `Agent`s.
+    
+    Methods that are often defined by the child class
+    ---
+    * start_trial (TODO: insert a stub method here doing nothing)
+    * handle_* (one for every possible message other than "goodbye")
+    
+    """
     
     def __init__(self, box_params, task_params, mouse_params, sandbox_path):
-        """Initialize a new worker
+        """Initialize a new `Dispatcher`
+        
+        This is always called by the child class using super()
         
         Arguments
         ---------
@@ -27,17 +100,7 @@ class Dispatcher(object):
         task_params : dict, parameters of the task
         mouse_params : dict, parameters of the mouse
         sandbox_path : path to where files should be stored
-        
-        Instance variables
-        ------------------
-        ports : list of port names (e.g., 'rpi27_L'
-        port positions: list of port angular positions (e.g., 90 for East)
-        pi_ip_addresses: list of Pi IP addresses
-        pi_names: list of Pi names (e.g., 'rpi27')
-        
-        The length of self.port_names and self.port_positions is double that
-        of self.pi_names and self.pi_ip_addresses, because each Pi has two 
-        ports.
+
         """
         ## Init logger
         self.logger = NonRepetitiveLogger("test")
@@ -314,41 +377,44 @@ class Dispatcher(object):
             self.stop_session()
 
 class SoundSeekingDispatcher(Dispatcher):
-    """Handles task logic
-    
-    It handles the logic of starting sessions, stopping sessions, 
-    choosing reward ports
-    sending messages to the pis (about reward ports), sending acknowledgements 
-    for completed trials (needs to be changed).
-    The Worker class also handles tracking information regarding each 
-    poke / trial and saving them to a csv file.
+    """`Dispatcher` that handles the task logic for the sound-seeking task.
+
     
     """
 
     def __init__(self, box_params, task_params, mouse_params, sandbox_path):
-        """Initialize a new worker
+        """Initialize a new SoundSeekingDispatcher
         
-        Arguments
-        ---------
-        box_params : dict, parameters of the box
-        task_params : dict, parameters of the task
-        mouse_params : dict, parameters of the mouse
-        sandbox_path : path to where files should be stored
+        Workflow
+        ---
+        * The parent class __init__ is called
+        * The pi names and port parameters are parsed from `box_params`
+        * self.init_history() is called to initialize session history variables
+        * self.trial_parameter_chooser is intantiated
+        * The log files are initialized
+        * self.network_communicator is initialized, and its command2method
+          dict is set up.
+        * self.marshaller is initialized and started, which connects to all pis
         
-        Instance variables
-        ------------------
-        ports : list of port names (e.g., 'rpi27_L'
+        Attributes (general)
+        ---
+        trial_parameter_chooser : trial_chooser.TrialParameterChooser
+        network_communicator : DispatcherNetworkCommunicator
+        pi_marshaller: pi_marshaller.PiMarshaller
+
+        Attributes relating to port parameters
+        ---
+        port_names : list of port names (e.g., 'rpi27_L')
         port positions: list of port angular positions (e.g., 90 for East)
-        pi_ip_addresses: list of Pi IP addresses
-        pi_names: list of Pi names (e.g., 'rpi27')
+        pi_ip_addresses: list of pi IP addresses
+        pi_names: list of pi names (e.g., 'rpi27')
         
         The length of self.port_names and self.port_positions is double that
         of self.pi_names and self.pi_ip_addresses, because each Pi has two 
         ports.
         """
         
-        
-        ## Super
+        ## Super __init__ initializes task-agnostic features
         super().__init__(box_params, task_params, mouse_params, sandbox_path)
 
         
@@ -368,13 +434,12 @@ class SoundSeekingDispatcher(Dispatcher):
             self.pi_ip_addresses.append(pi['ip'])
             self.pi_names.append(pi['name'])
 
-        # Initialize trial history (requires self.ports)
+        
+        ## Initialize trial history (requires self.port_names)
         self.init_history()
 
         
-
-        
-        # Use task_params to set TrialParameterChooser
+        ## Use task_params to set TrialParameterChooser
         self.trial_parameter_chooser = (
             trial_chooser.TrialParameterChooser.from_task_params(
             port_names=self.port_names,
@@ -423,7 +488,23 @@ class SoundSeekingDispatcher(Dispatcher):
     def init_history(self):
         """Set all history variables to defaults
         
-        This happens on init
+        This function is called by __init__
+        
+        Initializes the following attributes:
+        ---
+        * previously_rewarded_port
+        * goal_port
+        * trial_start_time (TODO: move to parent)
+        * current_trial (TODO: move to parent)
+        * trigger_trial (TODO: remove)
+        
+        Attributes relating to history (used by plotting functions)
+        ---
+        * ports_poked_this_trial
+        * history_of_pokes
+        * history_of_rewarded_correct_pokes
+        * history_of_rewarded_incorrect_pokes
+        * history_of_ports_poked_per_trial
         """
         # Identity of last_rewarded_port (to avoid repeats)
         self.previously_rewarded_port = None 
