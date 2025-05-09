@@ -185,7 +185,7 @@ class OctopilotSessionWindow(SessionWindow):
         
         
         ## Create the Dispatcher that will run the task
-        self.dispatcher = controllers.Dispatcher(
+        self.dispatcher = controllers.SoundSeekingDispatcher(
             box_params=box_params, 
             task_params=task_params, 
             mouse_params=mouse_params, 

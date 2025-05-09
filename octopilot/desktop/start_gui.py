@@ -82,7 +82,9 @@ def main(box, task, mouse, sandbox_path=None):
     try:
         
         ## Instantiate an OctopilotSessionWindow
-        win = main_window.WheelSessionWindow(
+        # TODO - choose the proper session window based on `task`
+        #win = main_window.WheelSessionWindow(
+        win = main_window.OctopilotSessionWindow(
             box_params=box_params, 
             task_params=task_params, 
             mouse_params=mouse_params, 
