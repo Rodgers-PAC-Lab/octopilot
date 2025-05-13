@@ -925,7 +925,10 @@ class WheelTask(Agent):
         self.pig.set_mode(self.solenoid_pin, pigpio.OUTPUT)
 
         
-        ## Reward size parameters
+        ## Wheel and reward size parameters
+        # Activate continuous balancing
+        self.sound_player.continuous_balancing = True
+        
         # This is the size of a regular reward
         self.max_reward = .05
 
@@ -950,7 +953,8 @@ class WheelTask(Agent):
         # 100 clicks is about 6 deg
         self.reward_range = 100
 
-        # These are initialized later
+        
+        ## These are initialized later
         self.last_rewarded_position = None
         self.last_reported_time = None
         self.last_reward_time = None

@@ -686,6 +686,7 @@ class SoundPlayer(object):
             If True, then only channel 0 is used, and another object can 
             continuously set self.lr_weight to control the balance between 
             left and right speakers. This only makes sense for wheel-like tasks.
+            Note: this can be assigned later, not just at init
         
         Flow
         ----
