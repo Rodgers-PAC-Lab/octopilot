@@ -83,8 +83,20 @@ def main(box, task, mouse, sandbox_path=None):
         
         ## Instantiate an OctopilotSessionWindow
         # TODO - choose the proper session window based on `task`
-        #win = main_window.WheelSessionWindow(
-        win = main_window.OctopilotSessionWindow(
+        if task_params['main_window_name'] == 'WheelSessionWindow':
+            win_obj = main_window.WheelSessionWindow
+        
+        elif task_params['main_window_name'] == 'OctopilotSessionWindow':
+            win_obj = main_window.OctopilotSessionWindow
+        
+        else:
+            raise ValueError(
+                "task specifies unrecognized main_window_name: "
+                + str(task_params['main_window_name'])
+                )
+        
+        # Instantiate
+        win = win_obj(
             box_params=box_params, 
             task_params=task_params, 
             mouse_params=mouse_params, 
