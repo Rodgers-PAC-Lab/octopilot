@@ -922,6 +922,8 @@ class WheelTask(Agent):
 
         ## Set up reward
         self.solenoid_pin = 6
+        
+        # The default is INPUT, so only outputs have to be set
         self.pig.set_mode(self.solenoid_pin, pigpio.OUTPUT)
 
         
@@ -937,7 +939,7 @@ class WheelTask(Agent):
         # is 63.7% of full. 
         # As reward_decay increases, mouse has to wait longer 
         # 300 clicks is about 20 deg (easy)
-        self.reward_for_spinning = True
+        self.reward_for_spinning = False
         self.reward_decay = 0.5
         self.wheel_reward_thresh = 300 
         
