@@ -1,4 +1,5 @@
 {
+    "agent_name": "WheelTask",
     "zmq_port": 5551,
     "desktop_ip": "192.168.0.199",
     "bonsai_port": 5559,
