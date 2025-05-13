@@ -491,9 +491,6 @@ class SoundGenerator_IntermittentBursts(object):
                 
                 # Append the gap between sounds
                 append_gap(bdrow.gap_chunks)        
-        
-        print('cycle')
-        print(self.one_cycle_of_audio_frames)
 
     def set_audio_parameters(self, left_params, right_params):
         """Define self.sound_cycle, to go through sounds
@@ -513,11 +510,6 @@ class SoundGenerator_IntermittentBursts(object):
         # each speaker. These will be None if len(params) == 0
         self.left_sound = self._make_sound(left_params, channel=0)
         self.right_sound = self._make_sound(right_params, channel=1)
-   
-        print('left')
-        print(self.left_sound)
-        print('right')
-        print(self.right_sound)
    
         # Generate the times at which to play each Noise (one per channel)
         # These will be empty arrays if len(params) == 0
