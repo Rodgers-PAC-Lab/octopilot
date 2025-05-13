@@ -492,8 +492,6 @@ class SoundGenerator_IntermittentBursts(object):
                 # Append the gap between sounds
                 append_gap(bdrow.gap_chunks)        
 
-        print(self.one_cycle_of_audio_frames)
-
     def set_audio_parameters(self, left_params, right_params):
         """Define self.sound_cycle, to go through sounds
         
