@@ -9,12 +9,20 @@ from . import agent
 ## Loading parameters of this Pi
 params = load_params.load_pi_params()
 
-# Load params of the corresponding box, to get the desktop IP
+# Load params of the corresponding box, to get the desktop IP and port
 box_params = load_params.load_box_params(params['box'])
 params['gui_ip'] = box_params['desktop_ip']
 params['zmq_port'] = box_params['zmq_port']
+
+# Same for bonsai IP and port
+# TODO: add a default here if these aren't set
 params['bonsai_ip'] = box_params['bonsai_ip']
 params['bonsai_port'] = box_params['bonsai_port']
+
+# Get the agent name, which right now is fixed per box (because we have to
+# start the agent before we can talk to the Dispatcher)
+# TODO: specify this for all boxes
+params['agent_name'] = box_params['agent_name']
 
 
 ## Handle daemons
@@ -31,12 +39,21 @@ jackd_proc = daemons.start_jackd(verbose=True)
 # TODO: if there is an error in agent.Agent.__init__, this script will hang
 # after printing "jackd successfully killed"
 try:
-    # TODO: Choose the proper agent based on the task
-    #hc = agent.WheelTask(params=params, start_networking=True)
-    hc = agent.SoundSeekingAgent(params=params, start_networking=True)
+    # Choose the proper agent based on the task
+    # TODO: use the string to find the object
+    if params['agent_name'] == 'WheelTask':
+        hc = agent.WheelTask(params=params, start_networking=True)
+    elif params['agent_name'] == 'SoundSeekingAgent':
+        hc = agent.SoundSeekingAgent(params=params, start_networking=True)
+    else:
+        raise ValueError(f"unrecognized agent_name: {params['agent_name']}")
+    
+    # Start the agent
     hc.main_loop()
+
 except:
     raise
+
 finally:
     ## Terminate daemons
     # TODO: move this to HardwareController? Should it be in charge of its own
