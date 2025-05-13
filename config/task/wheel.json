@@ -1,4 +1,5 @@
 {
+    "main_window_name": "WheelSessionWindow",
     "play_targets": true,
     "target_log_amplitude": -1,
     "target_rate": 4,
