@@ -1212,7 +1212,23 @@ class WheelTask(Agent):
         self.reward_delivered = False
     
     def stop_session(self):
-        # TODO: shutdown handles
+        """Runs when a session is stopped
+        
+        This is triggered by the 'stop' command sent to NetworkCommunicator.
+        """
+        # Log
+        self.logger.info('beginning stop_session')
+        
+        # TODO: remove handles from wheel here
+
+        # Stop checking for alive requests
+        if self.alive_timer is None:
+            self.logger.error('stop received but alive_timer is None')
+        else:
+            self.alive_timer.stop()
+
+        # Silence sound generation
+        self.stop_sounds()
         
         # Stop running
         self.session_running = False
