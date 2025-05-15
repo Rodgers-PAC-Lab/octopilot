@@ -563,8 +563,8 @@ class WheelSessionWindow(SessionWindow):
         self.stop_button = QPushButton("Stop Session")
         
         # Stop the dispatcher and the updates
-        # TODO: stop timer_dispatcher here?
         self.stop_button.clicked.connect(self.dispatcher.stop_session)
+        self.stop_button.clicked.connect(self.timer_dispatcher.stop)
 
         #~ self.stop_button.clicked.connect(self.poke_plot_widget.stop_plot)
         #~ self.stop_button.clicked.connect(
