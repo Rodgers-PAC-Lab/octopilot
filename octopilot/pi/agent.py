@@ -150,6 +150,9 @@ class Agent(object):
             pigpio_handle=self.pig,
             )
         
+        # Initialize this output pin for sound reporting
+        self.pig.set_mode(23, pigpio.OUTPUT)
+        
         
         ## Optionally set up networking
         if start_networking:
