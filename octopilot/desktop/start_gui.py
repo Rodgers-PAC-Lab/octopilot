@@ -82,11 +82,15 @@ def main(box, task, mouse, sandbox_path=None):
     try:
         
         ## Instantiate an OctopilotSessionWindow
-        # TODO - choose the proper session window based on `task`
-        if task_params['main_window_name'] == 'WheelSessionWindow':
+        # Pop out the main_window_name, because TrialParameterChooser tries
+        # to parse all kwargs in task_params
+        main_window_name = task_params.pop('main_window_name')
+        
+        # TODO - use main_window_name to find the right object
+        if main_window_name == 'WheelSessionWindow':
             win_obj = main_window.WheelSessionWindow
         
-        elif task_params['main_window_name'] == 'OctopilotSessionWindow':
+        elif main_window_name == 'OctopilotSessionWindow':
             win_obj = main_window.OctopilotSessionWindow
         
         else:
