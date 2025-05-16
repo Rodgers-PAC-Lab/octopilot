@@ -21,7 +21,8 @@ params['bonsai_port'] = box_params['bonsai_port']
 
 # Get the agent name, which right now is fixed per box (because we have to
 # start the agent before we can talk to the Dispatcher)
-# TODO: specify this for all boxes
+# TODO: need some way to allow multiple agent_name per box, eg to allow
+# different tasks per box
 params['agent_name'] = box_params['agent_name']
 
 
