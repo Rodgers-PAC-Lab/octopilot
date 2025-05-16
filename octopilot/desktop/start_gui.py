@@ -84,7 +84,12 @@ def main(box, task, mouse, sandbox_path=None):
         ## Instantiate an OctopilotSessionWindow
         # Pop out the main_window_name, because TrialParameterChooser tries
         # to parse all kwargs in task_params
-        main_window_name = task_params.pop('main_window_name')
+        try:
+            main_window_name = task_params.pop('main_window_name')
+        except KeyError:
+            raise KeyError(
+                'you must specify main_window_name in task_params for task ' + 
+                f'"{args.task}"')
         
         # TODO - use main_window_name to find the right object
         if main_window_name == 'WheelSessionWindow':
