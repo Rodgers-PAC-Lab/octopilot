@@ -5,6 +5,7 @@
     "desktop_ip": "192.168.11.198",
     "bonsai_ip": "192.168.11.138",
     "ypos_of_gui": 810,
+    "camera": "e3v82d8",
     "connected_pis" : [
         {
             "name": "rpi18",
