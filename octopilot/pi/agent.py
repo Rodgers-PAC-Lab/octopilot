@@ -1346,15 +1346,17 @@ class SurfaceOrientationTask(WheelTask):
         ## Move the surface by diff
         if diff > 0:
             self.pig.write(self.stepper_dir_pin, 1)
+            n_steps = diff
 
         elif diff < 0:
             self.pig.write(self.stepper_dir_pin, 0)
+            n_steps = -diff
             
-        for n in range(diff):
+        for n in range(n_steps):
             self.pig.write(self.stepper_step_pin, 1)
             time.sleep(1e-6)
             self.pig.write(self.stepper_step_pin, 0)
-            time.sleep(.001)
+            time.sleep(1e-6)
         
         
         ## Update position_within_range
