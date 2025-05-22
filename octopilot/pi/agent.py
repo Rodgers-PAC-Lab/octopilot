@@ -347,6 +347,24 @@ class Agent(object):
             self.exit()
             self.logger.info('agent done')
 
+    def report_sound_plan(self, *args, **kwargs):
+        # Currently required by Agent.__init__ to instantiate a SoundGenerator
+        # Fill this out in child classes where needed
+        # TODO: Don't initialize sound objects unless necessary
+        pass
+    
+    def report_sound(self, *args, **kwargs):
+        # Currently required by Agent.__init__ to instantiate a SoundPlayer
+        # Fill this out in child classes where needed
+        # TODO: Don't initialize sound objects unless necessary
+        pass
+
+    def stop_sounds(self, *args, **kwargs):
+        # Currently required by NetworkCommunicator
+        # Fill this out in child classes where needed
+        # TODO: don't require this unless needed
+        pass
+        
 class SoundSeekingAgent(Agent):
     """Child of Agent that instantiates the sound-seeking task on a single Pi.
     
@@ -1059,6 +1077,7 @@ class WheelTask(Agent):
 
         # Mark as shutdown for next mainloop
         self.shutdown = True
+    
 
 class SoundCenteringTask(WheelTask):
     """Agent that runs the wheel-based sound centering task"""
@@ -1200,18 +1219,6 @@ class SoundCenteringTask(WheelTask):
             # Reward but do not end trial
             self.reward(reward_size, report=False)
 
-    def report_sound_plan(self, *args, **kwargs):
-        # Currently required by parent class
-        pass
-    
-    def report_sound(self, *args, **kwargs):
-        # Currently required by parent class
-        pass
-
-    def stop_sounds(self, *args, **kwargs):
-        # Currently required by something
-        pass
-    
     def set_trial_parameters(self, **msg_params):
         
         ## Call parent
