@@ -91,17 +91,15 @@ def main(box, task, mouse, sandbox_path=None):
                 'you must specify main_window_name in task_params for task ' + 
                 f'"{args.task}"')
         
-        # TODO - use main_window_name to find the right object
-        if main_window_name == 'WheelSessionWindow':
-            win_obj = main_window.WheelSessionWindow
+        # Use main_window_name to find the right object defined in the
+        # main_window module, eg, main_window.SoundCenteringSessionWindow
+        try:
+            win_obj = main_window.__dict__[main_window_name]
         
-        elif main_window_name == 'OctopilotSessionWindow':
-            win_obj = main_window.OctopilotSessionWindow
-        
-        else:
+        except KeyError:
             raise ValueError(
                 "task specifies unrecognized main_window_name: "
-                + str(task_params['main_window_name'])
+                + str(main_window_name)
                 )
         
         # Instantiate

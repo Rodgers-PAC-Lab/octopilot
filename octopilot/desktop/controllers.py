@@ -1073,3 +1073,17 @@ class WheelDispatcher(Dispatcher):
 
     def _log_trial(self, *args, **kwargs):
         pass
+
+class SoundCenteringDispatcher(WheelDispatcher):
+    """Dispatcher for the wheel-based sound centering task. 
+
+    Currently all WheelDispatcher have the same functionality.
+    """
+    pass
+
+class SurfaceOrientationDispatcher(WheelDispatcher):
+    """Dispatcher for the wheel-based surface orientation task. 
+
+    Currently all WheelDispatcher have the same functionality.
+    """
+    pass

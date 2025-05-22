@@ -581,3 +581,17 @@ class WheelSessionWindow(SessionWindow):
         self.timer_dispatcher.stop()
         self.dispatcher.stop_session()
         event.accept()
+
+class SoundCenteringSessionWindow(WheelSessionWindow):
+    """Main Window for the wheel-based sound centering task. 
+
+    Currently all WheelSessionWindow have the same functionality.
+    """
+    pass
+
+class SurfaceOrientationSessionWindow(WheelSessionWindow):
+    """Main Window for the surface orientation task. 
+
+    Currently all WheelSessionWindow have the same functionality.
+    """
+    pass
