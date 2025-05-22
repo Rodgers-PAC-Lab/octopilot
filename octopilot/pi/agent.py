@@ -1357,7 +1357,6 @@ class SurfaceOrientationTask(WheelTask):
                 f'trial_number={self.trial_number}=int;'
                 f'wheel_position={wheel_position}=int;'
                 f'clipped_position={self.clipped_position}=int;'
-                f'weight={weight}=float;'
                 f'wheel_time={now.isoformat()}=str'
                 )
 
