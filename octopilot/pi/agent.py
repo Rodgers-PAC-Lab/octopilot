@@ -1304,3 +1304,83 @@ class SurfaceOrientationTask(WheelTask):
 
         
         ## TODO: move surface to initial position here
+
+    def report_wheel(self):
+        """Called by self.wheel_listener every time the wheel moves"""
+        
+        ## Get time
+        now = datetime.datetime.now()        
+        
+        
+        ## Update wheel positions
+        # At the beginning of each trial
+        # self.last_raw_position = self.wheel_listener.position
+        # self.clipped_position = random
+        
+        # Get actual wheel position
+        wheel_position = self.wheel_listener.position
+        
+        # Compute movement since last_raw_position and update it
+        diff = wheel_position - self.last_raw_position
+        self.last_raw_position = wheel_position
+        
+        # Clip the new position
+        self.clipped_position += diff
+        
+        if self.clipped_position > self.wheel_max:
+            self.clipped_position = self.wheel_max
+        
+        if self.clipped_position < self.wheel_min:
+            self.clipped_position = self.wheel_min
+        
+        
+        ## Update position_within_range
+        # Compute the weight within the min/max range
+        position_within_range = (
+            (self.clipped_position - self.wheel_min) / 
+            (self.wheel_max - self.wheel_min))
+        
+        # Clip to [0, 1], just in case we left the clipped range somehow
+        if position_within_range < 0:
+            position_within_range = 0
+        elif position_within_range > 1:
+            position_within_range = 1
+
+        
+        ## TODO: move the surface to the new orientation here
+
+        
+        ## Report to Dispatcher
+        if np.mod(wheel_position, 100) == 0:
+            self.network_communicator.poke_socket.send_string(
+                f'wheel;'
+                f'trial_number={self.trial_number}=int;'
+                f'wheel_position={wheel_position}=int;'
+                f'clipped_position={self.clipped_position}=int;'
+                f'weight={weight}=float;'
+                f'wheel_time={now.isoformat()}=str'
+                )
+
+        
+        ## Reward conditions
+        if (np.abs(self.clipped_position) < self.reward_range) and not self.reward_delivered:
+            # Within target range
+            # Reward and end trial
+            self.reward(self.max_reward)
+
+        elif self.reward_for_spinning and np.abs(wheel_position - 
+                self.last_rewarded_position) > self.wheel_reward_thresh:
+            
+            # Shaping stage: reward if it's moved far enough
+            # Set last rewarded position to current position
+            self.last_rewarded_position = wheel_position
+            
+            # Update reward size using temporal discounting
+            time_since_last_reward = (
+                now - self.last_reward_time).total_seconds()
+            reward_size = self.max_reward * (
+                1 - np.exp(-time_since_last_reward / self.reward_decay))
+            self.last_reward_time = now
+            
+            # Reward but do not end trial
+            self.reward(reward_size, report=False)
