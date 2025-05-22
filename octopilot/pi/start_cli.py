@@ -41,13 +41,15 @@ jackd_proc = daemons.start_jackd(verbose=True)
 # after printing "jackd successfully killed"
 try:
     # Choose the proper agent based on the task
-    # TODO: use the string to find the object
-    if params['agent_name'] == 'WheelTask':
-        hc = agent.WheelTask(params=params, start_networking=True)
-    elif params['agent_name'] == 'SoundSeekingAgent':
-        hc = agent.SoundSeekingAgent(params=params, start_networking=True)
-    else:
+    
+    # Use 'agent_name' to get the correct object from the agent module
+    try:
+        agent_obj = agent.__dict__[params['agent_name']]
+    except KeyError:
         raise ValueError(f"unrecognized agent_name: {params['agent_name']}")
+    
+    # Instantiate
+    hc = agent_obj(params=params, start_networking=True)
     
     # Start the agent
     hc.main_loop()

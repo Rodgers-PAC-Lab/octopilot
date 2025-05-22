@@ -928,8 +928,146 @@ class WheelTask(Agent):
         
         # The default is INPUT, so only outputs have to be set
         self.pig.set_mode(self.solenoid_pin, pigpio.OUTPUT)
+    
+    def start_session(self):
+        # Call Agent.start_session
+        super().start_session()
+        
+        # Start wheel listening
+        self.wheel_listener.report_callback = self.report_wheel
+
+        # Initialize wheel parameters
+        self.last_rewarded_position = 0
+        self.last_reported_time = datetime.datetime.now()
+        self.last_reward_time = datetime.datetime.now()
+        
+    def reward(self, reward_size, report=True):
+        """Open the reward port and optionally report to Dispatcher
+        
+        reward_size : numeric
+            Duration that the solenoid is open, in ms
+        
+        report : bool
+            If True, call self.report_reward
+            This likely triggers the trial to end, which we may not want
+        """
+        # Get current time
+        reward_time = datetime.datetime.now()
+        
+        # Log
+        self.logger.info(f'{[reward_time]} rewarding for {reward_size} s')
+        
+        # Issue reward
+        # TODO: rewrite with threading to avoid delay
+        self.pig.write(self.solenoid_pin, 1)
+        time.sleep(reward_size)
+        self.pig.write(self.solenoid_pin, 0)
+        
+        # Report
+        if report:
+            # This prevents multiple rewards per trial (excluding non-reported 
+            # rewards)
+            self.reward_delivered = True
+
+            self.report_reward(reward_time)
+    
+    def report_reward(self, reward_time):
+        """Called by WheelController upon reward. Reports to Dispatcher by ZMQ.
+        
+        """
+        # Log
+        self.logger.info(f'reporting reward at {reward_time}')
+        
+        # Report to Dispatcher
+        self.network_communicator.poke_socket.send_string(
+            f'reward;'
+            f'trial_number={self.trial_number}=int;'
+            f'reward_time={reward_time}=str'
+            )  
+    
+    def set_trial_parameters(self, **msg_params):
+        ## Flash an LED
+        # Use this to determine when the flash was done in local timebase
+        timestamp = datetime.datetime.now().isoformat()
+
+        #~ # Log the time of the flash
+        #~ # Do this after the flash itself so that we don't jitter
+        #~ self.left_nosepoke.turn_on_red_led()
+        #~ self.right_nosepoke.turn_on_red_led()
+        #~ time.sleep(.3)
+        #~ self.left_nosepoke.turn_off_red_led()
+        #~ self.right_nosepoke.turn_off_red_led()
+
+
+        ## Log
+        self.logger.debug(f'setting trial parameters: {msg_params}')
 
         
+        ## If not running, issue error
+        # Because this might indicate that something has gone wrong
+        if not self.session_running:
+            self.logger.error(
+                f'received trial parameters but session is not running')
+            return
+
+
+        ## Update trial number
+        # Do this first, because some of the sound functions need to know
+        # the correct trial number
+        self.trial_number = msg_params['trial_number']
+        
+        
+        ## Log trial start (after trial number update)
+        # Report trial start
+        self.report_trial_start(timestamp)
+        
+        
+        ## Update other trial parameters
+        # Starting position - TODO get from Dispatcher
+        if np.random.random() < 0.5:
+            self.clipped_position = self.wheel_min
+        else:
+            self.clipped_position = self.wheel_max
+
+        # Everything should be locked to raw position at the start of the trial
+        self.last_raw_position = self.wheel_listener.position
+        
+        # Prevents multiple rewards
+        self.reward_delivered = False
+    
+    def stop_session(self):
+        """Runs when a session is stopped
+        
+        This is triggered by the 'stop' command sent to NetworkCommunicator.
+        """
+        # Log
+        self.logger.info('beginning stop_session')
+        
+        # TODO: remove handles from wheel here
+
+        # Stop checking for alive requests
+        if self.alive_timer is None:
+            self.logger.error('stop received but alive_timer is None')
+        else:
+            self.alive_timer.stop()
+
+        # Silence sound generation
+        self.stop_sounds()
+        
+        # Stop running
+        self.session_running = False
+
+        # Mark as shutdown for next mainloop
+        self.shutdown = True
+
+class SoundCenteringTask(WheelTask):
+    """Agent that runs the wheel-based sound centering task"""
+    def __init__(self, *args, **kwargs):
+        
+        ## Call parent __init___
+        super().__init__(*args, **kwargs)        
+
+
         ## Wheel and reward size parameters
         # Activate continuous balancing
         self.sound_player.continuous_balancing = True
@@ -966,19 +1104,7 @@ class WheelTask(Agent):
         self.clipped_position = 0
         self.last_raw_position = 0
         self.reward_delivered = False
-    
-    def start_session(self):
-        # Call Agent.start_session
-        super().start_session()
-        
-        # Start wheel listening
-        self.wheel_listener.report_callback = self.report_wheel
 
-        # Initialize wheel parameters
-        self.last_rewarded_position = 0
-        self.last_reported_time = datetime.datetime.now()
-        self.last_reward_time = datetime.datetime.now()
-        
     def report_wheel(self):
         """Called by self.wheel_listener every time the wheel moves"""
         
@@ -1074,50 +1200,6 @@ class WheelTask(Agent):
             # Reward but do not end trial
             self.reward(reward_size, report=False)
 
-    def reward(self, reward_size, report=True):
-        """Open the reward port and optionally report to Dispatcher
-        
-        reward_size : numeric
-            Duration that the solenoid is open, in ms
-        
-        report : bool
-            If True, call self.report_reward
-            This likely triggers the trial to end, which we may not want
-        """
-        # Get current time
-        reward_time = datetime.datetime.now()
-        
-        # Log
-        self.logger.info(f'{[reward_time]} rewarding for {reward_size} s')
-        
-        # Issue reward
-        # TODO: rewrite with threading to avoid delay
-        self.pig.write(self.solenoid_pin, 1)
-        time.sleep(reward_size)
-        self.pig.write(self.solenoid_pin, 0)
-        
-        # Report
-        if report:
-            # This prevents multiple rewards per trial (excluding non-reported 
-            # rewards)
-            self.reward_delivered = True
-
-            self.report_reward(reward_time)
-    
-    def report_reward(self, reward_time):
-        """Called by WheelController upon reward. Reports to Dispatcher by ZMQ.
-        
-        """
-        # Log
-        self.logger.info(f'reporting reward at {reward_time}')
-        
-        # Report to Dispatcher
-        self.network_communicator.poke_socket.send_string(
-            f'reward;'
-            f'trial_number={self.trial_number}=int;'
-            f'reward_time={reward_time}=str'
-            )  
-    
     def report_sound_plan(self, *args, **kwargs):
         # Currently required by parent class
         pass
@@ -1131,40 +1213,9 @@ class WheelTask(Agent):
         pass
     
     def set_trial_parameters(self, **msg_params):
-        ## Flash an LED
-        # Use this to determine when the flash was done in local timebase
-        timestamp = datetime.datetime.now().isoformat()
-
-        #~ # Log the time of the flash
-        #~ # Do this after the flash itself so that we don't jitter
-        #~ self.left_nosepoke.turn_on_red_led()
-        #~ self.right_nosepoke.turn_on_red_led()
-        #~ time.sleep(.3)
-        #~ self.left_nosepoke.turn_off_red_led()
-        #~ self.right_nosepoke.turn_off_red_led()
-
-
-        ## Log
-        self.logger.debug(f'setting trial parameters: {msg_params}')
-
         
-        ## If not running, issue error
-        # Because this might indicate that something has gone wrong
-        if not self.session_running:
-            self.logger.error(
-                f'received trial parameters but session is not running')
-            return
-
-
-        ## Update trial number
-        # Do this first, because some of the sound functions need to know
-        # the correct trial number
-        self.trial_number = msg_params['trial_number']
-        
-        
-        ## Log trial start (after trial number update)
-        # Report trial start
-        self.report_trial_start(timestamp)
+        ## Call parent
+        super().__init__(**msg_params)
         
         
         ## Split into left_params and right_params
@@ -1196,42 +1247,53 @@ class WheelTask(Agent):
         # Empty and refill the queue with new sounds
         self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed()   
-        
-        
-        ## Update other trial parameters
-        # Starting position - TODO get from Dispatcher
-        if np.random.random() < 0.5:
-            self.clipped_position = self.wheel_min
-        else:
-            self.clipped_position = self.wheel_max
 
-        # Everything should be locked to raw position at the start of the trial
-        self.last_raw_position = self.wheel_listener.position
+class SurfaceOrientationTask(WheelTask):
+    """Agent that runs the wheel-based surface orientation task"""
+    def __init__(self, *args, **kwargs):
         
-        # Prevents multiple rewards
+        ## Call parent __init___
+        super().__init__(*args, **kwargs)        
+
+
+        ## Wheel and reward size parameters
+        # This is the size of a regular reward
+        self.max_reward = .05
+
+        # As time_since_last_reward increases, reward gets exponentially smaller
+        # When time_since_last_reward == reward_decay, the reward size
+        # is 63.7% of full. 
+        # As reward_decay increases, mouse has to wait longer 
+        # 300 clicks is about 20 deg (easy)
+        self.reward_for_spinning = False
+        self.reward_decay = 0.5
+        self.wheel_reward_thresh = 300 
+        
+        # This defines the range in which turning the wheel changes the sound
+        # Every trial starts at either max or min
+        # 1000 clicks is about 60 deg
+        self.wheel_max = 1000
+        self.wheel_min = -1000
+        
+        # This is how close the mouse has to get to the reward zone
+        # This can be small, just not so small that the mouse spins right 
+        # through it before it checks, which is probably pretty hard to do
+        # 100 clicks is about 6 deg
+        self.reward_range = 100
+
+        
+        ## These are initialized later
+        self.last_rewarded_position = None
+        self.last_reported_time = None
+        self.last_reward_time = None
+        self.clipped_position = 0
+        self.last_raw_position = 0
         self.reward_delivered = False
     
-    def stop_session(self):
-        """Runs when a session is stopped
+    def set_trial_parameters(self, **msg_params):
         
-        This is triggered by the 'stop' command sent to NetworkCommunicator.
-        """
-        # Log
-        self.logger.info('beginning stop_session')
+        ## Call parent
+        super().__init__(**msg_params)
+
         
-        # TODO: remove handles from wheel here
-
-        # Stop checking for alive requests
-        if self.alive_timer is None:
-            self.logger.error('stop received but alive_timer is None')
-        else:
-            self.alive_timer.stop()
-
-        # Silence sound generation
-        self.stop_sounds()
-        
-        # Stop running
-        self.session_running = False
-
-        # Mark as shutdown for next mainloop
-        self.shutdown = True
+        ## TODO: move surface to initial position here
