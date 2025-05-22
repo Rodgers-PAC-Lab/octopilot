@@ -1300,7 +1300,7 @@ class SurfaceOrientationTask(WheelTask):
     def set_trial_parameters(self, **msg_params):
         
         ## Call parent
-        super().__init__(**msg_params)
+        super().set_trial_parameters(**msg_params)
 
         
         ## TODO: move surface to initial position here
