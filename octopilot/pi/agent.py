@@ -1263,6 +1263,15 @@ class SurfaceOrientationTask(WheelTask):
         super().__init__(*args, **kwargs)        
 
 
+        ## Set up control over stepper
+        self.stepper_step_pin = 26
+        self.stepper_dir_pin = 16
+        
+        # The default is INPUT, so only outputs have to be set
+        self.pig.set_mode(self.stepper_step_pin, pigpio.OUTPUT)        
+        self.pig.set_mode(self.stepper_dir_pin, pigpio.OUTPUT)        
+
+
         ## Wheel and reward size parameters
         # This is the size of a regular reward
         self.max_reward = .05
@@ -1332,6 +1341,20 @@ class SurfaceOrientationTask(WheelTask):
         
         if self.clipped_position < self.wheel_min:
             self.clipped_position = self.wheel_min
+        
+        
+        ## Move the surface by diff
+        if diff > 0:
+            self.pig.write(self.stepper_dir_pin, 1)
+
+        elif diff < 0:
+            self.pig.write(self.stepper_dir_pin, 0)
+            
+        for n in range(diff):
+            self.pig.write(self.stepper_step_pin, 1)
+            time.sleep(1e-6)
+            self.pig.write(self.stepper_step_pin, 0)
+            time.sleep(.001)
         
         
         ## Update position_within_range
