@@ -1305,6 +1305,13 @@ class SurfaceOrientationTask(WheelTask):
         self.clipped_position = 0
         self.last_raw_position = 0
         self.reward_delivered = False
+
+        # Set up timer to move surface
+        self.move_surface_timer = hardware.RepeatedTimer(
+            100,
+            self.move_surface,
+            )
+        self.move_surface_timer.start()
     
     def set_trial_parameters(self, **msg_params):
         
@@ -1313,7 +1320,38 @@ class SurfaceOrientationTask(WheelTask):
 
         
         ## TODO: move surface to initial position here
+    
+    def move_surface(self):
+        # Compute difference between current and desired position
+        diff = self.clipped_position - self.current_surface_position
+        
+        # Decide which direction to move
+        if diff > 0:
+            self.pig.write(self.stepper_dir_pin, 1)
+            n_steps = diff
 
+        elif diff < 0:
+            self.pig.write(self.stepper_dir_pin, 0)
+            n_steps = -diff
+        
+        # Move by max n_steps
+        if n_steps > 100:
+            n_steps = 100
+        
+        # Move - this takes about 0.3 ms / step
+        for n in range(n_steps):
+            self.pig.write(self.stepper_step_pin, 1)
+            time.sleep(1e-6)
+            self.pig.write(self.stepper_step_pin, 0)
+            time.sleep(1e-6)        
+        
+        # Update
+        if diff > 0:
+            self.current_surface_position += n_steps
+        
+        else:
+            self.current_surface_position -= n_steps
+    
     def report_wheel(self):
         """Called by self.wheel_listener every time the wheel moves"""
         
@@ -1341,39 +1379,13 @@ class SurfaceOrientationTask(WheelTask):
         
         if self.clipped_position < self.wheel_min:
             self.clipped_position = self.wheel_min
-        
-        
-        ## Move the surface by diff
-        if diff > 0:
-            self.pig.write(self.stepper_dir_pin, 1)
-            n_steps = diff
 
-        elif diff < 0:
-            self.pig.write(self.stepper_dir_pin, 0)
-            n_steps = -diff
-            
-        for n in range(n_steps):
-            self.pig.write(self.stepper_step_pin, 1)
-            time.sleep(1e-6)
-            self.pig.write(self.stepper_step_pin, 0)
-            time.sleep(1e-6)
-        
-        
-        ## Update position_within_range
+        # Update position_within_range
         # Compute the weight within the min/max range
         position_within_range = (
             (self.clipped_position - self.wheel_min) / 
             (self.wheel_max - self.wheel_min))
         
-        # Clip to [0, 1], just in case we left the clipped range somehow
-        if position_within_range < 0:
-            position_within_range = 0
-        elif position_within_range > 1:
-            position_within_range = 1
-
-        
-        ## TODO: move the surface to the new orientation here
-
         
         ## Report to Dispatcher
         if np.mod(wheel_position, 100) == 0:
