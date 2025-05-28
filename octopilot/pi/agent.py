@@ -1325,7 +1325,15 @@ class SurfaceOrientationTask(WheelTask):
         super().set_trial_parameters(**msg_params)
 
         
-        ## TODO: move surface to initial position here
+        ## Disable wheel updates until the surface has moved back
+        self.wheel_listener.report_callback = None
+        time.sleep(1)
+        
+        # Reset the raw position to current
+        self.last_raw_position = self.wheel_listener.position
+        
+        # Restart callbacks
+        self.wheel_listener.report_callback = self.handle_wheel
     
     def move_surface(self):
         # Compute difference between current and desired position
@@ -1347,10 +1355,14 @@ class SurfaceOrientationTask(WheelTask):
         if n_steps > 100:
             n_steps = 100
         
-        # Move - this takes about 0.3 ms / step
-        self.logger.debug(f'{datetime.datetime.now()}: moving {n_steps} {"CW" if diff > 0 else "CCW"}')
+        # Apply the gain
+        gain = 0.2
+        n_steps_gained = int(n_steps * gain)
         
-        for n in range(n_steps):
+        # Move - this takes about 0.3 ms / step
+        self.logger.debug(f'{datetime.datetime.now()}: moving {n_steps_gained} {"CW" if diff > 0 else "CCW"}')
+        
+        for n in range(n_steps_gained):
             self.pig.write(self.stepper_step_pin, 1)
             time.sleep(1e-6)
             self.pig.write(self.stepper_step_pin, 0)
