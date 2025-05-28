@@ -1337,6 +1337,9 @@ class SurfaceOrientationTask(WheelTask):
             self.pig.write(self.stepper_dir_pin, 0)
             n_steps = -diff
         
+        else:
+            return 
+        
         # Move by max n_steps
         if n_steps > 100:
             n_steps = 100
