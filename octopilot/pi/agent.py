@@ -1333,11 +1333,11 @@ class SurfaceOrientationTask(WheelTask):
         
         # Decide which direction to move
         if diff > 0:
-            self.pig.write(self.stepper_dir_pin, 1)
+            self.pig.write(self.stepper_dir_pin, 0)
             n_steps = diff
 
         elif diff < 0:
-            self.pig.write(self.stepper_dir_pin, 0)
+            self.pig.write(self.stepper_dir_pin, 1)
             n_steps = -diff
         
         else:
