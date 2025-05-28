@@ -1305,6 +1305,7 @@ class SurfaceOrientationTask(WheelTask):
         self.clipped_position = 0
         self.last_raw_position = 0
         self.reward_delivered = False
+        self.current_surface_position = 0
 
         # Set up timer to move surface
         self.move_surface_timer = hardware.RepeatedTimer(
@@ -1322,6 +1323,8 @@ class SurfaceOrientationTask(WheelTask):
         ## TODO: move surface to initial position here
     
     def move_surface(self):
+        print('x')
+        
         # Compute difference between current and desired position
         diff = self.clipped_position - self.current_surface_position
         
