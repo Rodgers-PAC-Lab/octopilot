@@ -1333,7 +1333,7 @@ class SurfaceOrientationTask(WheelTask):
         self.last_raw_position = self.wheel_listener.position
         
         # Restart callbacks
-        self.wheel_listener.report_callback = self.handle_wheel
+        self.wheel_listener.report_callback = self.report_wheel
     
     def move_surface(self):
         # Compute difference between current and desired position
