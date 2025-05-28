@@ -1288,8 +1288,8 @@ class SurfaceOrientationTask(WheelTask):
         # This defines the range in which turning the wheel changes the sound
         # Every trial starts at either max or min
         # 1000 clicks is about 60 deg
-        self.wheel_max = 1000
-        self.wheel_min = -1000
+        self.wheel_max = 10000
+        self.wheel_min = -10000
         
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right 
@@ -1351,15 +1351,16 @@ class SurfaceOrientationTask(WheelTask):
         else:
             return 
 
+        gain = 0.2
+
         # Move by max n_steps
-        if n_steps > 100:
-            n_steps = 100
+        if n_steps > int(300 / gain):
+            n_steps = int(300 / gain)
         
         # Apply the gain
-        gain = 0.2
         n_steps_gained = int(n_steps * gain)
-        
-        # Move - this takes about 0.3 ms / step
+
+        # Move - this takes about 0.3 ms / step, so about 300 in 100 ms
         self.logger.debug(f'{datetime.datetime.now()}: moving {n_steps_gained} {"CW" if diff > 0 else "CCW"}')
         
         for n in range(n_steps_gained):
