@@ -1351,7 +1351,7 @@ class SurfaceOrientationTask(WheelTask):
         else:
             return 
 
-        gain = 0.2
+        gain = 1
 
         # Move by max n_steps
         if n_steps > int(300 / gain):
