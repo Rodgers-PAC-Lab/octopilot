@@ -1288,8 +1288,8 @@ class SurfaceOrientationTask(WheelTask):
         # This defines the range in which turning the wheel changes the sound
         # Every trial starts at either max or min
         # 1000 clicks is about 60 deg
-        self.wheel_max = 10000
-        self.wheel_min = -10000
+        self.wheel_max = 1000
+        self.wheel_min = -1000
         
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right 
