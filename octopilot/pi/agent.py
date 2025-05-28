@@ -1313,6 +1313,11 @@ class SurfaceOrientationTask(WheelTask):
             self.move_surface,
             )
         self.move_surface_timer.start()
+
+    def stop_session(self):
+        ## Call parent __init___
+        super().stop_session()
+        self.move_surface_timer.stop()
     
     def set_trial_parameters(self, **msg_params):
         
@@ -1326,9 +1331,6 @@ class SurfaceOrientationTask(WheelTask):
         # Compute difference between current and desired position
         diff = self.clipped_position - self.current_surface_position
         
-        # Apply gain 
-        diff *= 5
-        
         # Decide which direction to move
         if diff > 0:
             self.pig.write(self.stepper_dir_pin, 1)
@@ -1340,12 +1342,14 @@ class SurfaceOrientationTask(WheelTask):
         
         else:
             return 
-        
+
         # Move by max n_steps
         if n_steps > 100:
             n_steps = 100
         
         # Move - this takes about 0.3 ms / step
+        self.logger.debug(f'{datetime.datetime.now()}: moving {n_steps} {"CW" if diff > 0 else "CCW"}')
+        
         for n in range(n_steps):
             self.pig.write(self.stepper_step_pin, 1)
             time.sleep(1e-6)
