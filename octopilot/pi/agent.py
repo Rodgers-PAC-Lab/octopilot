@@ -1309,7 +1309,7 @@ class SurfaceOrientationTask(WheelTask):
 
         # Set up timer to move surface
         self.move_surface_timer = hardware.RepeatedTimer(
-            100,
+            0.1,
             self.move_surface,
             )
         self.move_surface_timer.start()
