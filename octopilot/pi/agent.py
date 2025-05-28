@@ -1323,10 +1323,11 @@ class SurfaceOrientationTask(WheelTask):
         ## TODO: move surface to initial position here
     
     def move_surface(self):
-        print('x')
-        
         # Compute difference between current and desired position
         diff = self.clipped_position - self.current_surface_position
+        
+        # Apply gain 
+        diff *= 5
         
         # Decide which direction to move
         if diff > 0:
