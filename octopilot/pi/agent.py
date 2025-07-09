@@ -21,6 +21,7 @@ import time
 import random 
 import numpy as np
 import pigpio
+import multiprocessing
 from . import hardware
 from . import sound
 from ..shared.networking import PiNetworkCommunicator
@@ -1042,7 +1043,7 @@ class WheelTask(Agent):
         
         ## Update other trial parameters
         # Starting position - TODO get from Dispatcher
-        if True: #np.random.random() < 0.5:
+        if np.mod(self.trial_number, 2) == 0: #np.random.random() < 0.5:
             self.clipped_position = self.wheel_min
         else:
             self.clipped_position = self.wheel_max
@@ -1052,6 +1053,10 @@ class WheelTask(Agent):
         
         # Prevents multiple rewards
         self.reward_delivered = False
+        
+        
+        ## Do a report_wheel to indicate the new raw position has changed
+        self.report_wheel(force_report=True)
     
     def stop_session(self):
         """Runs when a session is stopped
@@ -1124,8 +1129,14 @@ class SoundCenteringTask(WheelTask):
         self.last_raw_position = 0
         self.reward_delivered = False
 
-    def report_wheel(self):
-        """Called by self.wheel_listener every time the wheel moves"""
+    def report_wheel(self, force_report=False):
+        """Called by self.wheel_listener every time the wheel moves
+        
+        Updates the internal variables about position of the wheel
+        Reports the wheel position if it has moved far enough (or if
+        force_report is True)
+        Rewards if conditions are met
+        """
         
         ## Get time
         now = datetime.datetime.now()        
@@ -1185,7 +1196,7 @@ class SoundCenteringTask(WheelTask):
         
         
         ## Report to Dispatcher
-        if np.mod(wheel_position, 100) == 0:
+        if force_report or np.mod(wheel_position, 10) == 0:
             self.network_communicator.poke_socket.send_string(
                 f'wheel;'
                 f'trial_number={self.trial_number}=int;'
@@ -1314,12 +1325,38 @@ class SurfaceOrientationTask(WheelTask):
             #~ 0.1,
             #~ self.move_surface,
             #~ )
-        #~ self.move_surface_timer.start()
+
+        ## Create the serial_reader object
+        self.surface_turner = SurfaceTurner(
+            pig=self.pig,
+            )
+        
+        # Start acquistion in a separate Process
+        self.proc = multiprocessing.Process(target=self.surface_turner.start)
+        self.proc.start()
 
     def stop_session(self):
-        ## Call parent __init___
+        """Stop the session.
+        
+        First stop moving the surface. Then call the super stop_session.
+        """
+        # Tell SurfaceTurner to stop
+        self.surface_turner.stop_event.set()
+        time.sleep(1)
+        
+        # Join on the surface_turners
+        print('joining')
+        self.proc.join(timeout=1)
+        print('joined')
+        
+        # If it didn't finish (most likely because data is left in the queues
+        # for some reason) then kill it
+        if self.proc.is_alive():
+            print('warning: could not join surface_turner process; killing')
+            self.proc.terminate()        
+        
+        # super
         super().stop_session()
-        #~ self.move_surface_timer.stop()
     
     def set_trial_parameters(self, **msg_params):
         
@@ -1378,8 +1415,23 @@ class SurfaceOrientationTask(WheelTask):
         else:
             self.current_surface_position -= n_steps
     
-    def report_wheel(self):
-        """Called by self.wheel_listener every time the wheel moves"""
+    def report_wheel(self, force_report=False):
+        """Called by self.wheel_listener every time the wheel moves
+        
+        Updates the internal variables about position of the wheel
+        Reports the wheel position if it has moved far enough (or if
+        force_report is True)
+        Rewards if conditions are met
+
+        self.wheel_listener.position : raw position that comes out, which
+            is updated in another thread
+        self.last_raw_position - the raw position sampled at the beginning
+            of this call
+        diff - how much the wheel position has moved since the previous
+            self.last_raw_position
+        self.clipped_position - a clipped version of self.last_raw_position
+            that cannot exceed wheel_max, wheel_min
+        """
         
         ## Get time
         now = datetime.datetime.now()        
@@ -1413,8 +1465,12 @@ class SurfaceOrientationTask(WheelTask):
             (self.wheel_max - self.wheel_min))
         
         
+        # Turn the surface
+        #~ with self.surface_turner.target.get_lock():
+        self.surface_turner.target.value = self.clipped_position
+        
         ## Report to Dispatcher
-        if np.mod(wheel_position, 100) == 0:
+        if force_report or np.mod(wheel_position, 10) == 0:
             self.network_communicator.poke_socket.send_string(
                 f'wheel;'
                 f'trial_number={self.trial_number}=int;'
@@ -1446,3 +1502,63 @@ class SurfaceOrientationTask(WheelTask):
             
             # Reward but do not end trial
             self.reward(reward_size, report=False)
+
+
+class SurfaceTurner(object):
+    def __init__(self, pig):
+        self.pig = pig
+        self.target = multiprocessing.Value('i', 0)
+        self.state = 0
+
+        # Pins
+        self.stepper_step_pin = 26
+        self.stepper_dir_pin = 16
+
+        # This is the flag used for stopping
+        self.stop_event = multiprocessing.Event()
+        
+    def start(self):
+        while not self.stop_event.is_set():
+            self.update()
+            time.sleep(.001)
+    
+    def update(self):
+        # Compute difference between current and desired position
+        diff = self.target.value - self.state
+        
+        # Decide which direction to move
+        if diff > 0:
+            self.pig.write(self.stepper_dir_pin, 0)
+            n_steps = diff
+
+        elif diff < 0:
+            self.pig.write(self.stepper_dir_pin, 1)
+            n_steps = -diff
+        
+        else:
+            return 
+
+        gain = 5
+
+        # Move by max n_steps
+        if n_steps > int(300 / gain):
+            n_steps = int(300 / gain)
+        
+        # Apply the gain
+        n_steps_gained = int(n_steps * gain)
+
+        # Move - this takes about 0.3 ms / step, so about 300 in 100 ms
+        print(f'{datetime.datetime.now()}: moving {n_steps_gained} {"CW" if diff > 0 else "CCW"}')
+        
+        for n in range(n_steps_gained):
+            self.pig.write(self.stepper_step_pin, 1)
+            time.sleep(1e-6)
+            self.pig.write(self.stepper_step_pin, 0)
+            time.sleep(1e-6)        
+        
+        # Update
+        if diff > 0:
+            self.state += n_steps
+        
+        else:
+            self.state -= n_steps
