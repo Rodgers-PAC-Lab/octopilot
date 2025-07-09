@@ -11,6 +11,12 @@ class RepeatedTimer(object):
         
         The timer starts immediately upon initialization.
         
+        TODO: do not start immediately
+        TODO: better handle the case where someone calls `start` and it's
+        already running
+        Right now, it's a common issue that it starts automatically and then
+        gets started again.
+        
         Arguments
         ---------
         interval : numeric, time in seconds
