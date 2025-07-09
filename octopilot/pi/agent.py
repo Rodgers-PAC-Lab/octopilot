@@ -1308,16 +1308,18 @@ class SurfaceOrientationTask(WheelTask):
         self.current_surface_position = 0
 
         # Set up timer to move surface
-        self.move_surface_timer = hardware.RepeatedTimer(
-            0.1,
-            self.move_surface,
-            )
-        self.move_surface_timer.start()
+        # Commenting this out for now until I figure out why it isn't stopping 
+        # properly
+        #~ self.move_surface_timer = hardware.RepeatedTimer(
+            #~ 0.1,
+            #~ self.move_surface,
+            #~ )
+        #~ self.move_surface_timer.start()
 
     def stop_session(self):
         ## Call parent __init___
         super().stop_session()
-        self.move_surface_timer.stop()
+        #~ self.move_surface_timer.stop()
     
     def set_trial_parameters(self, **msg_params):
         
