@@ -155,6 +155,11 @@ for mouse_json in all_mouse_json:
     # Load params from that mouse
     mouse_params = load_params.load_mouse_params(mouse_name)
     
+    # Continue unless 'display' is True
+    to_display = mouse_params.get('display', False)
+    if to_display != True:
+        continue
+    
     # Extract necessary params
     try:
         box = mouse_params['box']
