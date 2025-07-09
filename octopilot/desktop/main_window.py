@@ -437,23 +437,13 @@ class WheelSessionWindow(SessionWindow):
 
 
         ## Set up the graphical objects
-        # Instantiate a ArenaWidget to show the ports
-        #~ self.arena_widget = plotting.ArenaWidget(self.dispatcher)
-        
-        # Initializing PokePlotWidget to show the pokes
-        #~ self.poke_plot_widget = plotting.PokePlotWidget(self.dispatcher)
+        # Instantiate a WheelPositionWidget to show the movement of the wheel
+        self.wheel_position_widget = plotting.WheelPositionWidget(
+            self.dispatcher)
 
-
-        ## Creating container widgets for each component 
-        #~ # These containers determine size and arrangment of widgets
-        #~ arena_widget_container = QWidget()
-        #~ arena_widget_container.setFixedWidth(200)  
-        #~ arena_widget_container.setLayout(QVBoxLayout())
-        #~ arena_widget_container.layout().addWidget(self.arena_widget)
-
-        #~ # Create PerformanceMetricDisplay
-        #~ self.performance_metric_display_widget = (
-            #~ plotting.PerformanceMetricDisplay(self.dispatcher))
+        # Create PerformanceMetricDisplay
+        self.performance_metric_display_widget = (
+            plotting.PerformanceMetricDisplay_SOT(self.dispatcher))
 
         # Create self.stop_button and connect it to self.stop_sqeuence
         self.set_up_stop_button()
@@ -463,21 +453,16 @@ class WheelSessionWindow(SessionWindow):
         start_stop_layout.addWidget(self.stop_button)        
         
         # Also add PerformanceMetricDisplay
-        #~ start_stop_layout.addWidget(self.performance_metric_display_widget)
+        start_stop_layout.addWidget(self.performance_metric_display_widget)
 
 
         ## Create a layout for all containers
+        # Horizontal layout because it will contain plot widgets side by side
         container_widget = QWidget(self)
-        
-        # Horizontal layout because it will contain three things side by side
         container_layout = QtWidgets.QHBoxLayout(container_widget)
         
-        # Add config_list_container, arena_widget_container, and poke_plot_widget
-        # poke_plot_widget is handled separately because we are not creating a container
-        # for it. This means that its width and height will both change when resizing
-        # the main window. it does not have a fixed width like the other widgets
-        #~ container_layout.addWidget(arena_widget_container)
-        #~ container_layout.addWidget(self.poke_plot_widget)
+        # Add widgets to the container_layout
+        container_layout.addWidget(self.wheel_position_widget)
         container_layout.addLayout(start_stop_layout)
         
         # Set this one as the central widget

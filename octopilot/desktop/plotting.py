@@ -325,6 +325,120 @@ class PerformanceMetricDisplay(QWidget):
             case False:
                 return f"{minutes:02}:{seconds:02}"
 
+## Widget to display text performance metrics for SurfaceOrientationTask
+class PerformanceMetricDisplay_SOT(QWidget):
+    def __init__(self, dispatcher):
+        """Create a PerformanceMetricDisplay_SOT
+        
+        dispatcher : controllers.Dispatcher
+            Get data from here
+        """
+        # Superclass init
+        super(PerformanceMetricDisplay_SOT, self).__init__()
+        
+        # Store the dispatcher
+        self.dispatcher = dispatcher
+        
+        # Create QVBoxLayout for session details 
+        self.details_layout = QVBoxLayout()
+
+        # Making labels that constantly update according to the session details
+        self.time_label = QLabel("", self)
+        self.trial_count = QLabel("Number of Trials: 0", self)
+        self.correct_count = QLabel("Number of Correct Trials: 0", self)
+        self.fraction_correct = QLabel("Fraction Correct (FC): 0.000", self)
+        
+        # Adding these labels to the layout used to contain the session information 
+        self.details_layout.addWidget(self.time_label)
+        self.details_layout.addWidget(self.trial_count)
+        self.details_layout.addWidget(self.correct_count)
+        self.details_layout.addWidget(self.fraction_correct)
+        
+        # Init these
+        self.update()
+        
+        # set layout
+        self.setLayout(self.details_layout)
+
+        # Create a timer and connect to self.update_time_elapsed
+        self.timer_update = QTimer(self)
+        self.timer_update.timeout.connect(self.update) 
+
+    def start(self):
+        # Start the timer
+        # The faster this is, the more responsive it will be, but when an 
+        # error occurs it will spam the terminal
+        self.timer_update.start(250)
+    
+    def stop(self):
+        """Stop updating the elapsed time
+        
+        Called by main_window.stop_button. 
+        """
+        self.timer_update.stop()
+    
+    def update(self):
+        ## Get data from dispatcher
+        # Time since session start
+        if self.dispatcher.session_start_time is not None:
+            time_from_session_start_sec = (
+                datetime.datetime.now() - 
+                self.dispatcher.session_start_time).total_seconds()        
+        else:
+            time_from_session_start_sec = None
+
+        # TODO: get actual data here
+        n_correct_trials = 0
+        n_incorrect_trials = 0
+
+        
+        ## Calculate performance metrics
+        n_trials = n_correct_trials + n_incorrect_trials
+        if n_trials > 0:
+            fraction_correct = n_correct_trials / float(n_trials)
+        
+        else:
+            # If no trials, these can't be calculated
+            fraction_correct = None
+        
+        
+        ## Update labels
+        # Update trial count
+        self.trial_count.setText(f"N trials: {n_trials}")
+        
+        # Updating number of correct trials 
+        self.correct_count.setText(
+            f"N correct trials: {n_correct_trials}") 
+
+        # Update fraction correct label
+        if fraction_correct is not None:
+            self.fraction_correct.setText(
+                f"fraction correct: {fraction_correct:.2f}")
+        else:
+            self.fraction_correct.setText(
+                f"fraction correct: NA")
+
+        # Update timing
+        if time_from_session_start_sec is not None:
+            self.time_label.setText(
+                "elapsed time: {}".format(
+                    self.format_time(int(time_from_session_start_sec))
+                )
+            )
+        else:
+            self.time_label.setText(
+                'elapsed time: NA')
+
+    @staticmethod
+    def format_time(seconds):
+        hours, remainder = divmod(seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        match hours > 0:
+            case True:
+                return f"{hours:02}:{minutes:02}:{seconds:02}"
+            case False:
+                return f"{minutes:02}:{seconds:02}"
+
 ## Widget to plot pokes
 class PokePlotWidget(QWidget):
     """Widget that plots the pokes as they happen
@@ -532,3 +646,168 @@ class PokePlotWidget(QWidget):
             
             # Update plot with the new xvals and yvals
             plot_to.setData(x=xvals, y=yvals)
+
+## Widget to plot pokes
+class WheelPositionWidget(QWidget):
+    """Widget that plots the wheel position in real time
+    
+    """
+    def __init__(self, dispatcher, *args, **kwargs):
+        """Initialize a new WheelPositionWidget
+
+        """
+        ## Superclass init
+        super().__init__(*args, **kwargs)
+        
+        
+        ## Instance variables
+        # Dispatcher, where the data comes from
+        self.dispatcher = dispatcher
+        
+        # Timers for continuous updating
+        # Create a QTimer object to continuously update the plot         
+        self.timer_update_plot = QTimer(self) 
+        self.timer_update_plot.timeout.connect(self.update_plot)  
+        
+        # Creating a QTimer for updating the moving time bar
+        self.timer_update_time_bar = QTimer(self)
+        self.timer_update_time_bar.timeout.connect(self.update_time_bar) 
+
+        
+        ## Initialize the plot_widget which actually does the plotting
+        # Initializing the pyqtgraph widget
+        self.plot_widget = pg.PlotWidget() 
+        
+        # Setting the layout of the plotting widget 
+        self.layout = QVBoxLayout(self) 
+        self.layout.addWidget(self.plot_widget)
+        
+        # Set labels and colors of `plot_widget`
+        self.setup_plot_graphics()
+       
+        # Plots line_of_current_time and line
+        self.initalize_plot_handles()
+
+    def setup_plot_graphics(self):
+        """Sets colors and labels of plot_widget
+        
+        Flow
+        * Sets background to black and font to white
+        * Sets title and axis labels
+        * Adds a grid
+        * Sets y-limits to [1, 9]
+        """
+        # Set x-axis range to [0, 1600] which is more or less the duration of 
+        # the task in seconds
+        self.plot_widget.setXRange(0, 180)  
+        
+        # Setting the background of the plot to be black. Use 'w' for white
+        self.plot_widget.setBackground("k") 
+        
+        # Setting the font/style for the rest of the text used in the plot
+        styles = {"color": "white", "font-size": "11px"} 
+        
+        # Adding a grid background to make it easier to see where pokes are in time
+        self.plot_widget.showGrid(x=True, y=True) 
+        
+        # Setting the range for the Y axis
+        #~ self.plot_widget.setYRange(-0.5, len(self.dispatcher.port_names))
+        
+        #~ # Set the ticks
+        #~ ticks = list(enumerate(self.dispatcher.port_names))
+        #~ self.plot_widget.getPlotItem().getAxis('left').setTicks([ticks, []])
+
+    def initalize_plot_handles(self):
+        """Plots line_of_current_time and line
+        
+        Creates these handles:
+            self.line_of_current_time : a line that moves with the current time
+            self.plot_handle_wheel_position : line graph of the wheel
+            self.plot_handle_rewards : a raster plot of rewards
+        """
+        # Plot the sliding timebar
+        self.line_of_current_time_color = 0.5
+        self.line_of_current_time = self.plot_widget.plot(
+            x=[0, 0], y=[-1, 8], pen=pg.mkPen(self.line_of_current_time_color))
+
+        # Wheel position in white
+        self.plot_handle_wheel_position = self.plot_widget.plot(
+            x=[],
+            y=[],
+        )
+
+        # Rewards in green
+        self.plot_handle_rewards = self.plot_widget.plot(
+            x=[],
+            y=[],
+            pen=None, # no connecting line
+            symbol="arrow_down",  
+            symbolSize=10,
+            symbolBrush='g',
+            symbolPen=None,
+        )
+
+    def start_plot(self):
+        """Activates plot updates.
+        
+        Activates `timer` and `time_bar_timer` to update plot.
+        Sets `start_time` and `is_active`.
+        """
+        # Plot updates every 200 ms
+        self.timer_update_plot.start(200)  
+
+        # Time bar updates every 50 ms
+        self.timer_update_time_bar.start(50)  
+
+    def stop_plot(self):
+        """Deactivates plot updates"""
+        self.timer_update_plot.stop()
+        self.timer_update_time_bar.stop()
+
+    def update_time_bar(self):
+        """Controls how the timebar moves according to the timer"""
+        # Do nothing if there is no start_time
+        if self.dispatcher.session_start_time is not None:
+            # Determine elapsed time
+            current_time = datetime.datetime.now()
+            approx_time_in_session = (
+                current_time - self.dispatcher.session_start_time).total_seconds()
+
+            # Update the color of the time bar to make it slowly change, so
+            # that there is a visual indicator if it stops running
+            self.line_of_current_time_color = np.mod(
+                self.line_of_current_time_color + 0.1, 2)
+            
+            # Updating the position of the timebar
+            self.line_of_current_time.setData(
+                x=[approx_time_in_session, approx_time_in_session], y=[-1, 9],
+                pen=pg.mkPen(np.abs(self.line_of_current_time_color - 1)),
+            )
+
+    def update_plot(self):
+        """Update self.plot_handle_poke_times with poke times from dispatcher
+        
+        * Extracts pokes from 
+          self.dispatcher.history_of_pokes 
+          and plots as 
+          self.plot_handle_unrewarded_pokes
+
+        * Extracts pokes from 
+          self.dispatcher.history_of_rewarded_correct_pokes 
+          and plots as 
+          self.plot_handle_rewarded_correct_pokes
+
+        * Extracts pokes from 
+          self.dispatcher.history_of_rewarded_incorrect_pokes 
+          and plots as 
+          self.plot_handle_rewarded_incorrect_pokes
+        """
+        # Extract data about wheel
+        wheel_pos_x = self.dispatcher.wheel_position_times
+        wheel_pos_y = self.dispatcher.wheel_position
+        self.plot_handle_wheel_position.setData(x=wheel_pos_x, y=wheel_pos_y)
+        
+        # Extract data about rewards
+        rewards_x = self.disptacher.reward_times
+        rewards_y = np.zeros_like(rewards_x)
+        self.plot_handle_rewards.setData(x=rewards_x, y=rewards_y)
