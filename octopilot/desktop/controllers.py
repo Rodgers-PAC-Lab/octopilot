@@ -1044,8 +1044,9 @@ class WheelDispatcher(Dispatcher):
         
         """
         # Append to history
-        self.history_of_wheel_position.append(wheel_position)
-        self.history_of_wheel_time.append(wheel_time)
+        self.history_of_wheel_position.append(clipped_position)
+        self.history_of_wheel_time.append(
+            datetime.datetime.fromisoformat(wheel_time))
         self.history_of_wheel_trial.append(trial_number)
         
         # TODO: log to disk

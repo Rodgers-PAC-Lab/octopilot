@@ -533,9 +533,8 @@ class WheelSessionWindow(SessionWindow):
 
         # TODO: Instead of these objects having their own timers, 
         # OctopilotSessionWindow should keep track of that
-        #~ self.poke_plot_widget.start_plot()
-        #~ self.arena_widget.start()
-        #~ self.performance_metric_display_widget.start()        
+        self.wheel_position_widget.start()
+        self.performance_metric_display_widget.start()        
         
         # Don't start the session again
         self.start_session_timer.stop()
@@ -551,9 +550,9 @@ class WheelSessionWindow(SessionWindow):
         self.stop_button.clicked.connect(self.dispatcher.stop_session)
         self.stop_button.clicked.connect(self.timer_dispatcher.stop)
 
-        #~ self.stop_button.clicked.connect(self.poke_plot_widget.stop_plot)
-        #~ self.stop_button.clicked.connect(
-            #~ self.performance_metric_display_widget.stop)
+        self.stop_button.clicked.connect(self.wheel_position_widget.stop_plot)
+        self.stop_button.clicked.connect(
+            self.performance_metric_display_widget.stop)
 
     def closeEvent(self, event):
         """Executes when the window is closed

@@ -697,9 +697,8 @@ class WheelPositionWidget(QWidget):
         * Adds a grid
         * Sets y-limits to [1, 9]
         """
-        # Set x-axis range to [0, 1600] which is more or less the duration of 
-        # the task in seconds
-        self.plot_widget.setXRange(0, 180)  
+        # Show data only from the last N seconds
+        self.plot_widget.setXRange(-10, 0)  
         
         # Setting the background of the plot to be black. Use 'w' for white
         self.plot_widget.setBackground("k") 
@@ -710,8 +709,8 @@ class WheelPositionWidget(QWidget):
         # Adding a grid background to make it easier to see where pokes are in time
         self.plot_widget.showGrid(x=True, y=True) 
         
-        # Setting the range for the Y axis
-        #~ self.plot_widget.setYRange(-0.5, len(self.dispatcher.port_names))
+        # Set the range for the Y axis to match wheel clipping
+        self.plot_widget.setYRange(-1050, 1050)
         
         #~ # Set the ticks
         #~ ticks = list(enumerate(self.dispatcher.port_names))
@@ -747,7 +746,7 @@ class WheelPositionWidget(QWidget):
             symbolPen=None,
         )
 
-    def start_plot(self):
+    def start(self):
         """Activates plot updates.
         
         Activates `timer` and `time_bar_timer` to update plot.
@@ -785,29 +784,30 @@ class WheelPositionWidget(QWidget):
             )
 
     def update_plot(self):
-        """Update self.plot_handle_poke_times with poke times from dispatcher
-        
-        * Extracts pokes from 
-          self.dispatcher.history_of_pokes 
-          and plots as 
-          self.plot_handle_unrewarded_pokes
+        """Update plot of wheel time
 
-        * Extracts pokes from 
-          self.dispatcher.history_of_rewarded_correct_pokes 
-          and plots as 
-          self.plot_handle_rewarded_correct_pokes
-
-        * Extracts pokes from 
-          self.dispatcher.history_of_rewarded_incorrect_pokes 
-          and plots as 
-          self.plot_handle_rewarded_incorrect_pokes
         """
         # Extract data about wheel
-        wheel_pos_x = self.dispatcher.wheel_position_times
-        wheel_pos_y = self.dispatcher.wheel_position
+        wheel_pos_x = np.array(self.dispatcher.history_of_wheel_time)
+        wheel_pos_y = np.array(self.dispatcher.history_of_wheel_position)
+        
+        # Relative to time now
+        # Note that slight clock differences might mean that the rpi's current
+        # time is ahead of our current time
+        time_now = datetime.datetime.now()
+        wheel_pos_x = np.array(
+            [(val - time_now).total_seconds() for val in wheel_pos_x])
+        
+        # Add a final data point for the present, which is presumably the same
+        # as the last measurement
+        if len(wheel_pos_y) > 0:
+            wheel_pos_x = np.concatenate([wheel_pos_x, [0]])
+            wheel_pos_y = np.concatenate([wheel_pos_y, [wheel_pos_y[-1]]])
+        
+        # Plot
         self.plot_handle_wheel_position.setData(x=wheel_pos_x, y=wheel_pos_y)
         
-        # Extract data about rewards
-        rewards_x = self.disptacher.reward_times
-        rewards_y = np.zeros_like(rewards_x)
-        self.plot_handle_rewards.setData(x=rewards_x, y=rewards_y)
+        #~ # Extract data about rewards
+        #~ rewards_x = self.dispatcher.reward_times
+        #~ rewards_y = np.zeros_like(rewards_x)
+        #~ self.plot_handle_rewards.setData(x=rewards_x, y=rewards_y)
