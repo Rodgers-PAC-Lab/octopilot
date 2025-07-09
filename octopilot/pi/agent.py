@@ -1505,24 +1505,85 @@ class SurfaceOrientationTask(WheelTask):
 
 
 class SurfaceTurner(object):
+    """Object that turns the stepper while running in its own process.
+    
+    The idea is that this other process should be fully dedicated to moving
+    the stepper as quickly as possible, without doing anything else. The
+    current target position of the stepper is shared as `self.target`, a
+    multiprocessing.Value.
+    
+    To use this object:
+    * Initialize it
+    * Start a process in the main process with target `self.start`
+        `self.start` will call `self.update` over and over,
+        until `self.stop_event` is set.
+    * Set `self.target` as needed.
+    * When done, set `self.stop_event`, and then join the process.
+    """
     def __init__(self, pig):
+        """Initialize a new SurfaceTurner
+        
+        self.pig : pigpio handle
+        """
+        # Store handle
         self.pig = pig
-        self.target = multiprocessing.Value('i', 0)
-        self.state = 0
-
+        
+        
+        ## Params
         # Pins
         self.stepper_step_pin = 26
         self.stepper_dir_pin = 16
+        
+        # How many steps to turn per unit of `target`
+        self.gain = 5
+        
+        # Max number of steps to turn per update call
+        # Larger numbers incur less overhead but decrease update frequency
+        # E.g. if the target is oscillating frequency, a large number means
+        # it will overshoot by more until it realizes the target has changed
+        self.max_steps_per_update = 30
 
+        
+        ## Controls
+        # Use this to keep track of state
+        self.state = 0
+
+        # Use this to set the target
+        self.target = multiprocessing.Value('i', 0)
+        
         # This is the flag used for stopping
         self.stop_event = multiprocessing.Event()
         
+        
+        ## Our own logger
+        self.logger = NonRepetitiveLogger("test")
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
+        self.logger.addHandler(sh)
+        self.logger.setLevel(logging.DEBUG)
+        
     def start(self):
+        """Call this method from a process to start control of the stepper.
+        
+        Example:
+            self.proc = multiprocessing.Process(target=self.surface_turner.start)
+            self.proc.start()
+        
+        It will repeatedly call `self._update` until `self.stop_event` is set.
+        """
         while not self.stop_event.is_set():
-            self.update()
-            time.sleep(.001)
+            self._update()
+            time.sleep(.0001)
     
-    def update(self):
+    def _update(self):
+        """Actually move the stepper to the target
+        
+        Don't call this method manually. It should only be called by 
+        `self.start`.
+        
+        It calculates the difference between `self.target` and `self.state`,
+        then moves the stepper accordingly and updates the state.
+        """
         # Compute difference between current and desired position
         diff = self.target.value - self.state
         
@@ -1538,18 +1599,17 @@ class SurfaceTurner(object):
         else:
             return 
 
-        gain = 5
-
-        # Move by max n_steps
-        if n_steps > int(300 / gain):
-            n_steps = int(300 / gain)
+        # Don't move by more than `max_steps_per_update`
+        if n_steps > int(self.max_steps_per_update / self.gain):
+            n_steps = int(self.max_steps_per_update / self.gain)
         
         # Apply the gain
-        n_steps_gained = int(n_steps * gain)
+        n_steps_gained = int(n_steps * self.gain)
 
-        # Move - this takes about 0.3 ms / step, so about 300 in 100 ms
-        print(f'{datetime.datetime.now()}: moving {n_steps_gained} {"CW" if diff > 0 else "CCW"}')
+        # Log
+        self.logger.debug(f'{datetime.datetime.now()}: moving {n_steps_gained} {"CW" if diff > 0 else "CCW"}')
         
+        # Move - this takes about 0.3 ms / step, so about 300 in 100 ms
         for n in range(n_steps_gained):
             self.pig.write(self.stepper_step_pin, 1)
             time.sleep(1e-6)
