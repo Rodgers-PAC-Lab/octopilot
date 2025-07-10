@@ -735,6 +735,13 @@ class WheelPositionWidget(QWidget):
             y=[],
         )
 
+        # Surface position in red
+        self.plot_handle_surface_position = self.plot_widget.plot(
+            x=[],
+            y=[],
+            pen='red',
+        )
+
         # Rewards in green
         self.plot_handle_rewards = self.plot_widget.plot(
             x=[],
@@ -787,6 +794,10 @@ class WheelPositionWidget(QWidget):
         """Update plot of wheel time
 
         """
+        time_now = datetime.datetime.now()
+
+
+        ## Wheel data
         # Extract data about wheel
         wheel_pos_x = np.array(self.dispatcher.history_of_wheel_time)
         wheel_pos_y = np.array(self.dispatcher.history_of_wheel_position)
@@ -794,7 +805,6 @@ class WheelPositionWidget(QWidget):
         # Relative to time now
         # Note that slight clock differences might mean that the rpi's current
         # time is ahead of our current time
-        time_now = datetime.datetime.now()
         wheel_pos_x = np.array(
             [(val - time_now).total_seconds() for val in wheel_pos_x])
         
@@ -804,10 +814,37 @@ class WheelPositionWidget(QWidget):
             wheel_pos_x = np.concatenate([wheel_pos_x, [0]])
             wheel_pos_y = np.concatenate([wheel_pos_y, [wheel_pos_y[-1]]])
         
-        # Plot
-        self.plot_handle_wheel_position.setData(x=wheel_pos_x, y=wheel_pos_y)
         
+        ## Surface data
+        # Extract data about wheel
+        surface_pos_x = np.array(self.dispatcher.history_of_surface_time)
+        surface_pos_y = np.array(self.dispatcher.history_of_surface_position)
+        
+        # Relative to time now
+        # Note that slight clock differences might mean that the rpi's current
+        # time is ahead of our current time
+        surface_pos_x = np.array(
+            [(val - time_now).total_seconds() for val in surface_pos_x])
+        
+        # Add a final data point for the present, which is presumably the same
+        # as the last measurement
+        if len(surface_pos_y) > 0:
+            surface_pos_x = np.concatenate([surface_pos_x, [0]])
+            surface_pos_y = np.concatenate([surface_pos_y, [surface_pos_y[-1]]])
+        
+
+        ## Rewards
         #~ # Extract data about rewards
         #~ rewards_x = self.dispatcher.reward_times
         #~ rewards_y = np.zeros_like(rewards_x)
         #~ self.plot_handle_rewards.setData(x=rewards_x, y=rewards_y)
+        
+        
+        ## Plots
+        # Wheel
+        self.plot_handle_wheel_position.setData(
+            x=wheel_pos_x, y=wheel_pos_y)
+        
+        # Surface
+        self.plot_handle_surface_position.setData(
+            x=surface_pos_x, y=surface_pos_y)

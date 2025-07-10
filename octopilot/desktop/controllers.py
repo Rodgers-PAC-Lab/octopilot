@@ -947,6 +947,7 @@ class WheelDispatcher(Dispatcher):
             'flash': self.handle_flash,
             'sound': self.handle_sound,
             'wheel': self.handle_wheel,
+            'surface': self.handle_surface,
             #~ 'sound_plan': self.handle_sound_plan,
             'goodbye': self.handle_goodbye,
             'alive': self.recv_alive,
@@ -981,6 +982,12 @@ class WheelDispatcher(Dispatcher):
         self.history_of_wheel_position = []
         self.history_of_wheel_time = []
         self.history_of_wheel_trial = []
+        
+        # Surface history
+        self.history_of_surface_position = []
+        self.history_of_surface_movement = []
+        self.history_of_surface_time = []
+        self.history_of_surface_trial = []
         
         # Reward history
         self.history_of_rewards = []
@@ -1050,6 +1057,17 @@ class WheelDispatcher(Dispatcher):
         self.history_of_wheel_trial.append(trial_number)
         
         # TODO: log to disk
+
+    def handle_surface(self,
+        identity, trial_number, surface_time, steps_moved, surface_pos,
+        ):
+        """Handle an update about the surface position"""
+        # Append to history
+        self.history_of_surface_position.append(surface_pos)
+        self.history_of_surface_movement.append(steps_moved)
+        self.history_of_surface_time.append(
+            datetime.datetime.fromisoformat(surface_time))
+        self.history_of_surface_trial.append(trial_number)        
 
     def handle_flash(self, trial_number, identity, flash_time):
         """Store the flash time"""
