@@ -1234,7 +1234,7 @@ class SoundCenteringTask(WheelTask):
     def set_trial_parameters(self, **msg_params):
         
         ## Call parent
-        super().__init__(**msg_params)
+        super().set_trial_parameters(**msg_params)
         
         
         ## Split into left_params and right_params
