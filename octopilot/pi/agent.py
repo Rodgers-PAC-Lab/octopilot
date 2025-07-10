@@ -27,6 +27,10 @@ from . import sound
 from ..shared.networking import PiNetworkCommunicator
 from ..shared.logtools import NonRepetitiveLogger
 
+import RPi.GPIO as GPIO
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(26, GPIO.OUT)
+
 class Agent(object):
     """Parent object that runs behavioral sessions on the Pi.
     
@@ -1591,12 +1595,21 @@ class SurfaceTurner(object):
         if n_steps_gained == 0:
             return
 
-        # Move - this takes about 0.3 ms / step, so about 300 in 100 ms
+        # Move
         for n in range(n_steps_gained):
-            self.pig.write(self.stepper_step_pin, 1)
+            # pigpio is a little slower
+            # Max speed should be about 3000 steps/s
+            #~ self.pig.write(self.stepper_step_pin, 1)
+            #~ time.sleep(1e-6)
+            #~ self.pig.write(self.stepper_step_pin, 0)
+            #~ time.sleep(1e-6)        
+            
+            # GPIO is a little faster
+            # Max speed should be about 7000 steps/s
+            GPIO.output(self.stepper_step_pin, 1)
             time.sleep(1e-6)
-            self.pig.write(self.stepper_step_pin, 0)
-            time.sleep(1e-6)        
+            GPIO.output(self.stepper_step_pin, 0)
+            time.sleep(1e-6)
         
         # Update
         if diff > 0:
