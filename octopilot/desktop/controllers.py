@@ -1046,6 +1046,7 @@ class WheelDispatcher(Dispatcher):
 
     def handle_wheel(self, 
         identity, trial_number, wheel_position, wheel_time, clipped_position,
+        weight=None, # only sent by SoundCenteringTask
         ):
         """Handle an update about the wheel's position.
         
