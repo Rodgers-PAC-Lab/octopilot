@@ -1318,13 +1318,6 @@ class SurfaceOrientationTask(WheelTask):
         self.reward_delivered = False
         self.current_surface_position = 0
 
-        # Set up timer to move surface
-        # Commenting this out for now until I figure out why it isn't stopping 
-        # properly
-        #~ self.move_surface_timer = hardware.RepeatedTimer(
-            #~ 0.1,
-            #~ self.move_surface,
-            #~ )
 
         ## Create the serial_reader object
         self.surface_turner = SurfaceTurner(
@@ -1335,6 +1328,12 @@ class SurfaceOrientationTask(WheelTask):
         self.proc = multiprocessing.Process(target=self.surface_turner.start)
         self.proc.start()
 
+        # Set up timer to report out the surface movements
+        self.timer_report_surface = hardware.RepeatedTimer(
+            0.1,
+            self.report_surface,
+            )
+
     def stop_session(self):
         """Stop the session.
         
@@ -1344,16 +1343,22 @@ class SurfaceOrientationTask(WheelTask):
         self.surface_turner.stop_event.set()
         time.sleep(1)
         
+        # End timers
+        # If any timers aren't ended, there won't be a warning or anything,
+        # the terminal window just won't close
+        self.timer_report_surface.stop()
+        
         # Join on the surface_turners
-        print('joining')
+        self.logger.debug('joining surface turner')
         self.proc.join(timeout=1)
-        print('joined')
         
         # If it didn't finish (most likely because data is left in the queues
         # for some reason) then kill it
         if self.proc.is_alive():
-            print('warning: could not join surface_turner process; killing')
+            self.logger.debug('warning: could not join surface_turner process; killing')
             self.proc.terminate()        
+        
+        self.logger.debug('done with ending surface_turner process')
         
         # super
         super().stop_session()
@@ -1374,46 +1379,26 @@ class SurfaceOrientationTask(WheelTask):
         # Restart callbacks
         self.wheel_listener.report_callback = self.report_wheel
     
-    def move_surface(self):
-        # Compute difference between current and desired position
-        diff = self.clipped_position - self.current_surface_position
-        
-        # Decide which direction to move
-        if diff > 0:
-            self.pig.write(self.stepper_dir_pin, 0)
-            n_steps = diff
-
-        elif diff < 0:
-            self.pig.write(self.stepper_dir_pin, 1)
-            n_steps = -diff
-        
-        else:
-            return 
-
-        gain = 1
-
-        # Move by max n_steps
-        if n_steps > int(300 / gain):
-            n_steps = int(300 / gain)
-        
-        # Apply the gain
-        n_steps_gained = int(n_steps * gain)
-
-        # Move - this takes about 0.3 ms / step, so about 300 in 100 ms
-        self.logger.debug(f'{datetime.datetime.now()}: moving {n_steps_gained} {"CW" if diff > 0 else "CCW"}')
-        
-        for n in range(n_steps_gained):
-            self.pig.write(self.stepper_step_pin, 1)
-            time.sleep(1e-6)
-            self.pig.write(self.stepper_step_pin, 0)
-            time.sleep(1e-6)        
-        
-        # Update
-        if diff > 0:
-            self.current_surface_position += n_steps
-        
-        else:
-            self.current_surface_position -= n_steps
+    def report_surface(self):
+        """Called by a RepeatedTimer to report surface movements"""
+        # Iterate over output queue
+        while True:
+            # Get data if there is any
+            try:
+                dt_move, steps_moved, surface_pos = (
+                    self.surface_turner.output_q.get_nowait())
+            except multiprocessing.queues.Empty:
+                break
+            
+            # Report
+            #~ self.logger.debug(f'{dt_move}: moving {steps_moved}')
+            self.network_communicator.poke_socket.send_string(
+                f'surface;'
+                f'trial_number={self.trial_number}=int;'
+                f'surface_time={dt_move.isoformat()}=str;'
+                f'steps_moved={steps_moved}=int;'
+                f'surface_pos={surface_pos}=int'
+                )            
     
     def report_wheel(self, force_report=False):
         """Called by self.wheel_listener every time the wheel moves
@@ -1517,6 +1502,7 @@ class SurfaceTurner(object):
     * Start a process in the main process with target `self.start`
         `self.start` will call `self.update` over and over,
         until `self.stop_event` is set.
+        Movements are logged into `self.output_q`.
     * Set `self.target` as needed.
     * When done, set `self.stop_event`, and then join the process.
     """
@@ -1554,13 +1540,8 @@ class SurfaceTurner(object):
         # This is the flag used for stopping
         self.stop_event = multiprocessing.Event()
         
-        
-        ## Our own logger
-        self.logger = NonRepetitiveLogger("test")
-        sh = logging.StreamHandler()
-        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
-        self.logger.addHandler(sh)
-        self.logger.setLevel(logging.DEBUG)
+        # Use this to store output about movements thus far
+        self.output_q = multiprocessing.Queue()
         
     def start(self):
         """Call this method from a process to start control of the stepper.
@@ -1605,10 +1586,11 @@ class SurfaceTurner(object):
         
         # Apply the gain
         n_steps_gained = int(n_steps * self.gain)
-
-        # Log
-        self.logger.debug(f'{datetime.datetime.now()}: moving {n_steps_gained} {"CW" if diff > 0 else "CCW"}')
         
+        # Return if no movement needed
+        if n_steps_gained == 0:
+            return
+
         # Move - this takes about 0.3 ms / step, so about 300 in 100 ms
         for n in range(n_steps_gained):
             self.pig.write(self.stepper_step_pin, 1)
@@ -1619,6 +1601,12 @@ class SurfaceTurner(object):
         # Update
         if diff > 0:
             self.state += n_steps
+            log_steps_moved = n_steps_gained
         
         else:
             self.state -= n_steps
+            log_steps_moved = -n_steps_gained
+
+        # Store in queue
+        self.output_q.put_nowait(
+            (datetime.datetime.now(), log_steps_moved, self.state))
