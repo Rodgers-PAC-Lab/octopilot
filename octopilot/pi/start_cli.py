@@ -48,6 +48,10 @@ try:
     except KeyError:
         raise ValueError(f"unrecognized agent_name: {params['agent_name']}")
     
+    # log
+    print(f"starting an agent named {params['agent_name']}: {agent_obj}")
+    print(f"using params: {params}")
+    
     # Instantiate
     hc = agent_obj(params=params, start_networking=True)
     
