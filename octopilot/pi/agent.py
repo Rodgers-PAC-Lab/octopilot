@@ -26,10 +26,7 @@ from . import hardware
 from . import sound
 from ..shared.networking import PiNetworkCommunicator
 from ..shared.logtools import NonRepetitiveLogger
-
 import RPi.GPIO as GPIO
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(26, GPIO.OUT)
 
 class Agent(object):
     """Parent object that runs behavioral sessions on the Pi.
@@ -1285,6 +1282,10 @@ class SurfaceOrientationTask(WheelTask):
         # The default is INPUT, so only outputs have to be set
         self.pig.set_mode(self.stepper_step_pin, pigpio.OUTPUT)        
         self.pig.set_mode(self.stepper_dir_pin, pigpio.OUTPUT)        
+        
+        # Also set with GPIO, since use that one for stepping
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self.stepper_step_pin, GPIO.OUT)
 
 
         ## Wheel and reward size parameters
@@ -1525,7 +1526,7 @@ class SurfaceTurner(object):
         self.stepper_dir_pin = 16
         
         # How many steps to turn per unit of `target`
-        self.gain = 5
+        self.gain = 2
         
         # Max number of steps to turn per update call
         # Larger numbers incur less overhead but decrease update frequency
