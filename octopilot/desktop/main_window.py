@@ -579,3 +579,11 @@ class SurfaceOrientationSessionWindow(WheelSessionWindow):
     Currently all WheelSessionWindow have the same functionality.
     """
     pass
+
+class WheelHabituationSessionWindow(WheelSessionWindow):
+    """Main Window for the wheel-based habituation task
+
+    Currently all WheelSessionWindow have the same functionality.
+    """
+    pass
+    

@@ -4,6 +4,19 @@ load_box_params : Load parameters for a box
 load_mouse_params : Load parameters for a mouse
 load_task_params : Load parameters for a task
 load_pi_params : Load parameters for a pi
+
+For a new task:
+- Create task_name.json in config/task
+    - This should specify main_window_name, which should correspond to an
+      MainWindow object defined in desktop/main_window.py
+    - In turn, that MainWindow object should instantiate an appropriate
+      object from desktop/controllers
+- Within box_name.json, specify an 'agent_name', corresponding to an
+  object defined in pi/agents
+    - This is the step that we need to remove, because we need to be able
+      to switch between tasks in the same box without editing config files.
+- Within mouse_name.json, specify box_name and task_name corresponding
+  to the above box and task config files.
 """
 
 import socket
