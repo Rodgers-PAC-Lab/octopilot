@@ -1493,7 +1493,7 @@ class SurfaceOrientationTask(WheelTask):
             # Reward but do not end trial
             self.reward(reward_size, report=False)
 
-class WheelHabituationTask(Wheel_Task):
+class WheelHabituationTask(WheelTask):
     """Agent that runs the wheel-based habituation task"""
     def __init__(self, *args, **kwargs):
         
