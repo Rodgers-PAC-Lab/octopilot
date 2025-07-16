@@ -407,6 +407,8 @@ class WheelSessionWindow(SessionWindow):
     """Main window of the GUI that arranges all the widgets.
 
     """
+    dispatcher_class = controllers.WheelDispatcher
+    
     def __init__(self, box_params, task_params, mouse_params, sandbox_path, 
         timer_dispatcher_period_ms=50):
         """Initialize a new WheelSessionWindow
@@ -417,7 +419,9 @@ class WheelSessionWindow(SessionWindow):
 
 
         ## Create the Dispatcher that will run the task
-        self.dispatcher = controllers.WheelDispatcher(
+        # This uses the class variable `dispatcher_class` to select the
+        # task-appropriate dispatcher
+        self.dispatcher = self.dispatcher_class(
             box_params=box_params, 
             task_params=task_params, 
             mouse_params=mouse_params, 
@@ -569,21 +573,21 @@ class WheelSessionWindow(SessionWindow):
 class SoundCenteringSessionWindow(WheelSessionWindow):
     """Main Window for the wheel-based sound centering task. 
 
-    Currently all WheelSessionWindow have the same functionality.
     """
-    pass
+    # This class variable determines what Dispatcher class is instantiated
+    dispatcher_class = controllers.SoundCenteringDispatcher
 
 class SurfaceOrientationSessionWindow(WheelSessionWindow):
     """Main Window for the surface orientation task. 
 
-    Currently all WheelSessionWindow have the same functionality.
     """
-    pass
+    # This class variable determines what Dispatcher class is instantiated
+    dispatcher_class = controllers.SurfaceOrientationDispatcher
 
 class WheelHabituationSessionWindow(WheelSessionWindow):
     """Main Window for the wheel-based habituation task
 
-    Currently all WheelSessionWindow have the same functionality.
     """
-    pass
+    # This class variable determines what Dispatcher class is instantiated
+    dispatcher_class = controllers.WheelHabituationDispatcher
     

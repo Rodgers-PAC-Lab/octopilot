@@ -961,7 +961,9 @@ class WheelDispatcher(Dispatcher):
             ip_addresses=self.pi_ip_addresses,
             sandbox_path=self.sandbox_path,
             )
-        self.marshaller.start()
+        
+        # self.task_name is a class variable
+        self.marshaller.start(task_name=self.task_name)
 
     def init_history(self):
         """Set all history variables to defaults
@@ -1099,11 +1101,20 @@ class SoundCenteringDispatcher(WheelDispatcher):
 
     Currently all WheelDispatcher have the same functionality.
     """
-    pass
+    # Class variable indicating the task json, which will be sent to 
+    # the Pi via the marshaller
+    task_name = 'SCT'
 
 class SurfaceOrientationDispatcher(WheelDispatcher):
     """Dispatcher for the wheel-based surface orientation task. 
 
     Currently all WheelDispatcher have the same functionality.
     """
-    pass
+    # Class variable indicating the task json, which will be sent to 
+    # the Pi via the marshaller
+    task_name = 'SOT'
+
+class WheelHabituationDispatcher(WheelDispatcher):
+    # Class variable indicating the task json, which will be sent to 
+    # the Pi via the marshaller
+    task_name = 'wheel_habituate'

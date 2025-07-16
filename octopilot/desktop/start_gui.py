@@ -2,6 +2,12 @@
 # Typically this script is launched by start_launcher.py 
 # But you can also invoke manually like this:
 #   python3 -m octopilot.desktop.start_gui BOXNAME TASKNAME MOUSENAME
+#
+# The user chooses the box, task, and mouse from the GUI.
+# The `main` function here instantiates the appropriate MainWindow object
+# for that task (as specified in task_name.json). That MainWindow object
+# knows what kind of Dispatcher to instantiate, and what task name to tell
+# the Pi to run. 
 
 
 ## Module imports

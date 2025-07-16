@@ -41,7 +41,7 @@ class PiMarshaller(object):
         self.shell_script = shell_script
         self.sandbox_path = sandbox_path
     
-    def start(self):
+    def start(self, task_name):
         """Open an ssh connection each Agent in self.agent_names
         
         TODO: provide a handle that is called whenever the ssh proc closes,
@@ -107,7 +107,7 @@ class PiMarshaller(object):
             # text, universal_newlines ensures we get text back
             proc = subprocess.Popen(
                 ['ssh', '-tt', '-o', 'ConnectTimeout=2', f'pi@{ip_address}', 
-                'bash', '-i', self.shell_script], 
+                'bash', '-i', self.shell_script, task_name], 
                 stdin=subprocess.PIPE, 
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
