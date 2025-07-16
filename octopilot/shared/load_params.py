@@ -10,11 +10,8 @@ For a new task:
     - This should specify main_window_name, which should correspond to an
       MainWindow object defined in desktop/main_window.py
     - In turn, that MainWindow object should instantiate an appropriate
-      object from desktop/controllers
-- Within box_name.json, specify an 'agent_name', corresponding to an
-  object defined in pi/agents
-    - This is the step that we need to remove, because we need to be able
-      to switch between tasks in the same box without editing config files.
+      Dispatcher object from desktop/controllers. That Dispatcher object
+      in turn will use its Marshaller to tell the Pi which task to start.
 - Within mouse_name.json, specify box_name and task_name corresponding
   to the above box and task config files.
 """

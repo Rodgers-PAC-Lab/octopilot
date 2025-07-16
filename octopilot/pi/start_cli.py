@@ -1,9 +1,38 @@
 ## Main script that runs on each Pi to run behavior
+# The flow is:
+# - PiMarshaller on the desktop starts an SSH process
+# - start_cli.sh in this directory is started in that SSH process
+# - start_cli.sh activates the conda environment and then runs this script
 
 import os
+import argparse
 from . import daemons
 from ..shared import load_params
 from . import agent
+
+
+## TODO: use argparse to get the `agent_name` here, so it doesn't have to 
+## come from a config file
+parser = argparse.ArgumentParser(
+    description="""
+    Start octopilot on the Pi. 
+    Generally this is called by an SSH process, not directly by the user.
+    """)
+
+# Add each argument
+parser.add_argument(
+    'task', 
+    nargs='?',
+    type=str, 
+    help=(
+        """The name of the task to run. 
+        There must be a matching json in configs/task/*.json
+        """
+        ),
+    )
+
+# Parse the args
+args = parser.parse_args()
 
 
 ## Loading parameters of this Pi
@@ -19,11 +48,11 @@ params['zmq_port'] = box_params['zmq_port']
 params['bonsai_ip'] = box_params['bonsai_ip']
 params['bonsai_port'] = box_params['bonsai_port']
 
-# Get the agent name, which right now is fixed per box (because we have to
-# start the agent before we can talk to the Dispatcher)
-# TODO: need some way to allow multiple agent_name per box, eg to allow
-# different tasks per box
-params['agent_name'] = box_params['agent_name']
+# Load the json for the task specified on the command line
+task_params = load_params.load_task_params(args.task)
+
+# Get the agent name from the task params
+params['agent_name'] = task_params['agent_name']
 
 
 ## Handle daemons
@@ -41,7 +70,6 @@ jackd_proc = daemons.start_jackd(verbose=True)
 # after printing "jackd successfully killed"
 try:
     # Choose the proper agent based on the task
-    
     # Use 'agent_name' to get the correct object from the agent module
     try:
         agent_obj = agent.__dict__[params['agent_name']]
