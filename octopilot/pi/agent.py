@@ -1098,7 +1098,7 @@ class SoundCenteringTask(WheelTask):
         self.sound_player.continuous_balancing = True
         
         # This is the size of a regular reward
-        self.max_reward = .05
+        self.max_reward = .03
 
         # As time_since_last_reward increases, reward gets exponentially smaller
         # When time_since_last_reward == reward_decay, the reward size
