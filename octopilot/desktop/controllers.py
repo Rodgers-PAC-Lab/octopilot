@@ -760,7 +760,7 @@ class SoundSeekingDispatcher(Dispatcher):
             The time that the reward was delivered on this trial
         
         """
-        # This ordering must patch _log_trial_header_row
+        # This ordering must match _log_trial_header_row
         
         # First pop trial_number
         trial_number = self.trial_parameters.pop('trial_number')
@@ -922,14 +922,13 @@ class WheelDispatcher(Dispatcher):
             #~ ))
         
         
-        #~ ## Write out header rows of log files
-        #~ self._log_trial_header_row()
-        #~ self._log_poke_header_row()
-        #~ self._log_sound_header_row()
-        #~ self._log_volume_header_row()
+        ## Write out header rows of log files
+        self._log_trial_header_row()
+        self._log_sound_header_row()
         
-        #~ # This one writes its own header row
-        #~ self._log_sound_plan_header_row_written = False
+        # This one writes its own header row
+        self._log_wheel_header_row_written = False
+        self._log_sound_plan_header_row_written = False
         
 
         ## Initialize network communicator and tell it what pis to expect
@@ -948,7 +947,7 @@ class WheelDispatcher(Dispatcher):
             'sound': self.handle_sound,
             'wheel': self.handle_wheel,
             'surface': self.handle_surface,
-            #~ 'sound_plan': self.handle_sound_plan,
+            'sound_plan': self.handle_sound_plan,
             'goodbye': self.handle_goodbye,
             'alive': self.recv_alive,
             #~ 'volume_change': self.handle_volume
@@ -1059,7 +1058,9 @@ class WheelDispatcher(Dispatcher):
             datetime.datetime.fromisoformat(wheel_time))
         self.history_of_wheel_trial.append(trial_number)
         
-        # TODO: log to disk
+        # Log to disk
+        self._log_wheel(
+            trial_number, wheel_position, wheel_time, clipped_position)
 
     def handle_surface(self,
         identity, trial_number, surface_time, steps_moved, surface_pos,
@@ -1078,6 +1079,8 @@ class WheelDispatcher(Dispatcher):
         self._log_flash(trial_number, identity, flash_time)
     
     def handle_reward(self, identity, trial_number, reward_time):
+        # Log the trial
+        self._log_trial(reward_time)
         
         # Start the ITI or the next trial, depending
         self.start_iti_or_start_trial()
@@ -1093,8 +1096,153 @@ class WheelDispatcher(Dispatcher):
             trial_number, identity, data_left, data_right, 
             data_hash, last_frame_time, frames_since_cycle_start, dt)
 
-    def _log_trial(self, *args, **kwargs):
-        pass
+    def handle_sound_plan(self, trial_number, identity, sound_plan):
+        """Called whenever a 'sound_plan' message is received
+        
+        All of these parameters are logged by self._log_sound_plan
+        """
+        # Log the sound
+        df = pandas.read_table(io.StringIO(sound_plan), sep=',')
+        
+        # Return if empty
+        if len(df) == 0:
+            return
+        
+        # Log - this is quite verbose
+        #~ self.logger.info(f"received sound plan:\n{df}")
+        
+        # Add trial number and identity
+        df['trial_number'] = trial_number
+        df['identity'] = identity
+        
+        # Log
+        self._log_sound_plan(df)
+
+    def _log_trial_header_row(self):
+        """Write the header row of trials.csv
+        
+        This is called once, at the beginning of the session, after
+        self.trial_parameter_chooser is set but before any trials have run.
+        
+        The parameters will be taken from self.trial_parameter_chooser, and 
+        then 'trial_number', start_time', 'goal_port', and 'reward_time' are
+        added. The ordering matches that in self._log_trial
+        """
+        # The trial_parameters returned by this object are the keys of this
+        # dict, plus also 'trial_number'
+        #~ param_names = list(
+            #~ self.trial_parameter_chooser.param2possible_values.keys())
+        param_names = []
+        
+        # Order as follows: sort the param_names, prepend and postpend a few
+        # that are not contained within param_names
+        param_names = (
+            ['trial_number', 'start_time', 'goal_port', 'trigger'] + 
+            sorted(param_names) + 
+            ['reward_time']
+            )
+        
+        # Write these as the column names
+        with open(os.path.join(self.sandbox_path, 'trials.csv'), 'a') as fi:
+            fi.write(','.join(param_names) + '\n')        
+    
+    def _log_trial(self, reward_time):
+        """Log the results of a trial
+        
+        This writes out all of the values in self.trial_parameters, and then
+        adds `reward_time` at the end. The values will be comma-separated
+        and written to trials.csv in the sandbox path.
+        
+        Arguments
+        ---------
+        reward_time : datetime
+            The time that the reward was delivered on this trial
+        
+        """
+        # This ordering must patch _log_trial_header_row
+        
+        # First pop trial_number
+        trial_number = self.trial_parameters.pop('trial_number')
+        #~ trigger_trial = self.trial_parameters.pop('trigger_trial')
+        trigger_trial = False
+        
+        # Begin with these hardcoded ones
+        str_to_log = (
+            f'{trial_number},{self.trial_start_time},'
+            f'{self.goal_port},{trigger_trial},'
+            )
+        
+        # Add trial_parameters in alphabetical order
+        for key in sorted(self.trial_parameters.keys()):
+            str_to_log += str(self.trial_parameters[key]) + ','
+        
+        # Add trial_number back to trial_parameters, in case anything depends
+        # on it
+        self.trial_parameters['trial_number'] = trial_number
+        self.trial_parameters['trigger_trial'] = trigger_trial
+        
+        # End with reward_time
+        str_to_log += str(reward_time)
+        
+        with open(os.path.join(self.sandbox_path, 'trials.csv'), 'a') as fi:
+            fi.write(str_to_log + '\n')
+
+    def _log_sound_header_row(self):
+        """Write out the header row of pokes.csv
+        
+        Currently this is hard-coded as poke_time, trial_number, rpi,
+        poked_port, and rewarded
+        
+        """
+        with open(os.path.join(self.sandbox_path, 'sounds.csv'), 'a') as fi:
+            fi.write(
+                'sound_time,trial_number,rpi,data_left,data_right,'
+                'data_hash,last_frame_time,frames_since_cycle_start\n')
+    
+    def _log_sound(self, trial_number, identity, data_left, data_right,
+        data_hash, last_frame_time, frames_since_cycle_start, dt):
+        """Record that a sound was played"""
+        with open(os.path.join(self.sandbox_path, 'sounds.csv'), 'a') as fi:
+            fi.write(
+                f'{dt},{trial_number},{identity},{data_left},'
+                f'{data_right},{data_hash},{last_frame_time},'
+                f'{frames_since_cycle_start}\n')
+
+    def _log_sound_plan(self, sound_plan):
+        """Record the sound plan"""
+        # This function writes its own header the first time
+        if not self._log_sound_plan_header_row_written:
+            # Convert to csv with header
+            txt = sound_plan.to_csv(index=False)
+            
+            # Flag
+            self._log_sound_plan_header_row_written = True
+        else:
+            # Convert to csv without header
+            txt = sound_plan.to_csv(index=False, header=False)
+        
+        # Write out
+        with open(os.path.join(self.sandbox_path, 'sound_plans.csv'), 'a') as fi:
+            fi.write(txt)
+
+    def _log_wheel(self, trial_number, wheel_position, wheel_time,  
+        clipped_position):
+        """Record that the wheel was turned"""
+        # This function writes its own header the first time
+        if not self._log_wheel_header_row_written:
+            # Write a header row
+            with open(os.path.join(self.sandbox_path, 'wheel.csv'), 'a') as fi:
+                fi.write(
+                    'trial_number,wheel_position,wheel_time,clipped_position\n')
+
+            # Flag
+            self._log_wheel_header_row_written = True
+        
+        with open(os.path.join(self.sandbox_path, 'wheel.csv'), 'a') as fi:
+            fi.write(
+                f'{trial_number},{wheel_position},{wheel_time},'
+                f'{clipped_position}\n')        
+
 
 class SoundCenteringDispatcher(WheelDispatcher):
     """Dispatcher for the wheel-based sound centering task. 
