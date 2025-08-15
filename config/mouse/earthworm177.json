@@ -1,5 +1,5 @@
 {
-    "reward_value": 0.5,
-    "box": "box4",
-    "task": "SSS_variable"
+    "display": true,
+    "box": "room_d_plankton2",
+    "task": "SCT"
 }
