@@ -1213,9 +1213,14 @@ class SoundCenteringTask(WheelTask):
             # Within target range
             # Reward and end trial
             self.reward(self.max_reward)
+            
+            print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
 
         elif self.reward_for_spinning and np.abs(wheel_position - 
                 self.last_rewarded_position) > self.wheel_reward_thresh:
+            
+            
+            print('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
             
             # Shaping stage: reward if it's moved far enough
             # Set last rewarded position to current position
