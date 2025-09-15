@@ -1317,7 +1317,6 @@ class SurfaceOrientationTask(WheelTask):
         # through it before it checks, which is probably pretty hard to do
         # 100 clicks is about 6 deg
         self.reward_range = 100
-reward
         
         ## These are initialized later
         self.last_rewarded_position = None
