@@ -1098,7 +1098,7 @@ class SoundCenteringTask(WheelTask):
         self.sound_player.continuous_balancing = True
         
         # This is the size of a regular reward
-        self.max_reward = .06
+        self.max_reward = .04
 
         # As time_since_last_reward increases, reward gets exponentially smaller
         # When time_since_last_reward == reward_decay, the reward size
@@ -1112,8 +1112,8 @@ class SoundCenteringTask(WheelTask):
         # This defines the range in which turning the wheel changes the sound
         # Every trial starts at either max or min
         # 1000 clicks is about 60 deg
-        self.wheel_max = 1000
-        self.wheel_min = -1000
+        self.wheel_max = 500
+        self.wheel_min = -500
         
         # This is how close the mouse has to get to the  zone
         # This can be small, just not so small that the mouse spins right 
