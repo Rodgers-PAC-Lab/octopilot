@@ -1044,7 +1044,8 @@ class WheelTask(Agent):
         
         ## Update other trial parameters
         # Starting position - TODO get from Dispatcher
-        if np.mod(self.trial_number, 2) == 0: #np.random.random() < 0.5:
+        #if np.mod(self.trial_number, 2) == 0:
+        if np.random.random() < 0.5:
             self.clipped_position = self.wheel_min
         else:
             self.clipped_position = self.wheel_max
