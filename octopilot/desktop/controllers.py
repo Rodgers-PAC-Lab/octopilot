@@ -892,27 +892,6 @@ class WheelDispatcher(Dispatcher):
 
         # Initialize trial history (requires self.ports)
         self.init_history()
-
-        
-        #~ ## Parse task_params
-        #~ # Pop out the trial duration, if present
-        #~ # Pop because TrialParameterChooser can't parse this one
-        #~ if 'trial_duration' in task_params:
-            #~ self.trial_duration = task_params.pop('trial_duration')
-        #~ else:
-            #~ self.trial_duration = None
-        
-        #~ # Same with ITI
-        #~ if 'inter_trial_interval' in task_params:
-            #~ self.inter_trial_interval = task_params.pop('inter_trial_interval')
-        #~ else:
-            #~ # Set default
-            #~ # It's best if this is long enough that the Pis can be informed
-            #~ # and there's no leftover sounds from the previous trial
-            #~ self.inter_trial_interval = 0.5
-        
-        #~ # Add a little jitter to the inter-trial interval
-        #~ self.inter_trial_interval_stdev = 0.05
         
         #~ # Use task_params to set TrialParameterChooser
         #~ self.trial_parameter_chooser = (

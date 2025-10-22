@@ -1,6 +1,7 @@
 {
     "main_window_name": "SoundCenteringSessionWindow",
     "agent_name": "SoundCenteringTask",
+    "inter_trial_interval": 10,
     "play_targets": true,
     "target_log_amplitude": -1,
     "target_rate": 4,
