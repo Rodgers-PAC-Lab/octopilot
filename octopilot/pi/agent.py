@@ -1085,6 +1085,22 @@ class WheelTask(Agent):
         # Mark as shutdown for next mainloop
         self.shutdown = True
     
+    def stop_sounds(self):
+        """Silence the sounds
+        
+        This is triggered by the ZMQ command 'silence', which is issued
+        by the Dispatcher during the ITI. 
+        
+        It is also called by self.stop_session.
+        """
+        # Silence sound generation
+        self.sound_generator.set_audio_parameters(
+            left_params={},
+            right_params={},
+            )
+        
+        # Empty the queue of sound
+        self.sound_queuer.empty_queue()       
 
 class SoundCenteringTask(WheelTask):
     """Agent that runs the wheel-based sound centering task"""
