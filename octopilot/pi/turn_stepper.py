@@ -1,5 +1,5 @@
 # First run this:
-#   source ~/.venv/py3/bin/activate
+#   source ~/.venv/octopilot/bin/activate
 #
 # Then run this script in ipython
 
