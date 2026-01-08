@@ -1253,6 +1253,58 @@ class SoundCenteringTask(WheelTask):
             # Reward but do not end trial
             self.reward(reward_size, report=False)
 
+    def report_sound(self, data, last_frame_time, frames_since_cycle_start, dt):
+        """Called by SoundPlayer when audio is played. Reports to Dispatcher.
+        
+        Arguments
+        ---
+        data : 2d array
+            The actual sound that is played
+        last_frame_time, frames_since_cycle_start : int
+            Timing data from jack.client
+        dt: str
+            Isoformat string when the sound was played
+        """
+        # This is only an approximate hash because it excludes the
+        # middle of the data
+        data_hash = hash(str(data))
+        
+        # Determine which channel is playing sound
+        data_left = data[:, 0].std()
+        data_right = data[:, 1].std()
+        
+        # Report to Dispatcher
+        self.network_communicator.poke_socket.send_string(
+            f'sound;'
+            f'trial_number={self.trial_number}=int;'
+            f'data_left={data_left}=float;'
+            f'data_right={data_right}=float;'
+            f'last_frame_time={last_frame_time}=int;'
+            f'frames_since_cycle_start={frames_since_cycle_start}=int;'
+            f'data_hash={data_hash}=int;'
+            f'dt={dt}=str'
+            )  
+
+    def report_sound_plan(self, sound_plan):
+        """Called by SoundGenerator when new plan made. Reports to Dispatcher.
+        
+        sound_plan : DataFrame
+            Plan for sound to play
+        """
+        # The first time this is called, the network_communicator hasn't
+        # been instantiated yet
+        try:
+            self.network_communicator
+        except AttributeError:
+            return
+        
+        # Report to Dispatcher
+        self.network_communicator.poke_socket.send_string(
+            f'sound_plan;'
+            f'trial_number={self.trial_number}=int;'
+            f'sound_plan={sound_plan.to_csv(index=None)}=str'
+            )  
+
     def set_trial_parameters(self, **msg_params):
         
         ## Call parent
