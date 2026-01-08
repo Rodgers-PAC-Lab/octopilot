@@ -1240,6 +1240,15 @@ class SurfaceOrientationDispatcher(WheelDispatcher):
     # Class variable indicating the task json, which will be sent to 
     # the Pi via the marshaller
     task_name = 'SOT'
+    
+class PoleDetectionDispatcher(WheelDispatcher):
+    """Dispatcher for the wheel-based surface orientation task. 
+
+    Currently all WheelDispatcher have the same functionality.
+    """
+    # Class variable indicating the task json, which will be sent to 
+    # the Pi via the marshaller
+    task_name = 'PDT'
 
 class WheelHabituationDispatcher(WheelDispatcher):
     # Class variable indicating the task json, which will be sent to 
