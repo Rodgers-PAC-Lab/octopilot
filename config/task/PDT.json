@@ -1,4 +1,4 @@
 {
-    "main_window_name": "SurfaceOrientationSessionWindow",
+    "main_window_name": "PoleDetectionSessionWindow",
     "agent_name": "PoleDetectionTask"
 }
