@@ -1193,7 +1193,7 @@ class SoundCenteringTask(WheelTask):
         elif position_within_range > 1:
             position_within_range = 1
         
-        def convert_position_to_weight(position, max_db=40):
+        def convert_position_to_weight(position, max_db=50):
             # Map this onto (R-L) in dB [-10, 10]
             # Add a minus sign here to make the mouse turn away from the sound
             db_diff = -(position - 0.5) * 2 * max_db
