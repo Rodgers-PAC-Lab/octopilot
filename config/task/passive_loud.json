@@ -1,5 +1,6 @@
 {
     "main_window_name": "OctopilotSessionWindow",
+    "agent_name": "SoundSeekingAgent",
     "reward_radius": -1,
     "trial_duration": 3,
     "play_targets": true,
