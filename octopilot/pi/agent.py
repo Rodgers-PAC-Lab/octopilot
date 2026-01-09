@@ -1331,9 +1331,6 @@ class SoundCenteringTask(WheelTask):
             f'LEFT={left_params}. RIGHT={right_params}')
         self.sound_generator.set_audio_parameters(left_params, right_params)
         
-        # Set lr weight back to center
-        self.sound_player.lr_weight = 0.5
-        
         # Saving these params to be modified by other methods
         self.prev_trial_params = msg_params
         
