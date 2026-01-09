@@ -1317,7 +1317,7 @@ class SoundCenteringTask(WheelTask):
             'rate': 4, #msg_params['left_target_rate'],
             'temporal_log_std': -1, #msg_params['target_temporal_log_std'],
             'center_freq': 25000, #msg_params['target_center_freq'],
-            'log_amplitude': -1, #msg_params['target_log_amplitude'],
+            'log_amplitude': -2, #msg_params['target_log_amplitude'],
             'bandwidth': 40000, #msg_params['target_bandwidth'],
             }
 
