@@ -4,8 +4,8 @@
     "ypos_of_gui": 0,
     "connected_pis" : [
         {
-        "name": "rpi27",
-        "ip": "192.168.0.102",
+        "name": "rpiwheel",
+        "ip": "192.168.0.200",
         "left_port_position": 90,
         "right_port_position": 270
         }
