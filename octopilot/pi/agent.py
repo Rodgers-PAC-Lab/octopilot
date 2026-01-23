@@ -1564,203 +1564,250 @@ class SurfaceOrientationTask(WheelTask):
             self.reward(reward_size, report=False)
             
 
-# ORIGINAL VERSION
+# NEW VERSION 2
 
 class PoleDetectionTask(WheelTask):
-    """Agent that runs the wheel-based pole-detection task (modified from SOT)"""
-    def __init__(self, *args, **kwargs):
+    """Agent that runs the wheel-based pole detection task"""
 
-        ## Call parent __init___
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # Pole trial timing
+        self.response_window_s = 5.0
 
-        ## Set up control over stepper
+        # Pole angles
+        self.pole_deg_iti = 90
+        self.pole_deg_stim_A = 0
+        self.pole_deg_stim_B = 180
+
+        # Stepper calibration
+        self.steps_per_rev = 200        # typical 1.8° stepper
+        self.microsteps = 1             # set to 8/16/etc if driver uses microstepping
+        self.steps_per_degree = (self.steps_per_rev * self.microsteps) / 360.0
+
+        # Choice parameters
+        self.choice_thresh = 200        # wheel clicks threshold for left/right choice
+        self.trial_type = None          # "A" or "B"
+        self.trial_state = "IDLE"       # IDLE / STIM / RESPONSE / ITI
+        self.choice_made = False
+        self.choice_direction = None    # "left" / "right"
+
+        # Timer handle for response timeout
+        self._t_response = None
+
+        # Stepper pins
         self.stepper_step_pin = 26
         self.stepper_dir_pin = 16
-
-        # The default is INPUT, so only outputs have to be set
         self.pig.set_mode(self.stepper_step_pin, pigpio.OUTPUT)
         self.pig.set_mode(self.stepper_dir_pin, pigpio.OUTPUT)
 
-        # Also set with GPIO, since use that one for stepping
+        # GPIO setup
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.stepper_step_pin, GPIO.OUT)
+        GPIO.setup(self.stepper_dir_pin, GPIO.OUT)
 
-
-        ## Wheel and reward size parameters
-        # This is the size of a regular reward
-        self.max_reward = .05
-
-        # As time_since_last_reward increases, reward gets exponentially smaller
-        # When time_since_last_reward == reward_decay, the reward size
-        # is 63.7% of full.
-        # As reward_decay increases, mouse has to wait longer
-        # 300 clicks is about 20 deg (easy)
-        self.reward_for_spinning = False
-        self.reward_decay = 0.5
-        self.wheel_reward_thresh = 300
-
-        # This defines the range in which turning the wheel changes the sound
-        # Every trial starts at either max or min
-        # 1000 clicks is about 60 deg
+        # Wheel bounds
         self.wheel_max = 1000
         self.wheel_min = -1000
 
-        # This is how close the mouse has to get to the reward zone
-        # This can be small, just not so small that the mouse spins right
-        # through it before it checks, which is probably pretty hard to do
-        # 100 clicks is about 6 deg
-        self.reward_range = 100
+        # Reward size
+        self.max_reward = 0.05
 
-        ## These are initialized later
-        self.last_rewarded_position = None
-        self.last_reported_time = None
-        self.last_reward_time = None
-        self.clipped_position = 0
+        # Internal wheel state
         self.last_raw_position = 0
+        self.clipped_position = 0
         self.reward_delivered = False
-        self.current_surface_position = 0
 
+        # Create the stepper controller (runs in another process)
+        self.surface_turner = SurfaceTurner(pig=self.pig)
 
-        ## Create the serial_reader object
-        self.surface_turner = SurfaceTurner(
-            pig=self.pig,
-            )
+        # Now that surface_turner exists, derive conversion factor.
+        # SurfaceTurner target/state are in "units" where each unit corresponds to gain steps.
+        self.pole_units_per_degree = self.steps_per_degree / float(self.surface_turner.gain)
 
-        # Start acquistion in a separate Process
         self.proc = multiprocessing.Process(target=self.surface_turner.start)
         self.proc.start()
 
-        # Set up timer to report out the surface movements
-        self.timer_report_surface = hardware.RepeatedTimer(
-            0.1,
-            self.report_surface,
-            )
+        # Surface reporting timer (unchanged from your original)
+        self.timer_report_surface = hardware.RepeatedTimer(0.1, self.report_surface)
 
+    # Utility helpers (PDT-local)
+    def _cancel_timer(self, t):
+        try:
+            if t is not None:
+                t.cancel()
+        except Exception:
+            pass
+
+    def _arm_timer(self, attr_name: str, delay_s: float, fn):
+        self._cancel_timer(getattr(self, attr_name, None))
+        t = threading.Timer(delay_s, fn)
+        t.daemon = True
+        setattr(self, attr_name, t)
+        t.start()
+
+    def _deg_to_units(self, deg: float) -> int:
+        return int(round(deg * self.pole_units_per_degree))
+
+    def move_pole_deg(self, deg: float):
+        """Asynchronously move pole by setting SurfaceTurner target."""
+        self.surface_turner.target.value = self._deg_to_units(deg)
+
+        # Optional report
+        now = datetime.datetime.now()
+        self.network_communicator.poke_socket.send_string(
+            f'pole;'
+            f'trial_number={self.trial_number}=int;'
+            f'pole_time={now.isoformat()}=str;'
+            f'pole_deg={deg}=float'
+        )
+
+    # Session lifecycle
     def stop_session(self):
-        """Stop the session.
+        # Cancel timer first to avoid firing during shutdown
+        self._cancel_timer(self._t_response)
 
-        First stop moving the surface. Then call the super stop_session.
-        """
-        # Tell SurfaceTurner to stop
-        self.surface_turner.stop_event.set()
-        time.sleep(1)
+        # Park pole at ITI position
+        try:
+            self.move_pole_deg(self.pole_deg_iti)
+            time.sleep(0.1)
+        except Exception:
+            pass
 
-        # End timers
-        # If any timers aren't ended, there won't be a warning or anything,
-        # the terminal window just won't close
-        self.timer_report_surface.stop()
+        # Stop SurfaceTurner process and timers
+        try:
+            self.surface_turner.stop_event.set()
+            time.sleep(0.2)
+        except Exception:
+            pass
 
-        # Join on the surface_turners
-        self.logger.debug('joining surface turner')
-        self.proc.join(timeout=1)
+        try:
+            self.timer_report_surface.stop()
+        except Exception:
+            pass
 
-        # If it didn't finish (most likely because data is left in the queues
-        # for some reason) then kill it
-        if self.proc.is_alive():
-            self.logger.debug('warning: could not join surface_turner process; killing')
-            self.proc.terminate()
+        try:
+            self.proc.join(timeout=1)
+            if self.proc.is_alive():
+                self.proc.terminate()
+        except Exception:
+            pass
 
-        self.logger.debug('done with ending surface_turner process')
-
-        # super
+        # Parent shutdown
         super().stop_session()
 
+    # Trial entrypoint (called by Dispatcher)
     def set_trial_parameters(self, **msg_params):
-
-        ## Call parent
+        # Let WheelTask handle trial_number, flash, wheel init, reward_delivered reset, etc.
         super().set_trial_parameters(**msg_params)
 
+        # Cancel any prior response timer
+        self._cancel_timer(self._t_response)
 
-        ## Disable wheel updates until the surface has moved back
-        self.wheel_listener.report_callback = None
-        time.sleep(1)
+        # Decide trial type
+        self.trial_type = msg_params.get("trial_type", None)
+        if self.trial_type not in ("A", "B"):
+            self.trial_type = random.choice(["A", "B"])
 
-        # Reset the raw position to current
+        self.choice_made = False
+        self.choice_direction = None
+
+        # Reset clipped_position so choices don't carry across trials
+        self.clipped_position = 0
         self.last_raw_position = self.wheel_listener.position
 
-        # Restart callbacks
+        # Disable wheel callback during pole move
+        self.wheel_listener.report_callback = None
+        time.sleep(0.01)
+
+        # Move to stim position
+        stim_deg = self.pole_deg_stim_A if self.trial_type == "A" else self.pole_deg_stim_B
+        self.trial_state = "STIM"
+        self.move_pole_deg(stim_deg)
+
+        # Small settle delay
+        time.sleep(0.15)
+
+        # Open response window
+        self.trial_state = "RESPONSE"
         self.wheel_listener.report_callback = self.report_wheel
 
-        ## Move the pole to the target location
-        self.surface_turner.target.value = 10
+        # Report trial metadata
+        now = datetime.datetime.now()
+        self.network_communicator.poke_socket.send_string(
+            f'trial;'
+            f'trial_number={self.trial_number}=int;'
+            f'trial_time={now.isoformat()}=str;'
+            f'trial_type={self.trial_type}=str;'
+            f'stim_deg={stim_deg}=float'
+        )
 
+        # Arm response timeout
+        self._arm_timer("_t_response", self.response_window_s, self._on_response_timeout)
+
+    def _on_response_timeout(self):
+        if self.choice_made:
+            return
+        self._resolve_trial(outcome="no_response")
+
+    def _resolve_trial(self, outcome: str):
+        """Resolve trial: park pole, report outcome. Dispatcher handles ITI cadence."""
+        # Stop wheel callback immediately
+        self.wheel_listener.report_callback = None
+
+        # Park pole to ITI position
+        self.trial_state = "ITI"
+        self.move_pole_deg(self.pole_deg_iti)
+
+        # Report outcome
+        now = datetime.datetime.now()
+        msg = (
+            f'outcome;'
+            f'trial_number={self.trial_number}=int;'
+            f'outcome_time={now.isoformat()}=str;'
+            f'outcome={outcome}=str;'
+            f'trial_type={self.trial_type}=str'
+        )
+        if self.choice_direction is not None:
+            msg += f';choice={self.choice_direction}=str'
+        self.network_communicator.poke_socket.send_string(msg)
+
+        # Return to idle and wait for Dispatcher to send next set_trial_parameters
+        self.trial_state = "IDLE"
+
+    # Reporting
     def report_surface(self):
-        """Called by a RepeatedTimer to report surface movements"""
-        # Iterate over output queue
         while True:
-            # Get data if there is any
             try:
-                dt_move, steps_moved, surface_pos = (
-                    self.surface_turner.output_q.get_nowait())
+                dt_move, steps_moved, surface_pos = self.surface_turner.output_q.get_nowait()
             except multiprocessing.queues.Empty:
                 break
 
-            # Report
-            #~ self.logger.debug(f'{dt_move}: moving {steps_moved}')
             self.network_communicator.poke_socket.send_string(
                 f'surface;'
                 f'trial_number={self.trial_number}=int;'
                 f'surface_time={dt_move.isoformat()}=str;'
                 f'steps_moved={steps_moved}=int;'
                 f'surface_pos={surface_pos}=int'
-                )
+            )
 
     def report_wheel(self, force_report=False):
-        """Called by self.wheel_listener every time the wheel moves
-
-        Updates the internal variables about position of the wheel
-        Reports the wheel position if it has moved far enough (or if
-        force_report is True)
-        Rewards if conditions are met
-
-        self.wheel_listener.position : raw position that comes out, which
-            is updated in another thread
-        self.last_raw_position - the raw position sampled at the beginning
-            of this call
-        diff - how much the wheel position has moved since the previous
-            self.last_raw_position
-        self.clipped_position - a clipped version of self.last_raw_position
-            that cannot exceed wheel_max, wheel_min
-        """
-
-        ## Get time
         now = datetime.datetime.now()
 
-
-        ## Update wheel positions
-        # At the beginning of each trial
-        # self.last_raw_position = self.wheel_listener.position
-        # self.clipped_position = random
-
-        # Get actual wheel position
+        # Read wheel
         wheel_position = self.wheel_listener.position
 
-        # Compute movement since last_raw_position and update it
+        # Update clipped_position using delta from last_raw_position
         diff = wheel_position - self.last_raw_position
         self.last_raw_position = wheel_position
 
-        # Clip the new position
         self.clipped_position += diff
-
         if self.clipped_position > self.wheel_max:
             self.clipped_position = self.wheel_max
-
         if self.clipped_position < self.wheel_min:
             self.clipped_position = self.wheel_min
 
-        # Update position_within_range
-        # Compute the weight within the min/max range
-        position_within_range = (
-            (self.clipped_position - self.wheel_min) /
-            (self.wheel_max - self.wheel_min))
-
-
-        # Turn the surface
-        #~ with self.surface_turner.target.get_lock():
-        # self.surface_turner.target.value = self.clipped_position
-
-        ## Report to Dispatcher
+        # Report wheel periodically or when forced
         if force_report or np.mod(wheel_position, 10) == 0:
             self.network_communicator.poke_socket.send_string(
                 f'wheel;'
@@ -1768,33 +1815,34 @@ class PoleDetectionTask(WheelTask):
                 f'wheel_position={wheel_position}=int;'
                 f'clipped_position={self.clipped_position}=int;'
                 f'wheel_time={now.isoformat()}=str'
-                )
+            )
 
+        # Only accept choices during RESPONSE
+        if self.trial_state != "RESPONSE" or self.choice_made:
+            return
 
-        ## Reward conditions
-        if (np.abs(self.clipped_position) < self.reward_range) and not self.reward_delivered:
-            # Within target range
-            # Reward and end trial
+        # Determine choice
+        if self.clipped_position >= self.choice_thresh:
+            self.choice_made = True
+            self.choice_direction = "right"
+        elif self.clipped_position <= -self.choice_thresh:
+            self.choice_made = True
+            self.choice_direction = "left"
+        else:
+            return  # no choice yet
+
+        # Cancel timeout
+        self._cancel_timer(self._t_response)
+
+        # Define correct mapping
+        correct_choice = "left" if self.trial_type == "A" else "right"
+
+        if self.choice_direction == correct_choice:
+            # Reward
             self.reward(self.max_reward)
-
-            self.surface_turner.target.value = 0
-
-        elif self.reward_for_spinning and np.abs(wheel_position -
-                self.last_rewarded_position) > self.wheel_reward_thresh:
-
-            # Shaping stage: reward if it's moved far enough
-            # Set last rewarded position to current position
-            self.last_rewarded_position = wheel_position
-
-            # Update reward size using temporal discounting
-            time_since_last_reward = (
-                now - self.last_reward_time).total_seconds()
-            reward_size = self.max_reward * (
-                1 - np.exp(-time_since_last_reward / self.reward_decay))
-            self.last_reward_time = now
-
-            # Reward but do not end trial
-            self.reward(reward_size, report=False)
+            self._resolve_trial(outcome="correct")
+        else:
+            self._resolve_trial(outcome="incorrect")
             
 class WheelHabituationTask(WheelTask):
     """Agent that runs the wheel-based habituation task"""
