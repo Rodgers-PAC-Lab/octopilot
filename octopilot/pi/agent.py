@@ -1603,7 +1603,7 @@ class WheelHabituationTask(WheelTask):
         # This can be small, just not so small that the mouse spins right 
         # through it before it checks, which is probably pretty hard to do
         # 100 clicks is about 6 deg
-        self.reward_range = 100000
+        self.reward_range = 0
 
         
         ## These are initialized later
@@ -1647,8 +1647,8 @@ class WheelHabituationTask(WheelTask):
         
         ## Update wheel positions
         # At the beginning of each trial
-        self.last_raw_position = self.wheel_listener.position
-        self.clipped_position = random
+        #self.last_raw_position = self.wheel_listener.position
+        #self.clipped_position = random
         
         # Get actual wheel position
         wheel_position = self.wheel_listener.position
@@ -1657,12 +1657,7 @@ class WheelHabituationTask(WheelTask):
         diff = wheel_position - self.last_raw_position
         self.last_raw_position = wheel_position
         
-        # Clip the new position (DEBUGGING!)
-        if isinstance(self.clipped_position, types.ModuleType):
-            self.logger.error(
-                f"clipped_position is module {self.clipped_position.__name__} "
-                f"file={getattr(self.clipped_position, '__file__', None)}"
-            )
+        # Clip the new position
         self.clipped_position += diff
         
         if self.clipped_position > self.wheel_max:
