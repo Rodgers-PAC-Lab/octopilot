@@ -1603,7 +1603,7 @@ class WheelHabituationTask(WheelTask):
         # This can be small, just not so small that the mouse spins right 
         # through it before it checks, which is probably pretty hard to do
         # 100 clicks is about 6 deg
-        self.reward_range = 1000
+        self.reward_range = 
 
         
         ## These are initialized later
@@ -1647,7 +1647,7 @@ class WheelHabituationTask(WheelTask):
         
         ## Update wheel positions
         # At the beginning of each trial
-        #self.last_raw_position = self.wheel_listener.position
+        self.last_raw_position = self.wheel_listener.position
         #self.clipped_position = random
         
         # Get actual wheel position
