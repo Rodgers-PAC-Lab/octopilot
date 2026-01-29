@@ -1,4 +1,6 @@
 {
     "main_window_name": "PoleDetectionSessionWindow",
-    "agent_name": "PoleDetectionTask"
+    "agent_name": "PoleDetectionTask",
+    "trial_duration": "5.0",
+    "inter_trial_interval": "3.0"
 }
