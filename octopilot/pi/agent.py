@@ -19,6 +19,7 @@ import socket
 import time
 import random 
 import threading
+import types
 import numpy as np
 import pigpio
 import multiprocessing
@@ -1656,7 +1657,12 @@ class WheelHabituationTask(WheelTask):
         diff = wheel_position - self.last_raw_position
         self.last_raw_position = wheel_position
         
-        # Clip the new position
+        # Clip the new position (DEBUGGING!)
+        if isinstance(self.clipped_position, types.ModuleType):
+            self.logger.error(
+                f"clipped_position is module {self.clipped_position.__name__} "
+                f"file={getattr(self.clipped_position, '__file__', None)}"
+            )
         self.clipped_position += diff
         
         if self.clipped_position > self.wheel_max:
