@@ -1603,7 +1603,7 @@ class WheelHabituationTask(WheelTask):
         # This can be small, just not so small that the mouse spins right 
         # through it before it checks, which is probably pretty hard to do
         # 100 clicks is about 6 deg
-        self.reward_range = 0
+        self.reward_range = 10000
 
         
         ## These are initialized later
