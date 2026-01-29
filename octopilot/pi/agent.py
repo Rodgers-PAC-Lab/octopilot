@@ -1339,8 +1339,6 @@ class SoundCenteringTask(WheelTask):
         self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed()   
 
-# NEW VERSION 2
-
 class PoleDetectionTask(WheelTask):
     """Agent that runs the wheel-based pole detection task"""
 
