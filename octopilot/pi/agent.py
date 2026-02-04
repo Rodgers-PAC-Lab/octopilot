@@ -1346,8 +1346,9 @@ class PoleDetectionTask(WheelTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Pole trial timing
+        # Timing
         self.response_window_s = 5.0
+        self.iti_s = 3.0
 
         # Pole angles
         self.pole_deg_iti = 90
@@ -1355,19 +1356,20 @@ class PoleDetectionTask(WheelTask):
         self.pole_deg_stim_B = 180
 
         # Stepper calibration
-        self.steps_per_rev = 200        # typical 1.8° stepper
-        self.microsteps = 1             # set to 8/16/etc if driver uses microstepping
+        self.steps_per_rev = 200
+        self.microsteps = 1
         self.steps_per_degree = (self.steps_per_rev * self.microsteps) / 360.0
 
         # Choice parameters
-        self.choice_thresh = 200        # wheel clicks threshold for left/right choice
-        self.trial_type = None          # "A" or "B"
-        self.trial_state = "IDLE"       # IDLE / STIM / RESPONSE / ITI
+        self.choice_thresh = 200
+        self.trial_type = None
+        self.trial_state = "IDLE"
         self.choice_made = False
-        self.choice_direction = None    # "left" / "right"
+        self.choice_direction = None
 
-        # Timer handle for response timeout
+        # Timers
         self._t_response = None
+        self._t_iti = None
 
         # Stepper pins
         self.stepper_step_pin = 26
@@ -1375,7 +1377,8 @@ class PoleDetectionTask(WheelTask):
         self.pig.set_mode(self.stepper_step_pin, pigpio.OUTPUT)
         self.pig.set_mode(self.stepper_dir_pin, pigpio.OUTPUT)
 
-        # GPIO setup
+        # Parent-process GPIO setup
+        GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.stepper_step_pin, GPIO.OUT)
         GPIO.setup(self.stepper_dir_pin, GPIO.OUT)
@@ -1392,20 +1395,32 @@ class PoleDetectionTask(WheelTask):
         self.clipped_position = 0
         self.reward_delivered = False
 
-        # Create the stepper controller (runs in another process)
+        # Stepper controller
         self.surface_turner = SurfaceTurner(pig=self.pig)
 
-        # Now that surface_turner exists, derive conversion factor.
-        # SurfaceTurner target/state are in "units" where each unit corresponds to gain steps.
+        # Convert degrees -> SurfaceTurner "units"
         self.pole_units_per_degree = self.steps_per_degree / float(self.surface_turner.gain)
 
-        self.proc = multiprocessing.Process(target=self.surface_turner.start)
+        # Start SurfaceTurner in a child process that initializes GPIO
+        self.proc = multiprocessing.Process(target=self._surface_process_main)
+        self.proc.daemon = True
         self.proc.start()
 
-        # Surface reporting timer (unchanged from your original)
+        # Surface reporting timer
         self.timer_report_surface = hardware.RepeatedTimer(0.1, self.report_surface)
 
-    # Utility helpers (PDT-local)
+    # ---- process wrapper ----
+    def _surface_process_main(self):
+        import RPi.GPIO as GPIO
+        import time
+        GPIO.setwarnings(False)
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self.stepper_step_pin, GPIO.OUT)
+        GPIO.setup(self.stepper_dir_pin, GPIO.OUT)
+        time.sleep(0.01)
+        self.surface_turner.start()
+
+    # ---- helpers ----
     def _cancel_timer(self, t):
         try:
             if t is not None:
@@ -1415,7 +1430,7 @@ class PoleDetectionTask(WheelTask):
 
     def _arm_timer(self, attr_name: str, delay_s: float, fn):
         self._cancel_timer(getattr(self, attr_name, None))
-        t = threading.Timer(delay_s, fn)
+        t = threading.Timer(float(delay_s), fn)
         t.daemon = True
         setattr(self, attr_name, t)
         t.start()
@@ -1424,22 +1439,27 @@ class PoleDetectionTask(WheelTask):
         return int(round(deg * self.pole_units_per_degree))
 
     def move_pole_deg(self, deg: float):
-        """Asynchronously move pole by setting SurfaceTurner target."""
         self.surface_turner.target.value = self._deg_to_units(deg)
 
-    # Session lifecycle
+    # ---- lifecycle ----
     def stop_session(self):
-        # Cancel timer first to avoid firing during shutdown
         self._cancel_timer(self._t_response)
+        self._cancel_timer(self._t_iti)
 
-        # Park pole at ITI position
+        # Stop reporting wheel immediately
+        try:
+            self.wheel_listener.report_callback = None
+        except Exception:
+            pass
+
+        # Park pole
         try:
             self.move_pole_deg(self.pole_deg_iti)
             time.sleep(0.1)
         except Exception:
             pass
 
-        # Stop SurfaceTurner process and timers
+        # Stop SurfaceTurner
         try:
             self.surface_turner.stop_event.set()
             time.sleep(0.2)
@@ -1458,14 +1478,24 @@ class PoleDetectionTask(WheelTask):
         except Exception:
             pass
 
-        # Parent shutdown
         super().stop_session()
 
-    # Trial entrypoint (called by Dispatcher)
+    # Treat Dispatcher "silence" as ITI: stop wheel + park pole
+    def stop_sounds(self, *args, **kwargs):
+        super().stop_sounds(*args, **kwargs)
+        self.trial_state = "ITI"
+        self.wheel_listener.report_callback = None
+        try:
+            self.move_pole_deg(self.pole_deg_iti)
+        except Exception:
+            pass
+
+    # ---- trial entry ----
     def set_trial_parameters(self, **msg_params):
         super().set_trial_parameters(**msg_params)
 
         self._cancel_timer(self._t_response)
+        self._cancel_timer(self._t_iti)
 
         self.trial_type = msg_params.get("trial_type", None)
         if self.trial_type not in ("A", "B"):
@@ -1474,40 +1504,46 @@ class PoleDetectionTask(WheelTask):
         self.choice_made = False
         self.choice_direction = None
 
-        # Override WheelTask's random start pos
-        self.clipped_position = 0
+        # Reset wheel integration baseline
         self.last_raw_position = self.wheel_listener.position
+        self.clipped_position = 0
 
-        # Disable wheel during pole move
+        # Disable wheel during pole motion
         self.wheel_listener.report_callback = None
-        time.sleep(0.01)
 
         stim_deg = self.pole_deg_stim_A if self.trial_type == "A" else self.pole_deg_stim_B
         self.trial_state = "STIM"
         self.move_pole_deg(stim_deg)
 
+        # Give motor a moment to begin moving (tune as needed)
         time.sleep(0.15)
 
+        # Open response window
         self.trial_state = "RESPONSE"
         self.wheel_listener.report_callback = self.report_wheel
-
         self._arm_timer("_t_response", self.response_window_s, self._on_response_timeout)
-
 
     def _on_response_timeout(self):
         if self.choice_made:
             return
-        self._resolve_trial(correct=None)
+        self._end_trial()
 
-
-    def _resolve_trial(self, correct):
+    def _end_trial(self):
+        # Stop wheel during ITI
         self.wheel_listener.report_callback = None
+
+        # Park pole
         self.trial_state = "ITI"
         self.move_pole_deg(self.pole_deg_iti)
+
+        # Hold ITI locally (prevents GUI jitter + phantom choices)
+        self._arm_timer("_t_iti", self.iti_s, self._on_iti_done)
+
+    def _on_iti_done(self):
         self.trial_state = "IDLE"
+        # do NOT re-enable wheel here; next set_trial_parameters will do it
 
-
-    # Reporting
+    # ---- reporting ----
     def report_surface(self):
         while True:
             try:
@@ -1525,13 +1561,14 @@ class PoleDetectionTask(WheelTask):
 
     def report_wheel(self, force_report=False):
         now = datetime.datetime.now()
-
-        # Read wheel
         wheel_position = self.wheel_listener.position
 
-        # Update clipped_position using delta from last_raw_position
         diff = wheel_position - self.last_raw_position
         self.last_raw_position = wheel_position
+
+        # Deadband: ignore jitter
+        if abs(diff) <= 1 and not force_report:
+            return
 
         self.clipped_position += diff
         if self.clipped_position > self.wheel_max:
@@ -1539,7 +1576,6 @@ class PoleDetectionTask(WheelTask):
         if self.clipped_position < self.wheel_min:
             self.clipped_position = self.wheel_min
 
-        # Report wheel periodically or when forced
         if force_report or np.mod(wheel_position, 10) == 0:
             self.network_communicator.poke_socket.send_string(
                 f'wheel;'
@@ -1567,10 +1603,9 @@ class PoleDetectionTask(WheelTask):
         is_correct = (self.choice_direction == correct_choice)
 
         if is_correct:
-            self.reward(self.max_reward)   # sends 'reward;' which Dispatcher understands
-            self._resolve_trial(correct=True)
-        else:
-            self._resolve_trial(correct=False)
+            self.reward(self.max_reward)
+        # End trial regardless
+        self._end_trial()
 
 class WheelHabituationTask(WheelTask):
     """Agent that runs the wheel-based habituation task"""
