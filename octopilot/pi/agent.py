@@ -1565,40 +1565,60 @@ class SurfaceOrientationTask(WheelTask):
             # Reward but do not end trial
             self.reward(reward_size, report=False)
 
-# NEW V7
-
 class PoleDetectionTask(WheelTask):
-    """Wheel-based pole detection task using SurfaceTurner (same pattern as SurfaceOrientationTask)."""
+    """Wheel-based pole detection task (2AFC) with stepper-controlled pole position."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # ----------------------------
-        # Task timing / logic
-        # ----------------------------
-        self.response_window_s = 5.0
-        self.choice_thresh = 200  # wheel clicks from center to count as a choice
+        # -----------------------
+        # Task timing / structure
+        # -----------------------
+        self.response_window_s = 5.0  # should match your Dispatcher trial_duration
 
-        # Trial state
-        self.trial_type = None          # "A" or "B"
-        self.trial_state = "IDLE"       # "ITI" / "STIM" / "RESPONSE" / "IDLE"
-        self.choice_made = False
-        self.choice_direction = None
-        self._t_response = None
+        # -----------------------
+        # Pole "logical" angles
+        # -----------------------
+        self.pole_deg_iti = 90
+        self.pole_deg_stim_A = 0
+        self.pole_deg_stim_B = 180
 
-        # ----------------------------
-        # Wheel bounds / reward
-        # ----------------------------
+        # -----------------------
+        # CRITICAL: calibration
+        # -----------------------
+        # SurfaceTurner "surface_pos" units are what you see in GUI (red).
+        # Your observation suggests ~50 units produced ~15-20 degrees physically,
+        # so start around 3-4 units/deg and tune upward until 90° looks like 90°.
+        #
+        # Example tuning:
+        #   if 90° command yields ~20° physical => multiply by ~4.5
+        #   so increase pole_units_per_degree accordingly.
+        self.pole_units_per_degree = 4.0  # <<< INCREASE THIS to increase magnitude
+
+        # -----------------------
+        # Wheel / choice settings
+        # -----------------------
         self.wheel_max = 1000
         self.wheel_min = -1000
+        self.choice_thresh = 200  # clipped wheel threshold for left/right
+        self.max_reward = 0.05
+
+        # wheel state
         self.clipped_position = 0
         self.last_raw_position = 0
 
-        self.max_reward = 0.05
+        # trial state
+        self.trial_type = None          # "A" or "B"
+        self.trial_state = "IDLE"       # IDLE / STIM / RESPONSE / ITI
+        self.choice_made = False
+        self.choice_direction = None
 
-        # ----------------------------
-        # Stepper control (SurfaceTurner, like SurfaceOrientationTask)
-        # ----------------------------
+        # timers
+        self._t_response = None
+
+        # -----------------------
+        # Stepper pins (keep identical to working task)
+        # -----------------------
         self.stepper_step_pin = 26
         self.stepper_dir_pin = 16
 
@@ -1606,35 +1626,29 @@ class PoleDetectionTask(WheelTask):
         self.pig.set_mode(self.stepper_dir_pin, pigpio.OUTPUT)
 
         GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
         GPIO.setup(self.stepper_step_pin, GPIO.OUT)
+        GPIO.setup(self.stepper_dir_pin, GPIO.OUT)
 
+        # -----------------------
+        # SurfaceTurner process
+        # -----------------------
         self.surface_turner = SurfaceTurner(pig=self.pig)
         self.proc = multiprocessing.Process(target=self.surface_turner.start)
         self.proc.start()
 
         self.timer_report_surface = hardware.RepeatedTimer(0.1, self.report_surface)
 
-        # ----------------------------
-        # Pole calibration (IMPORTANT)
-        # ----------------------------
-        # SurfaceTurner target units behave like "wheel clicks".
-        # In SurfaceOrientationTask comment: 1000 clicks ~ 60 degrees.
-        # So 90 degrees should be ~1500 units.
-        self.units_per_degree = 1000.0 / 60.0  # ~16.67
+        # Assume you MANUALLY placed pole at ITI (90°) before starting.
+        # We set the target so internal state is consistent, but we do NOT "move" here.
+        self.surface_turner.target.value = self._deg_to_units(self.pole_deg_iti)
 
-        # Angles in degrees for your schema
-        self.pole_deg_iti = 90
-        self.pole_deg_stim_A = 0
-        self.pole_deg_stim_B = 180
+    # -----------------------
+    # Utilities
+    # -----------------------
+    def _deg_to_units(self, deg: float) -> int:
+        return int(round(deg * float(self.pole_units_per_degree)))
 
-        # Precompute targets in SurfaceTurner units
-        self.pole_units_iti = self._deg_to_units(self.pole_deg_iti)
-        self.pole_units_A = self._deg_to_units(self.pole_deg_stim_A)
-        self.pole_units_B = self._deg_to_units(self.pole_deg_stim_B)
-
-    # ----------------------------
-    # Helpers
-    # ----------------------------
     def _cancel_timer(self, t):
         try:
             if t is not None:
@@ -1644,98 +1658,102 @@ class PoleDetectionTask(WheelTask):
 
     def _arm_timer(self, attr_name: str, delay_s: float, fn):
         self._cancel_timer(getattr(self, attr_name, None))
-        t = threading.Timer(float(delay_s), fn)  # float() prevents the old str/int crash
+        t = threading.Timer(delay_s, fn)
         t.daemon = True
         setattr(self, attr_name, t)
         t.start()
 
-    def _deg_to_units(self, deg: float) -> int:
-        # Convert degrees to SurfaceTurner units ("wheel click"-like units)
-        return int(round(deg * self.units_per_degree))
+    # -----------------------
+    # Pole control
+    # -----------------------
+    def move_pole_deg(self, deg: float):
+        """Command pole position (in *logical degrees*) by writing SurfaceTurner target.
+        NOTE: This is the ONLY place we write surface_turner.target in PDT.
+        """
+        self.surface_turner.target.value = self._deg_to_units(deg)
 
-    def _move_pole_units(self, units: int):
-        # Same exact mechanism as SurfaceOrientationTask
-        self.surface_turner.target.value = int(units)
-
-    # ----------------------------
-    # Lifecycle
-    # ----------------------------
+    # -----------------------
+    # Session lifecycle
+    # -----------------------
     def stop_session(self):
-        # Cancel any pending response timer
-        self._cancel_timer(self._t_response)
-
-        # Try to park pole
+        """Stop the session cleanly so GUI Stop Session works."""
+        # stop wheel callback immediately
         try:
-            self._move_pole_units(self.pole_units_iti)
-            time.sleep(0.2)
+            self.wheel_listener.report_callback = None
         except Exception:
             pass
 
-        # Stop SurfaceTurner (exact pattern as working task)
-        self.surface_turner.stop_event.set()
-        time.sleep(1)
+        # cancel timers
+        self._cancel_timer(self._t_response)
 
-        # Stop timers
+        # tell SurfaceTurner to stop
+        try:
+            self.surface_turner.stop_event.set()
+            time.sleep(1)
+        except Exception:
+            pass
+
+        # stop repeated timer
         try:
             self.timer_report_surface.stop()
         except Exception:
             pass
 
-        # Join/terminate SurfaceTurner process
-        self.logger.debug("joining surface turner")
-        self.proc.join(timeout=1)
-        if self.proc.is_alive():
-            self.logger.debug("warning: could not join surface_turner process; killing")
-            self.proc.terminate()
+        # join process, terminate if needed
+        try:
+            self.logger.debug("joining surface_turner")
+            self.proc.join(timeout=1)
+            if self.proc.is_alive():
+                self.logger.debug("warning: could not join surface_turner; killing")
+                self.proc.terminate()
+        except Exception:
+            pass
 
-        self.logger.debug("done with ending surface_turner process")
+        # super shutdown
         super().stop_session()
 
-    # ----------------------------
+    # -----------------------
     # Trial entrypoint
-    # ----------------------------
+    # -----------------------
     def set_trial_parameters(self, **msg_params):
-        # Keep WheelTask's bookkeeping (trial_number etc.)
+        """Called by Dispatcher every trial start."""
         super().set_trial_parameters(**msg_params)
 
-        # Kill previous response timer
+        # reset response timer
         self._cancel_timer(self._t_response)
 
-        # Choose trial type
+        # choose trial type
         self.trial_type = msg_params.get("trial_type", None)
         if self.trial_type not in ("A", "B"):
             self.trial_type = random.choice(["A", "B"])
 
+        # reset choice state
         self.choice_made = False
         self.choice_direction = None
 
-        # ---- CRITICAL FIX FOR YOUR GUI SAWTOOTH ----
-        # WheelTask likely randomizes clipped_position to +/-1000 each trial.
-        # Override it immediately to "centered trial" behavior.
+        # reset wheel state for this trial (IMPORTANT: do NOT randomize start)
+        self.clipped_position = 0
+
+        # disable wheel callback during pole move (like working task does)
         self.wheel_listener.report_callback = None
         time.sleep(0.05)
 
-        self.clipped_position = 0
+        # resync last_raw_position AFTER disabling callback
         self.last_raw_position = self.wheel_listener.position
 
-        # Force a report so GUI immediately shows "0", not +/-1000
-        self.report_wheel(force_report=True)
-
-        # Move pole to stimulus position (in SurfaceTurner units)
+        # move pole to stimulus
+        stim_deg = self.pole_deg_stim_A if self.trial_type == "A" else self.pole_deg_stim_B
         self.trial_state = "STIM"
-        if self.trial_type == "A":
-            self._move_pole_units(self.pole_units_A)
-        else:
-            self._move_pole_units(self.pole_units_B)
+        self.move_pole_deg(stim_deg)
 
-        # Small settle delay (keep short so stop_session stays responsive)
-        time.sleep(0.1)
+        # brief settle time
+        time.sleep(0.15)
 
-        # Enable RESPONSE / wheel callback
+        # enable response
         self.trial_state = "RESPONSE"
         self.wheel_listener.report_callback = self.report_wheel
 
-        # Arm timeout
+        # arm timeout
         self._arm_timer("_t_response", self.response_window_s, self._on_response_timeout)
 
     def _on_response_timeout(self):
@@ -1743,20 +1761,22 @@ class PoleDetectionTask(WheelTask):
             return
         self._end_trial(correct=None)
 
-    def _end_trial(self, correct):
-        # Stop evaluating wheel, go back to ITI
-        self.wheel_listener.report_callback = None
+    def _end_trial(self, correct=None):
+        """End-of-trial actions on the PI side.
+        Dispatcher will still manage the outer trial schedule.
+        """
+        try:
+            self.wheel_listener.report_callback = None
+        except Exception:
+            pass
+
         self.trial_state = "ITI"
-
-        # Park pole
-        self._move_pole_units(self.pole_units_iti)
-
-        # Return to idle
+        self.move_pole_deg(self.pole_deg_iti)
         self.trial_state = "IDLE"
 
-    # ----------------------------
-    # Reporting (same queue logic as working task)
-    # ----------------------------
+    # -----------------------
+    # Reporting
+    # -----------------------
     def report_surface(self):
         while True:
             try:
@@ -1773,21 +1793,31 @@ class PoleDetectionTask(WheelTask):
             )
 
     def report_wheel(self, force_report=False):
-        now = datetime.datetime.now()
+        """Wheel callback (choice detection only)."""
 
+        now = datetime.datetime.now()
         wheel_position = self.wheel_listener.position
 
+        # compute diff, with glitch rejection to prevent wrap/noise from slamming clipped
         diff = wheel_position - self.last_raw_position
+
+        # If your encoder can jump/wrap, diff can be huge; reject and resync.
+        # Tune this threshold if needed.
+        if abs(diff) > 2000:
+            self.last_raw_position = wheel_position
+            return
+
         self.last_raw_position = wheel_position
 
+        # update clipped
         self.clipped_position += diff
         if self.clipped_position > self.wheel_max:
             self.clipped_position = self.wheel_max
         if self.clipped_position < self.wheel_min:
             self.clipped_position = self.wheel_min
 
-        # Report periodically or forced
-        if force_report or (np.mod(wheel_position, 10) == 0):
+        # report
+        if force_report or np.mod(wheel_position, 10) == 0:
             self.network_communicator.poke_socket.send_string(
                 f"wheel;"
                 f"trial_number={self.trial_number}=int;"
@@ -1796,7 +1826,7 @@ class PoleDetectionTask(WheelTask):
                 f"wheel_time={now.isoformat()}=str"
             )
 
-        # Only score during RESPONSE
+        # choice logic
         if self.trial_state != "RESPONSE" or self.choice_made:
             return
 
@@ -1809,16 +1839,19 @@ class PoleDetectionTask(WheelTask):
         else:
             return
 
+        # stop timeout
         self._cancel_timer(self._t_response)
 
+        # correct side mapping
         correct_choice = "left" if self.trial_type == "A" else "right"
         is_correct = (self.choice_direction == correct_choice)
 
         if is_correct:
-            self.reward(self.max_reward)  # sends reward to Dispatcher
+            self.reward(self.max_reward)  # Dispatcher understands 'reward;'
             self._end_trial(correct=True)
         else:
             self._end_trial(correct=False)
+
 
 class WheelHabituationTask(WheelTask):
     """Agent that runs the wheel-based habituation task"""
