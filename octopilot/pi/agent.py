@@ -1863,7 +1863,7 @@ class WheelHabituationTask(WheelTask):
 
         ## Wheel and reward size parameters
         # This is the size of a regular reward
-        self.max_reward = .01
+        self.max_reward = .025
 
         # As time_since_last_reward increases, reward gets exponentially smaller
         # When time_since_last_reward == reward_decay, the reward size
