@@ -1580,7 +1580,7 @@ class PoleDetectionTask(WheelTask):
 
     # Map pole motion into the SAME units SOT uses (wheel-click-like units)
     POLE_RANGE_UNITS = 1000            # SOT wheel range
-    POLE_RANGE_DEG = 90.0              # ITI->stim is ±90 deg around ITI
+    POLE_RANGE_DEG = 300              # ITI->stim is ±90 deg around ITI
 
     # Timing
     POLE_SETTLE_S = 0.25               # time to let motor settle before enabling wheel
@@ -1590,7 +1590,7 @@ class PoleDetectionTask(WheelTask):
     wheel_max = 1000
     wheel_min = -1000
     choice_thresh = 200
-    MAX_WHEEL_DIFF_PER_CALLBACK = 80   # lower if you still see teleports (e.g. 50)
+    MAX_WHEEL_DIFF_PER_CALLBACK = 20   # lower if you still see teleports (e.g. 50)
 
     # Reporting cadence
     WHEEL_REPORT_MOD = 10
