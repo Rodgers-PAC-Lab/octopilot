@@ -1580,7 +1580,7 @@ class PoleDetectionTask(WheelTask):
 
     # Map pole motion into the SAME units SOT uses (wheel-click-like units)
     POLE_RANGE_UNITS = 1000            # SOT wheel range
-    POLE_RANGE_DEG = 300              # ITI->stim is ±90 deg around ITI
+    POLE_RANGE_DEG = 20            # ITI->stim is ±90 deg around ITI
 
     # Timing
     POLE_SETTLE_S = 0.25               # time to let motor settle before enabling wheel
