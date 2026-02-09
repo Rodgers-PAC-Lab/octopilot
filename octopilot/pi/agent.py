@@ -1565,8 +1565,6 @@ class SurfaceOrientationTask(WheelTask):
             # Reward but do not end trial
             self.reward(reward_size, report=False)
 
-# NEW V13
-
 class PoleDetectionTask(WheelTask):
     """Agent that runs the wheel-based pole detection task"""
 
@@ -1679,15 +1677,6 @@ class PoleDetectionTask(WheelTask):
         t.start()
 
     def _deg_to_units(self, deg: float) -> int:
-        """
-        Map absolute pole angle (deg) into SurfaceTurner target units:
-
-            ITI (90°) -> 0
-            0°        -> -1000
-            180°      -> +1000
-
-        i.e., use relative degrees around ITI and scale into [-1000,1000].
-        """
         deg_rel = float(deg) - float(self.pole_deg_iti)          # [-90, +90]
         units_per_deg = float(self.POLE_RANGE_UNITS) / float(self.POLE_RANGE_DEG)  # 1000/90
         u = int(round(deg_rel * units_per_deg))
