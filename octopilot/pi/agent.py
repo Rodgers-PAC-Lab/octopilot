@@ -1616,8 +1616,8 @@ class PoleDetectionTask(WheelTask):
         self.pole_deg_stim_A = -90   # left turn -> whisker field
         self.pole_deg_stim_B = +90   # right turn -> out of whisker field
 
-        # Empirical calibration: ~5150 units per full rotation
-        self.units_per_degree = 5150.0 / 360.0
+        # Empirical calibration: ~???? units per full rotation
+        self.units_per_degree = 8000 / 360.0
 
         # -----------------------------
         # Wheel choice parameters
