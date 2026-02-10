@@ -1533,7 +1533,7 @@ class SurfaceOrientationTask(WheelTask):
         
         # TURNS THE SURFACE WITH WHEEL! (second line)
         # self.surface_turner.target.get_lock()
-        # self.surface_turner.target.value = self.clipped_position
+        self.surface_turner.target.value = self.clipped_position
         
         ## Report to Dispatcher
         if force_report or np.mod(wheel_position, 10) == 0:
@@ -1553,7 +1553,7 @@ class SurfaceOrientationTask(WheelTask):
             self.reward(self.max_reward)
             
         # Ends the trial if wheel spins incorrect direction (reward size=0) 
-        elif ((nps.abs(self.clipped_position) + nps.abs(diff)) > self.incorrect_range) and not self.reward_delivered:
+        elif ((np.abs(self.clipped_position) + np.abs(diff)) > self.incorrect_range) and not self.reward_delivered:
             self.reward(self.min_reward)
         
         # Rewards only if task is set to WHT parameters
