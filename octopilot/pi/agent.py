@@ -1570,39 +1570,53 @@ class PoleDetectionTask(WheelTask):
     Wheel-based pole detection task.
 
     Trial flow:
-      - ITI: pole held at ITI position
-      - STIM: pole moved to A or B position
-      - RESPONSE: wheel enabled; left/right choice ends trial
-      - ITI: pole returned to ITI; trial ends (Dispatcher handles ITI duration)
+      - ITI: pole held at ITI position (pole up), motor target = 0
+      - STIM: pole moved to A or B position (left/right)
+      - RESPONSE: wheel enabled; left/right choice resolves trial
+      - ITI: pole returned to ITI (0); Dispatcher enforces ITI duration
 
-    Notes:
-      - Pole motor target is written in SurfaceTurner "units".
-      - GUI motor plot expects ITI to be 0; therefore SurfaceTurner target is
-        always expressed as an offset from ITI (0 -> A -> 0 -> B, etc).
+    Conventions:
+      - Pole starts UP (ITI).
+      - Left motor turn -> whisker field.
+      - Right motor turn -> out of whisker field.
+      - Motor "GUI position" uses SurfaceTurner state; ITI is always 0.
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # -----------------------------
-        # Timing (task-level)
+        # Timing (Dispatcher owns trial/ITI scheduling)
         # -----------------------------
-        self.response_window_s = 10.0  # RESPONSE time (trial time)
-        self.iti_s = 7.0               # ITI duration (Dispatcher param set in GUI/config)
+        # These mirror the Dispatcher params you set:
+        #   trial_duration = 10.0, inter_trial_interval = 7.0
+        self.response_window_s = 10.0
+
+        # -----------------------------
+        # Stepper pins (must be initialized before SurfaceTurner process starts)
+        # -----------------------------
+        self.stepper_step_pin = 26
+        self.stepper_dir_pin = 16
+
+        # pigpio pin modes
+        self.pig.set_mode(self.stepper_step_pin, pigpio.OUTPUT)
+        self.pig.set_mode(self.stepper_dir_pin, pigpio.OUTPUT)
+
+        # RPi.GPIO pin modes (SurfaceTurner uses GPIO.output for stepping)
+        GPIO.setwarnings(False)
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self.stepper_step_pin, GPIO.OUT)
+        GPIO.setup(self.stepper_dir_pin, GPIO.OUT)
 
         # -----------------------------
         # Pole positions (degrees)
         # -----------------------------
-        # ITI is "pole up" (safe position).
-        # Convention: turning left -> whisker field, turning right -> out of whisker field.
+        # ITI = pole up (safe position)
         self.pole_deg_iti = 0
-        self.pole_deg_stim_A = -90   # in whisker field (left turn)
-        self.pole_deg_stim_B = +90   # out of whisker field (right turn)
+        self.pole_deg_stim_A = -90   # left turn -> whisker field
+        self.pole_deg_stim_B = +90   # right turn -> out of whisker field
 
-        # -----------------------------
-        # Stepper mapping (deg -> SurfaceTurner units)
-        # -----------------------------
-        # Empirical calibration that gives ~90° physical rotation when commanded 90°.
+        # Empirical calibration: ~5150 units per full rotation
         self.units_per_degree = 5150.0 / 360.0
 
         # -----------------------------
@@ -1621,7 +1635,7 @@ class PoleDetectionTask(WheelTask):
         # Trial state
         # -----------------------------
         self.trial_type = None          # "A" or "B"
-        self.trial_state = "IDLE"       # IDLE / STIM / RESPONSE / ITI
+        self.trial_state = "IDLE"       # IDLE / STIM / RESPONSE
         self.choice_made = False
         self.choice_direction = None    # "left" / "right"
         self._t_response = None
@@ -1637,8 +1651,7 @@ class PoleDetectionTask(WheelTask):
         # -----------------------------
         self.surface_turner = SurfaceTurner(pig=self.pig)
 
-        # Initialize ITI as motor "zero" for the GUI.
-        # ITI target is always 0 units; stim targets are offsets from ITI.
+        # Ensure ITI is motor=0 for GUI
         self.surface_turner.state = 0
         self.surface_turner.target.value = 0
 
@@ -1649,7 +1662,7 @@ class PoleDetectionTask(WheelTask):
         self.timer_report_surface = hardware.RepeatedTimer(0.1, self.report_surface)
 
     # -----------------------------
-    # Small utilities
+    # Timer helpers
     # -----------------------------
     def _cancel_timer(self, t):
         try:
@@ -1665,25 +1678,23 @@ class PoleDetectionTask(WheelTask):
         setattr(self, attr_name, t)
         t.start()
 
+    # -----------------------------
+    # Motor command helpers
+    # -----------------------------
     def _deg_to_units_relative_to_iti(self, deg: float) -> int:
-        """
-        Convert a pole angle in degrees to SurfaceTurner units,
-        expressed relative to ITI so ITI always equals 0.
-        """
-        # ITI is defined as 0 deg in this task. If that changes later,
-        # this subtraction keeps ITI at 0 units.
+        # ITI is defined as 0 deg; keep ITI at 0 units for GUI
         rel_deg = deg - self.pole_deg_iti
         return int(round(rel_deg * self.units_per_degree))
 
     def move_pole_deg(self, deg: float):
-        """Asynchronously move pole to a degree position (relative to ITI=0 units)."""
+        # Asynchronously move pole to a degree position (relative to ITI=0 units)
         self.surface_turner.target.value = self._deg_to_units_relative_to_iti(deg)
 
     # -----------------------------
     # Session lifecycle
     # -----------------------------
     def stop_session(self):
-        # Cancel any pending timers
+        # Cancel response timer
         self._cancel_timer(self._t_response)
 
         # Return pole to ITI (0 units)
@@ -1693,7 +1704,7 @@ class PoleDetectionTask(WheelTask):
         except Exception:
             pass
 
-        # Stop SurfaceTurner and timer
+        # Stop SurfaceTurner process + surface reporting timer
         try:
             self.surface_turner.stop_event.set()
             time.sleep(0.2)
@@ -1712,7 +1723,6 @@ class PoleDetectionTask(WheelTask):
         except Exception:
             pass
 
-        # Parent shutdown
         super().stop_session()
 
     # -----------------------------
@@ -1721,38 +1731,37 @@ class PoleDetectionTask(WheelTask):
     def set_trial_parameters(self, **msg_params):
         super().set_trial_parameters(**msg_params)
 
-        # Ensure desired trial/ITI durations are reflected in params (when supported)
-        # Dispatcher generally owns ITI timing, so ITI is expected to be set in config/UI.
+        # Reset timers/state
         self._cancel_timer(self._t_response)
+        self.choice_made = False
+        self.choice_direction = None
 
-        # Choose trial type
+        # Choose trial type if not provided
         self.trial_type = msg_params.get("trial_type", None)
         if self.trial_type not in ("A", "B"):
             self.trial_type = random.choice(["A", "B"])
 
-        self.choice_made = False
-        self.choice_direction = None
-
-        # Reset wheel bookkeeping at trial start
+        # Disable wheel callback while resetting internal state
         self.wheel_listener.report_callback = None
         time.sleep(0.01)
 
+        # Reset wheel reference and clipped accumulator
         self.last_raw_position = self.wheel_listener.position
         self.clipped_position = 0
 
         # Move pole to stimulus position
-        stim_deg = self.pole_deg_stim_A if self.trial_type == "A" else self.pole_deg_stim_B
         self.trial_state = "STIM"
+        stim_deg = self.pole_deg_stim_A if self.trial_type == "A" else self.pole_deg_stim_B
         self.move_pole_deg(stim_deg)
 
-        # Small settle
+        # Allow a short settle
         time.sleep(0.15)
 
-        # Enable wheel for response
+        # Enable response collection
         self.trial_state = "RESPONSE"
         self.wheel_listener.report_callback = self.report_wheel
 
-        # Arm timeout for response window
+        # Arm response timeout
         self._arm_timer("_t_response", self.response_window_s, self._on_response_timeout)
 
     def _on_response_timeout(self):
@@ -1761,21 +1770,20 @@ class PoleDetectionTask(WheelTask):
         self._resolve_trial(correct=None)
 
     def _resolve_trial(self, correct):
-        # End response collection
+        # Stop collecting wheel input
         self.wheel_listener.report_callback = None
-        self.trial_state = "ITI"
+        self.trial_state = "IDLE"
 
-        # Return pole to ITI
+        # Return pole to ITI (0 units)
         self.move_pole_deg(self.pole_deg_iti)
 
-        # Dispatcher handles ITI duration and advancing to next trial
-        self.trial_state = "IDLE"
+        # Dispatcher will enforce ITI duration and start next trial
 
     # -----------------------------
     # Reporting
     # -----------------------------
     def report_surface(self):
-        """Report surface movements from SurfaceTurner output queue."""
+        # Report surface movements from SurfaceTurner output queue
         while True:
             try:
                 dt_move, steps_moved, surface_pos = self.surface_turner.output_q.get_nowait()
@@ -1791,24 +1799,18 @@ class PoleDetectionTask(WheelTask):
             )
 
     def report_wheel(self, force_report=False):
-        """Wheel callback: update clipped position, report, and resolve choice if made."""
         now = datetime.datetime.now()
 
-        # Raw wheel position from listener
         wheel_position = self.wheel_listener.position
-
-        # Delta update
         diff = wheel_position - self.last_raw_position
         self.last_raw_position = wheel_position
 
-        # Clipped accumulator
         self.clipped_position += diff
         if self.clipped_position > self.wheel_max:
             self.clipped_position = self.wheel_max
         if self.clipped_position < self.wheel_min:
             self.clipped_position = self.wheel_min
 
-        # Report periodically
         if force_report or (wheel_position % 10 == 0):
             self.network_communicator.poke_socket.send_string(
                 f'wheel;'
@@ -1818,11 +1820,10 @@ class PoleDetectionTask(WheelTask):
                 f'wheel_time={now.isoformat()}=str'
             )
 
-        # Only evaluate choices during RESPONSE
         if self.trial_state != "RESPONSE" or self.choice_made:
             return
 
-        # Determine choice direction
+        # Choice determination
         if self.clipped_position >= self.choice_thresh:
             self.choice_made = True
             self.choice_direction = "right"
@@ -1832,15 +1833,13 @@ class PoleDetectionTask(WheelTask):
         else:
             return
 
-        # Stop timeout timer once a choice is made
+        # Stop timeout once choice is made
         self._cancel_timer(self._t_response)
 
-        # Define correct mapping:
-        # A -> left turn (whisker field), B -> right turn (out of whisker field)
+        # Correct mapping: A -> left (whisker field), B -> right (out of whisker field)
         correct_choice = "left" if self.trial_type == "A" else "right"
         is_correct = (self.choice_direction == correct_choice)
 
-        # Resolve trial and deliver reward if correct
         if is_correct:
             self.reward(self.max_reward)
             self._resolve_trial(correct=True)
