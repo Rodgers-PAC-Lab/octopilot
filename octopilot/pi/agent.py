@@ -1656,7 +1656,7 @@ class PoleDetectionTask(WheelTask):
         # We use a simple mapping: deg -> units via a "units_per_degree" baseline.
         #
         # Baseline: 1000 units ~ 360° (only a guess). You can change it.
-        self.units_per_degree = 1000.0 / 360.0
+        self.units_per_degree = 4096.0 / 360.0
 
         # Create SurfaceTurner (runs in its own process)
         self.surface_turner = SurfaceTurner(pig=self.pig)
