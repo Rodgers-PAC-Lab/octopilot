@@ -1555,6 +1555,8 @@ class SurfaceOrientationTask(WheelTask):
         # Ends the trial if wheel spins incorrect direction (w/ no reward) 
         elif ((np.abs(self.clipped_position) + np.abs(diff)) > self.wheel_max) and not self.reward_delivered:
             self.reward(self.min_reward)
+            self.surface_turner.stop_event.set()
+            time.sleep(3)
         
         # Rewards only if task is set to WHT parameters
         elif self.reward_for_spinning and np.abs(wheel_position - 
