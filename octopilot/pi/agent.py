@@ -1340,244 +1340,25 @@ class SoundCenteringTask(WheelTask):
         self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed()   
 
-class PoleDetectionTask(WheelTask):
-    """Agent that runs the wheel-based pole detection task"""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Pole trial timing
-        self.response_window_s = 5.0
-
-        # Pole angles
-        self.pole_deg_iti = 90
-        self.pole_deg_stim_A = 0
-        self.pole_deg_stim_B = 180
-
-        # Stepper calibration
-        self.steps_per_rev = 200        # typical 1.8° stepper
-        self.microsteps = 1             # set to 8/16/etc if driver uses microstepping
-        self.steps_per_degree = (self.steps_per_rev * self.microsteps) / 360.0
-
-        # Choice parameters
-        self.choice_thresh = 200        # wheel clicks threshold for left/right choice
-        self.trial_type = None          # "A" or "B"
-        self.trial_state = "IDLE"       # IDLE / STIM / RESPONSE / ITI
-        self.choice_made = False
-        self.choice_direction = None    # "left" / "right"
-
-        # Timer handle for response timeout
-        self._t_response = None
-
-        # Stepper pins
-        self.stepper_step_pin = 26
-        self.stepper_dir_pin = 16
-        self.pig.set_mode(self.stepper_step_pin, pigpio.OUTPUT)
-        self.pig.set_mode(self.stepper_dir_pin, pigpio.OUTPUT)
-
-        # GPIO setup
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.stepper_step_pin, GPIO.OUT)
-        GPIO.setup(self.stepper_dir_pin, GPIO.OUT)
-
-        # Wheel bounds
-        self.wheel_max = 1000
-        self.wheel_min = -1000
-
-        # Reward size
-        self.max_reward = 0.05
-
-        # Internal wheel state
-        self.last_raw_position = 0
-        self.clipped_position = 0
-        self.reward_delivered = False
-
-        # Create the stepper controller (runs in another process)
-        self.surface_turner = SurfaceTurner(pig=self.pig)
-
-        # Now that surface_turner exists, derive conversion factor.
-        # SurfaceTurner target/state are in "units" where each unit corresponds to gain steps.
-        self.pole_units_per_degree = self.steps_per_degree / float(self.surface_turner.gain)
-
-        self.proc = multiprocessing.Process(target=self.surface_turner.start)
-        self.proc.start()
-
-        # Surface reporting timer (unchanged from your original)
-        self.timer_report_surface = hardware.RepeatedTimer(0.1, self.report_surface)
-
-    # Utility helpers (PDT-local)
-    def _cancel_timer(self, t):
-        try:
-            if t is not None:
-                t.cancel()
-        except Exception:
-            pass
-
-    def _arm_timer(self, attr_name: str, delay_s: float, fn):
-        self._cancel_timer(getattr(self, attr_name, None))
-        t = threading.Timer(delay_s, fn)
-        t.daemon = True
-        setattr(self, attr_name, t)
-        t.start()
-
-    def _deg_to_units(self, deg: float) -> int:
-        return int(round(deg * self.pole_units_per_degree))
-
-    def move_pole_deg(self, deg: float):
-        """Asynchronously move pole by setting SurfaceTurner target."""
-        self.surface_turner.target.value = self._deg_to_units(deg)
-
-    # Session lifecycle
-    def stop_session(self):
-        # Cancel timer first to avoid firing during shutdown
-        self._cancel_timer(self._t_response)
-
-        # Park pole at ITI position
-        try:
-            self.move_pole_deg(self.pole_deg_iti)
-            time.sleep(0.1)
-        except Exception:
-            pass
-
-        # Stop SurfaceTurner process and timers
-        try:
-            self.surface_turner.stop_event.set()
-            time.sleep(0.2)
-        except Exception:
-            pass
-
-        try:
-            self.timer_report_surface.stop()
-        except Exception:
-            pass
-
-        try:
-            self.proc.join(timeout=1)
-            if self.proc.is_alive():
-                self.proc.terminate()
-        except Exception:
-            pass
-
-        # Parent shutdown
-        super().stop_session()
-
-    # Trial entrypoint (called by Dispatcher)
-    def set_trial_parameters(self, **msg_params):
-        super().set_trial_parameters(**msg_params)
-
-        self._cancel_timer(self._t_response)
-
-        self.trial_type = msg_params.get("trial_type", None)
-        if self.trial_type not in ("A", "B"):
-            self.trial_type = random.choice(["A", "B"])
-
-        self.choice_made = False
-        self.choice_direction = None
-
-        # Override WheelTask's random start pos
-        self.clipped_position = 0
-        self.last_raw_position = self.wheel_listener.position
-
-        # Disable wheel during pole move
-        self.wheel_listener.report_callback = None
-        time.sleep(0.01)
-
-        stim_deg = self.pole_deg_stim_A if self.trial_type == "A" else self.pole_deg_stim_B
-        self.trial_state = "STIM"
-        self.move_pole_deg(stim_deg)
-
-        time.sleep(0.15)
-
-        self.trial_state = "RESPONSE"
-        self.wheel_listener.report_callback = self.report_wheel
-
-        self._arm_timer("_t_response", self.response_window_s, self._on_response_timeout)
-
-
-    def _on_response_timeout(self):
-        if self.choice_made:
-            return
-        self._resolve_trial(correct=None)
-
-
-    def _resolve_trial(self, correct):
-        self.wheel_listener.report_callback = None
-        self.trial_state = "ITI"
-        self.move_pole_deg(self.pole_deg_iti)
-        self.trial_state = "IDLE"
-
-
-    # Reporting
-    def report_surface(self):
-        while True:
-            try:
-                dt_move, steps_moved, surface_pos = self.surface_turner.output_q.get_nowait()
-            except multiprocessing.queues.Empty:
-                break
-
-            self.network_communicator.poke_socket.send_string(
-                f'surface;'
-                f'trial_number={self.trial_number}=int;'
-                f'surface_time={dt_move.isoformat()}=str;'
-                f'steps_moved={steps_moved}=int;'
-                f'surface_pos={surface_pos}=int'
-            )
-
-    def report_wheel(self, force_report=False):
-        now = datetime.datetime.now()
-
-        # Read wheel
-        wheel_position = self.wheel_listener.position
-
-        # Update clipped_position using delta from last_raw_position
-        diff = wheel_position - self.last_raw_position
-        self.last_raw_position = wheel_position
-
-        self.clipped_position += diff
-        if self.clipped_position > self.wheel_max:
-            self.clipped_position = self.wheel_max
-        if self.clipped_position < self.wheel_min:
-            self.clipped_position = self.wheel_min
-
-        # Report wheel periodically or when forced
-        if force_report or np.mod(wheel_position, 10) == 0:
-            self.network_communicator.poke_socket.send_string(
-                f'wheel;'
-                f'trial_number={self.trial_number}=int;'
-                f'wheel_position={wheel_position}=int;'
-                f'clipped_position={self.clipped_position}=int;'
-                f'wheel_time={now.isoformat()}=str'
-            )
-
-        if self.trial_state != "RESPONSE" or self.choice_made:
-            return
-
-        if self.clipped_position >= self.choice_thresh:
-            self.choice_made = True
-            self.choice_direction = "right"
-        elif self.clipped_position <= -self.choice_thresh:
-            self.choice_made = True
-            self.choice_direction = "left"
-        else:
-            return
-
-        self._cancel_timer(self._t_response)
-
-        correct_choice = "left" if self.trial_type == "A" else "right"
-        is_correct = (self.choice_direction == correct_choice)
-
-        if is_correct:
-            self.reward(self.max_reward)   # sends 'reward;' which Dispatcher understands
-            self._resolve_trial(correct=True)
-        else:
-            self._resolve_trial(correct=False)
-
-class WheelHabituationTask(WheelTask):
-    """Agent that runs the wheel-based habituation task"""
+class SurfaceOrientationTask(WheelTask):
+    """Agent that runs the wheel-based surface orientation task"""
     def __init__(self, *args, **kwargs):
         
         ## Call parent __init___
         super().__init__(*args, **kwargs)        
+
+
+        ## Set up control over stepper
+        self.stepper_step_pin = 26
+        self.stepper_dir_pin = 16
+        
+        # The default is INPUT, so only outputs have to be set
+        self.pig.set_mode(self.stepper_step_pin, pigpio.OUTPUT)        
+        self.pig.set_mode(self.stepper_dir_pin, pigpio.OUTPUT)        
+        
+        # Also set with GPIO, since use that one for stepping
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self.stepper_step_pin, GPIO.OUT)
 
 
         ## Wheel and reward size parameters
@@ -1589,7 +1370,7 @@ class WheelHabituationTask(WheelTask):
         # is 63.7% of full. 
         # As reward_decay increases, mouse has to wait longer 
         # 300 clicks is about 20 deg (easy)
-        self.reward_for_spinning = True
+        self.reward_for_spinning = False
         self.reward_decay = 0.5
         self.wheel_reward_thresh = 300 
         
@@ -1604,7 +1385,6 @@ class WheelHabituationTask(WheelTask):
         # through it before it checks, which is probably pretty hard to do
         # 100 clicks is about 6 deg
         self.reward_range = 100
-
         
         ## These are initialized later
         self.last_rewarded_position = None
@@ -1613,16 +1393,90 @@ class WheelHabituationTask(WheelTask):
         self.clipped_position = 0
         self.last_raw_position = 0
         self.reward_delivered = False
+        self.current_surface_position = 0
+
+
+        ## Create the serial_reader object
+        self.surface_turner = SurfaceTurner(
+            pig=self.pig,
+            )
+        
+        # Start acquistion in a separate Process
+        self.proc = multiprocessing.Process(target=self.surface_turner.start)
+        self.proc.start()
+
+        # Set up timer to report out the surface movements
+        self.timer_report_surface = hardware.RepeatedTimer(
+            0.1,
+            self.report_surface,
+            )
 
     def stop_session(self):
-        """Stop the session"""
-        ## Call parent's method
+        """Stop the session.
+        
+        First stop moving the surface. Then call the super stop_session.
+        """
+        # Tell SurfaceTurner to stop
+        self.surface_turner.stop_event.set()
+        time.sleep(1)
+        
+        # End timers
+        # If any timers aren't ended, there won't be a warning or anything,
+        # the terminal window just won't close
+        self.timer_report_surface.stop()
+        
+        # Join on the surface_turners
+        self.logger.debug('joining surface turner')
+        self.proc.join(timeout=1)
+        
+        # If it didn't finish (most likely because data is left in the queues
+        # for some reason) then kill it
+        if self.proc.is_alive():
+            self.logger.debug('warning: could not join surface_turner process; killing')
+            self.proc.terminate()        
+        
+        self.logger.debug('done with ending surface_turner process')
+        
+        # super
         super().stop_session()
     
     def set_trial_parameters(self, **msg_params):
-        ## Call parent's method
+        
+        ## Call parent
         super().set_trial_parameters(**msg_params)
 
+        
+        ## Disable wheel updates until the surface has moved back
+        self.wheel_listener.report_callback = None
+        time.sleep(1)
+        
+        # Reset the raw position to current
+        self.last_raw_position = self.wheel_listener.position
+        
+        # Restart callbacks
+        self.wheel_listener.report_callback = self.report_wheel
+    
+    def report_surface(self):
+        """Called by a RepeatedTimer to report surface movements"""
+        # Iterate over output queue
+        while True:
+            # Get data if there is any
+            try:
+                dt_move, steps_moved, surface_pos = (
+                    self.surface_turner.output_q.get_nowait())
+            except multiprocessing.queues.Empty:
+                break
+            
+            # Report
+            #~ self.logger.debug(f'{dt_move}: moving {steps_moved}')
+            self.network_communicator.poke_socket.send_string(
+                f'surface;'
+                f'trial_number={self.trial_number}=int;'
+                f'surface_time={dt_move.isoformat()}=str;'
+                f'steps_moved={steps_moved}=int;'
+                f'surface_pos={surface_pos}=int'
+                )            
+    
     def report_wheel(self, force_report=False):
         """Called by self.wheel_listener every time the wheel moves
         
@@ -1647,8 +1501,8 @@ class WheelHabituationTask(WheelTask):
         
         ## Update wheel positions
         # At the beginning of each trial
-        self.last_raw_position = self.wheel_listener.position
-        #self.clipped_position = random
+        # self.last_raw_position = self.wheel_listener.position
+        # self.clipped_position = random
         
         # Get actual wheel position
         wheel_position = self.wheel_listener.position
@@ -1672,6 +1526,10 @@ class WheelHabituationTask(WheelTask):
             (self.clipped_position - self.wheel_min) / 
             (self.wheel_max - self.wheel_min))
         
+        
+        # Turn the surface
+        #~ with self.surface_turner.target.get_lock():
+        self.surface_turner.target.value = self.clipped_position
         
         ## Report to Dispatcher
         if force_report or np.mod(wheel_position, 10) == 0:
