@@ -1568,18 +1568,6 @@ class SurfaceOrientationTask(WheelTask):
 # NEW V14
 
 class PoleDetectionTask(WheelTask):
-    """
-    Debug-safe Pole Detection Task (PDT).
-
-    Key fixes:
-      - Encoder pins (17,27) are conflicting with LED pins in box config.
-        -> Override flash() to NO-OP so we don't drive those pins as outputs.
-        -> Force those pins to INPUT and add pigpio glitch filters.
-      - Stepper STEP pin=26 conflicts with right_solenoid=26 in box config.
-        -> Override reward delivery to only use left solenoid (debug mode).
-      - Pole movement magnitude increased via pole_calibration.
-      - Assume pole is already at ITI at start: initialize SurfaceTurner state/target to ITI.
-    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1689,18 +1677,9 @@ class PoleDetectionTask(WheelTask):
     # SAFETY OVERRIDES (critical)
     # -----------------------------
     def flash(self, *args, **kwargs):
-        """
-        NO-OP flash to avoid driving LED pins that conflict with encoder pins (17/27).
-        This prevents the task from toggling the encoder lines as outputs.
-        """
         return
 
     def reward(self, amount, report=True):
-        """
-        DEBUG SAFE reward override:
-        Avoid using right solenoid if it's configured on pin 26 (conflicts with STEP=26).
-        This will deliver reward via LEFT solenoid only (or whatever your base uses).
-        """
         # If your WheelTask.reward() chooses solenoid based on side,
         # that could hit pin 26. So we route through left port only.
 
