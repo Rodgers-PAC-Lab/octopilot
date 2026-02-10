@@ -1,4 +1,4 @@
-"""Defines `Agent`s that runs on the Pi.
+de"""Defines `Agent`s that runs on the Pi.
 
 This object is instantiated on the Pi by either the CLI or GUI. 
 Its job is to run the task on the Pi side. It contains objects to play 
@@ -1565,45 +1565,89 @@ class SurfaceOrientationTask(WheelTask):
             # Reward but do not end trial
             self.reward(reward_size, report=False)
 
+# NEW V14
+
 class PoleDetectionTask(WheelTask):
-    """Agent that runs the wheel-based pole detection task"""
+    """
+    Debug-safe Pole Detection Task (PDT).
 
-    # =========================
-    # Tunables
-    # =========================
-    response_window_s = 5.0
-
-    # Pole angles (deg)
-    pole_deg_iti = 90
-    pole_deg_stim_A = 0
-    pole_deg_stim_B = 180
-
-    # Map pole motion into the SAME units SOT uses (wheel-click-like units)
-    POLE_RANGE_UNITS = 1000            # SOT wheel range
-    POLE_RANGE_DEG = 20            # ITI->stim is ±90 deg around ITI
-
-    # Timing
-    POLE_SETTLE_S = 0.25               # time to let motor settle before enabling wheel
-    WHEEL_IGNORE_AFTER_ENABLE_S = 0.25 # ignore wheel briefly after enabling callback
-
-    # Wheel glitch protection
-    wheel_max = 1000
-    wheel_min = -1000
-    choice_thresh = 200
-    MAX_WHEEL_DIFF_PER_CALLBACK = 20   # lower if you still see teleports (e.g. 50)
-
-    # Reporting cadence
-    WHEEL_REPORT_MOD = 10
+    Key fixes:
+      - Encoder pins (17,27) are conflicting with LED pins in box config.
+        -> Override flash() to NO-OP so we don't drive those pins as outputs.
+        -> Force those pins to INPUT and add pigpio glitch filters.
+      - Stepper STEP pin=26 conflicts with right_solenoid=26 in box config.
+        -> Override reward delivery to only use left solenoid (debug mode).
+      - Pole movement magnitude increased via pole_calibration.
+      - Assume pole is already at ITI at start: initialize SurfaceTurner state/target to ITI.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # ------------------------
-        # Stepper GPIO setup (match SOT)
-        # ------------------------
+        # -----------------------------
+        # Task timing / structure
+        # -----------------------------
+        self.response_window_s = 5.0
+
+        # Degrees (logical positions)
+        self.pole_deg_iti = 90
+        self.pole_deg_stim_A = 0
+        self.pole_deg_stim_B = 180
+
+        # Choice
+        self.choice_thresh = 200
+        self.trial_type = None
+        self.choice_made = False
+        self.choice_direction = None
+        self.trial_state = "IDLE"  # IDLE / STIM / RESPONSE / ITI
+
+        # Wheel bounds (same as SOT-ish)
+        self.wheel_max = 1000
+        self.wheel_min = -1000
+
+        # Reward
+        self.max_reward = 0.05
+
+        # Internal wheel state
+        self.last_raw_position = 0
+        self.clipped_position = 0
+
+        # Response timeout timer
+        self._t_response = None
+
+        # -----------------------------
+        # HARDWARE: Encoder pin safety
+        # -----------------------------
+        # WheelListener uses pins 17 and 27 (from your snippet).
+        # Those also appear configured as LEDs in your box config.
+        # We force them to INPUT and add glitch filtering.
+        self.encoder_pin_a = 17
+        self.encoder_pin_b = 27
+
+        try:
+            # Ensure INPUT mode at pigpio layer
+            self.pig.set_mode(self.encoder_pin_a, pigpio.INPUT)
+            self.pig.set_mode(self.encoder_pin_b, pigpio.INPUT)
+
+            # Optional pull-ups (if you have open-collector outputs)
+            # pigpio doesn't do pull-ups via set_mode; do it via set_pull_up_down
+            self.pig.set_pull_up_down(self.encoder_pin_a, pigpio.PUD_UP)
+            self.pig.set_pull_up_down(self.encoder_pin_b, pigpio.PUD_UP)
+
+            # Glitch filter in microseconds (tune 200-2000 us)
+            # Start at 1000 us (1 ms) which often kills bounce.
+            self.pig.set_glitch_filter(self.encoder_pin_a, 1000)
+            self.pig.set_glitch_filter(self.encoder_pin_b, 1000)
+        except Exception:
+            pass
+
+        # -----------------------------
+        # HARDWARE: Stepper pins (SurfaceTurner uses 26/16)
+        # -----------------------------
         self.stepper_step_pin = 26
         self.stepper_dir_pin = 16
 
+        # Ensure stepper pins are outputs (matches working SOT)
         self.pig.set_mode(self.stepper_step_pin, pigpio.OUTPUT)
         self.pig.set_mode(self.stepper_dir_pin, pigpio.OUTPUT)
 
@@ -1611,57 +1655,84 @@ class PoleDetectionTask(WheelTask):
         GPIO.setup(self.stepper_step_pin, GPIO.OUT)
         GPIO.setup(self.stepper_dir_pin, GPIO.OUT)
 
-        # ------------------------
-        # Reward
-        # ------------------------
-        self.max_reward = 0.05
+        # -----------------------------
+        # Pole calibration (movement magnitude)
+        # -----------------------------
+        # Your observation: commanded ~90° looks like ~15-20° => multiply by ~5.
+        # This scales degrees -> SurfaceTurner units.
+        self.pole_calibration = 5.0
 
-        # ------------------------
-        # Task state
-        # ------------------------
-        self.trial_type = None           # "A" or "B"
-        self.trial_state = "IDLE"        # IDLE / STIM / RESPONSE / ITI
-        self.choice_made = False
-        self.choice_direction = None
+        # SurfaceTurner units: 1 unit = gain steps.
+        # We don't know your true steps/degree here because the "surface_pos"
+        # in logs is not physical degrees, it's SurfaceTurner.state units.
+        # We use a simple mapping: deg -> units via a "units_per_degree" baseline.
+        #
+        # Baseline: 1000 units ~ 360° (only a guess). You can change it.
+        self.units_per_degree = 1000.0 / 360.0
 
-        # Wheel internal state (match SOT-style delta integration)
-        self.last_raw_position = 0
-        self.clipped_position = 0
-        self.reward_delivered = False
-
-        # Wheel gating
-        self._wheel_enabled = False
-        self._wheel_enable_time = 0.0
-
-        # Response timer
-        self._t_response = None
-
-        # ------------------------
-        # SurfaceTurner (exactly like working SOT)
-        # ------------------------
+        # Create SurfaceTurner (runs in its own process)
         self.surface_turner = SurfaceTurner(pig=self.pig)
+
+        # IMPORTANT: Assume pole is already at ITI at session start.
+        # So initialize internal stepper state/target to ITI *before* starting process.
+        self._iti_units = self._deg_to_units(self.pole_deg_iti)
+        self.surface_turner.state = int(self._iti_units)
+        self.surface_turner.target.value = int(self._iti_units)
+
         self.proc = multiprocessing.Process(target=self.surface_turner.start)
         self.proc.start()
 
+        # Report surface timer (same as SOT)
         self.timer_report_surface = hardware.RepeatedTimer(0.1, self.report_surface)
 
-        # ------------------------
-        # IMPORTANT: Session start assumption
-        # ------------------------
-        # You said: "assume I've manually placed the pole at 90° down (ITI) at session start."
-        # In our internal coordinate system, ITI == 0 units.
-        # Do NOT command a move here; just set the internal target baseline.
+    # -----------------------------
+    # SAFETY OVERRIDES (critical)
+    # -----------------------------
+    def flash(self, *args, **kwargs):
+        """
+        NO-OP flash to avoid driving LED pins that conflict with encoder pins (17/27).
+        This prevents the task from toggling the encoder lines as outputs.
+        """
+        return
+
+    def reward(self, amount, report=True):
+        """
+        DEBUG SAFE reward override:
+        Avoid using right solenoid if it's configured on pin 26 (conflicts with STEP=26).
+        This will deliver reward via LEFT solenoid only (or whatever your base uses).
+        """
+        # If your WheelTask.reward() chooses solenoid based on side,
+        # that could hit pin 26. So we route through left port only.
+
         try:
-            self.surface_turner.target.value = 0
+            # Many Octopilot tasks use self.left_solenoid attr in base.
+            # If not present, fall back to parent reward.
+            if hasattr(self, "left_solenoid"):
+                # Manually actuate left solenoid using pigpio
+                # Pulse width/duration may differ in your framework;
+                # keeping this minimal and using the parent reward report message.
+                self.pig.write(self.left_solenoid, 1)
+                time.sleep(0.03)
+                self.pig.write(self.left_solenoid, 0)
+
+                if report:
+                    # Keep dispatcher semantics: send reward message
+                    self.network_communicator.poke_socket.send_string(
+                        f'reward;'
+                        f'trial_number={self.trial_number}=int;'
+                        f'reward_size={amount}=float;'
+                        f'reward_time={datetime.datetime.now().isoformat()}=str'
+                    )
+                return
         except Exception:
             pass
 
-        # Start with wheel callback off
-        self.wheel_listener.report_callback = None
+        # Fallback
+        return super().reward(amount, report=report)
 
-    # =========================
-    # Utility
-    # =========================
+    # -----------------------------
+    # Helpers
+    # -----------------------------
     def _cancel_timer(self, t):
         try:
             if t is not None:
@@ -1677,54 +1748,29 @@ class PoleDetectionTask(WheelTask):
         t.start()
 
     def _deg_to_units(self, deg: float) -> int:
-        deg_rel = float(deg) - float(self.pole_deg_iti)          # [-90, +90]
-        units_per_deg = float(self.POLE_RANGE_UNITS) / float(self.POLE_RANGE_DEG)  # 1000/90
-        u = int(round(deg_rel * units_per_deg))
+        # Scale degrees to "SurfaceTurner units", then apply calibration multiplier
+        return int(round(deg * self.units_per_degree * self.pole_calibration))
 
-        # Hard clamp just in case (keeps motor in sane range)
-        if u > self.POLE_RANGE_UNITS:
-            u = self.POLE_RANGE_UNITS
-        if u < -self.POLE_RANGE_UNITS:
-            u = -self.POLE_RANGE_UNITS
-        return u
+    def move_pole_deg(self, deg: float):
+        self.surface_turner.target.value = self._deg_to_units(deg)
 
-    def _set_pole_deg(self, deg: float):
-        target_units = self._deg_to_units(deg)
-        self.logger.debug(f"[PDT] Setting pole target: deg={deg} -> units={target_units}")
-        self.surface_turner.target.value = target_units
-
-    def _disable_wheel(self):
-        self._wheel_enabled = False
-        self.wheel_listener.report_callback = None
-
-    def _enable_wheel(self):
-        self._wheel_enabled = True
-        self._wheel_enable_time = time.time()
-        self.wheel_listener.report_callback = self.report_wheel
-
-        # Reset baseline to current raw to avoid first-diff bombs
-        self.last_raw_position = self.wheel_listener.position
-
-    # =========================
+    # -----------------------------
     # Session lifecycle
-    # =========================
+    # -----------------------------
     def stop_session(self):
-        # Disable wheel immediately
-        self._disable_wheel()
-
-        # Cancel timers
         self._cancel_timer(self._t_response)
 
-        # Park to ITI (optional)
+        # Park to ITI (logical), but do not assume it succeeds during shutdown
         try:
-            self._set_pole_deg(self.pole_deg_iti)
+            self.move_pole_deg(self.pole_deg_iti)
+            time.sleep(0.1)
         except Exception:
             pass
 
-        # Stop SurfaceTurner (match SOT)
+        # Stop SurfaceTurner process/timer (same pattern as SOT)
         try:
             self.surface_turner.stop_event.set()
-            time.sleep(1)
+            time.sleep(0.2)
         except Exception:
             pass
 
@@ -1733,89 +1779,72 @@ class PoleDetectionTask(WheelTask):
         except Exception:
             pass
 
-        self.logger.debug("[PDT] joining surface turner")
         try:
             self.proc.join(timeout=1)
             if self.proc.is_alive():
-                self.logger.debug("[PDT] warning: could not join surface_turner process; killing")
                 self.proc.terminate()
         except Exception:
             pass
 
-        self.logger.debug("[PDT] done with ending surface_turner process")
         super().stop_session()
 
-    # =========================
-    # Trial entrypoint
-    # =========================
+    # -----------------------------
+    # Trial entrypoint (called by Dispatcher)
+    # -----------------------------
     def set_trial_parameters(self, **msg_params):
         super().set_trial_parameters(**msg_params)
 
-        # Reset per-trial
         self._cancel_timer(self._t_response)
-        self.choice_made = False
-        self.choice_direction = None
-        self.reward_delivered = False
 
+        # Determine trial type
         self.trial_type = msg_params.get("trial_type", None)
         if self.trial_type not in ("A", "B"):
             self.trial_type = random.choice(["A", "B"])
 
-        # Disable wheel during pole move (prevents coupling/noise)
-        self._disable_wheel()
+        self.choice_made = False
+        self.choice_direction = None
+
+        # Reset wheel bookkeeping like SOT does
+        self.wheel_listener.report_callback = None
         time.sleep(0.01)
 
-        # Reset wheel integration baseline
         self.last_raw_position = self.wheel_listener.position
         self.clipped_position = 0
 
-        # Move pole to stim
+        # Move pole to stim position
         stim_deg = self.pole_deg_stim_A if self.trial_type == "A" else self.pole_deg_stim_B
         self.trial_state = "STIM"
-        self._set_pole_deg(stim_deg)
+        self.move_pole_deg(stim_deg)
 
-        # Let motor settle before enabling wheel
-        time.sleep(self.POLE_SETTLE_S)
+        # Short settle
+        time.sleep(0.15)
 
-        # Response phase
+        # Enable wheel for response
         self.trial_state = "RESPONSE"
-        self._enable_wheel()
+        self.wheel_listener.report_callback = self.report_wheel
 
-        # Timeout
+        # Arm response timeout
         self._arm_timer("_t_response", self.response_window_s, self._on_response_timeout)
 
-    # =========================
-    # Trial resolution
-    # =========================
     def _on_response_timeout(self):
         if self.choice_made:
             return
         self._resolve_trial(correct=None)
 
     def _resolve_trial(self, correct):
-        # Stop wheel
-        self._disable_wheel()
-        self._cancel_timer(self._t_response)
-
-        # ITI pole position
+        # End response
+        self.wheel_listener.report_callback = None
         self.trial_state = "ITI"
-        try:
-            self._set_pole_deg(self.pole_deg_iti)
-        except Exception:
-            pass
 
+        # Return pole to ITI
+        self.move_pole_deg(self.pole_deg_iti)
+
+        # Dispatcher already handles ITI timing between trials (3s in your config)
         self.trial_state = "IDLE"
 
-        # If WheelTask defines an end-trial hook, call it
-        try:
-            if hasattr(self, "end_trial"):
-                self.end_trial()
-        except Exception:
-            pass
-
-    # =========================
+    # -----------------------------
     # Reporting
-    # =========================
+    # -----------------------------
     def report_surface(self):
         while True:
             try:
@@ -1824,60 +1853,43 @@ class PoleDetectionTask(WheelTask):
                 break
 
             self.network_communicator.poke_socket.send_string(
-                f"surface;"
-                f"trial_number={self.trial_number}=int;"
-                f"surface_time={dt_move.isoformat()}=str;"
-                f"steps_moved={steps_moved}=int;"
-                f"surface_pos={surface_pos}=int"
+                f'surface;'
+                f'trial_number={self.trial_number}=int;'
+                f'surface_time={dt_move.isoformat()}=str;'
+                f'steps_moved={steps_moved}=int;'
+                f'surface_pos={surface_pos}=int'
             )
 
     def report_wheel(self, force_report=False):
-        if not self._wheel_enabled:
-            return
-
         now = datetime.datetime.now()
 
-        # Ignore window immediately after enabling callback
-        if (time.time() - self._wheel_enable_time) < self.WHEEL_IGNORE_AFTER_ENABLE_S:
-            self.last_raw_position = self.wheel_listener.position
-            return
-
+        # Read wheel (raw)
         wheel_position = self.wheel_listener.position
 
-        # Delta integration (same idea as SOT)
+        # Update clipped_position by delta since last callback
         diff = wheel_position - self.last_raw_position
         self.last_raw_position = wheel_position
 
-        # Reject implausible "teleport" diffs
-        if abs(diff) > self.MAX_WHEEL_DIFF_PER_CALLBACK:
-            self.logger.debug(
-                f"[PDT] Rejecting wheel jump diff={diff} (raw={wheel_position}); "
-                f"MAX={self.MAX_WHEEL_DIFF_PER_CALLBACK}"
-            )
-            return
-
-        # Update clipped position
         self.clipped_position += diff
         if self.clipped_position > self.wheel_max:
             self.clipped_position = self.wheel_max
         if self.clipped_position < self.wheel_min:
             self.clipped_position = self.wheel_min
 
-        # Report occasionally
-        if force_report or (np.mod(wheel_position, self.WHEEL_REPORT_MOD) == 0):
+        # Report periodically
+        if force_report or (wheel_position % 10 == 0):
             self.network_communicator.poke_socket.send_string(
-                f"wheel;"
-                f"trial_number={self.trial_number}=int;"
-                f"wheel_position={wheel_position}=int;"
-                f"clipped_position={self.clipped_position}=int;"
-                f"wheel_time={now.isoformat()}=str"
+                f'wheel;'
+                f'trial_number={self.trial_number}=int;'
+                f'wheel_position={wheel_position}=int;'
+                f'clipped_position={self.clipped_position}=int;'
+                f'wheel_time={now.isoformat()}=str'
             )
 
-        # Only decide choices in RESPONSE
+        # Only evaluate choice during RESPONSE
         if self.trial_state != "RESPONSE" or self.choice_made:
             return
 
-        # Threshold crossing
         if self.clipped_position >= self.choice_thresh:
             self.choice_made = True
             self.choice_direction = "right"
@@ -1887,16 +1899,18 @@ class PoleDetectionTask(WheelTask):
         else:
             return
 
+        # Stop timeout
         self._cancel_timer(self._t_response)
 
-        # Correctness mapping
         correct_choice = "left" if self.trial_type == "A" else "right"
         is_correct = (self.choice_direction == correct_choice)
 
         if is_correct:
+            # Reward and end trial
             self.reward(self.max_reward)
-
-        self._resolve_trial(correct=is_correct)
+            self._resolve_trial(correct=True)
+        else:
+            self._resolve_trial(correct=False)
 
 class WheelHabituationTask(WheelTask):
     """Agent that runs the wheel-based habituation task"""
