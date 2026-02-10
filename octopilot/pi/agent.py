@@ -1,4 +1,4 @@
-de"""Defines `Agent`s that runs on the Pi.
+"""Defines `Agent`s that runs on the Pi.
 
 This object is instantiated on the Pi by either the CLI or GUI. 
 Its job is to run the task on the Pi side. It contains objects to play 
