@@ -1362,8 +1362,11 @@ class SurfaceOrientationTask(WheelTask):
 
 
         ## Wheel and reward size parameters
-        # This is the size of a regular reward
-        self.max_reward = .05
+        # This is the size of a regular reward (adjust to get ~5uL per reward)
+        self.max_reward = .02
+        
+        # This is only used for incorrect choice trials
+        self.min_reward = 0
 
         # As time_since_last_reward increases, reward gets exponentially smaller
         # When time_since_last_reward == reward_decay, the reward size
@@ -1374,7 +1377,7 @@ class SurfaceOrientationTask(WheelTask):
         self.reward_decay = 0.5
         self.wheel_reward_thresh = 300 
         
-        # This defines the range in which turning the wheel changes the sound
+        # This defines the range in which turning the wheel is read for a reward
         # Every trial starts at either max or min
         # 1000 clicks is about 60 deg
         self.wheel_max = 1000
@@ -1385,6 +1388,7 @@ class SurfaceOrientationTask(WheelTask):
         # through it before it checks, which is probably pretty hard to do
         # 100 clicks is about 6 deg
         self.reward_range = 100
+        self.incorrect_range = 1050
         
         ## These are initialized later
         self.last_rewarded_position = None
@@ -1527,9 +1531,9 @@ class SurfaceOrientationTask(WheelTask):
             (self.wheel_max - self.wheel_min))
         
         
-        # Turn the surface
-        #~ with self.surface_turner.target.get_lock():
-        self.surface_turner.target.value = self.clipped_position
+        # TURNS THE SURFACE WITH WHEEL! (second line)
+        # self.surface_turner.target.get_lock()
+        # self.surface_turner.target.value = self.clipped_position
         
         ## Report to Dispatcher
         if force_report or np.mod(wheel_position, 10) == 0:
@@ -1547,7 +1551,12 @@ class SurfaceOrientationTask(WheelTask):
             # Within target range
             # Reward and end trial
             self.reward(self.max_reward)
-
+            
+        # Ends the trial if wheel spins incorrect direction (reward size=0) 
+        elif (nps.abs(self.clipped_position) > self.incorrect_range) and not self.reward_delivered:
+            self.reward(self.min_reward)
+        
+        # Rewards only if task is set to WHT parameters
         elif self.reward_for_spinning and np.abs(wheel_position - 
                 self.last_rewarded_position) > self.wheel_reward_thresh:
             
