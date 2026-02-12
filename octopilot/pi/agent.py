@@ -1602,8 +1602,8 @@ class PoleDetectionTask(WheelTask):
         # This defines the range in which turning the wheel changes the sound
         # Every trial starts at either max or min
         # 1000 clicks is about 60 deg
-        self.wheel_max = 5000
-        self.wheel_min = -5000
+        self.wheel_max = 6000
+        self.wheel_min = -6000
         
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right 
@@ -1726,7 +1726,7 @@ class PoleDetectionTask(WheelTask):
         
         # This time.sleep functions as an ITI
         # It will not respond to any wheel movements during this time
-        time.sleep(3)
+        time.sleep(5)
         
         # Reset the raw position to current
         self.last_raw_position = self.wheel_listener.position
