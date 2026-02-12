@@ -1602,8 +1602,8 @@ class PoleDetectionTask(WheelTask):
         # This defines the range in which turning the wheel changes the sound
         # Every trial starts at either max or min
         # 1000 clicks is about 60 deg
-        self.wheel_max = 1000
-        self.wheel_min = -1000
+        self.wheel_max = 2048
+        self.wheel_min = -2048
         
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right 
@@ -1738,8 +1738,10 @@ class PoleDetectionTask(WheelTask):
         ## Move to a position
         # Right now, the variable `self.clipped_position` is set randomly
         # to either wheel_max or wheel_min in the set_trial_parameters function
-        self.surface_turner.target.value = self.clipped_position
-        
+        if self.trial_type == 'present':
+            self.surface_turner.target.value = self.wheel_max
+        elif self.trial_type == 'absent':
+            self.surface_turner.target.value = self.wheel_min
     
     def report_surface(self):
         """Called by a RepeatedTimer to report surface movements"""
