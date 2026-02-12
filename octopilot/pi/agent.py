@@ -1699,7 +1699,7 @@ class PoleDetectionTask(WheelTask):
         # stop any previous timeout timer
         if self._t_response is not None:
             self._t_response.cancel()
-            elf._t_response = None
+            self._t_response = None
 
         # choose trial type
         self.trial_type = msg_params.get("trial_type", None)
