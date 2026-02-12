@@ -1616,13 +1616,16 @@ class PoleDetectionTask(WheelTask):
         self.pole_deg_iti = 0 # in-between
 
         # Magnitude of movement for 90°
-        self.units_per_degree = 15 # (5150.0/360.0)
+        self.units_per_degree = 15 # (~5150.0/360.0)
 
         # New PDT additions
         self.choice_thresh = 200
         self.response_window_s = 10.0
         self._t_response = None
-
+        self.trial_state = "IDLE"
+        self.choice_made = False
+        self.choice_direction = None
+        
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right
         # through it before it checks, which is probably pretty hard to do
