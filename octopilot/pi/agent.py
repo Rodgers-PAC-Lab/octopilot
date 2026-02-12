@@ -1047,12 +1047,12 @@ class WheelTask(Agent):
         # Starting position - TODO get from Dispatcher
         #if np.mod(self.trial_number, 2) == 0:
         if np.random.random() < 0.5:
-            self.clipped_position = self.wheel_min
+            self.trial_type = 'present'
         else:
-            self.clipped_position = self.wheel_max
+            self.trial_type = 'absent'
 
         # Everything should be locked to raw position at the start of the trial
-        self.last_raw_position = self.wheel_listener.position
+        self.position_at_trial_start = self.wheel_listener.position
         
         # Prevents multiple rewards
         self.reward_delivered = False
@@ -1653,11 +1653,12 @@ class PoleDetectionTask(WheelTask):
         # Log
         self.logger.info(f'{[reward_time]} rewarding for {reward_size} s')
         
-        # Issue reward
-        # TODO: rewrite with threading to avoid delay
-        self.pig.write(self.solenoid_pin, 1)
-        time.sleep(reward_size)
-        self.pig.write(self.solenoid_pin, 0)
+        if reward_size > 0:
+            # Issue reward
+            # TODO: rewrite with threading to avoid delay
+            self.pig.write(self.solenoid_pin, 1)
+            time.sleep(reward_size)
+            self.pig.write(self.solenoid_pin, 0)
         
         # Report
         if report:
@@ -1783,37 +1784,13 @@ class PoleDetectionTask(WheelTask):
         now = datetime.datetime.now()        
         
         
-        ## Update wheel positions
-        # At the beginning of each trial
-        # self.last_raw_position = self.wheel_listener.position
-        # self.clipped_position = random
-        
+        ## Compute where the wheel is
         # Get actual wheel position
         wheel_position = self.wheel_listener.position
         
-        # Compute movement since last_raw_position and update it
-        diff = wheel_position - self.last_raw_position
-        self.last_raw_position = wheel_position
+        # Normalize to the wheel_position at the start of the triasl
+        clipped_position = wheel_position - self.position_at_trial_start
         
-        # Clip the new position
-        self.clipped_position += diff
-        
-        if self.clipped_position > self.wheel_max:
-            self.clipped_position = self.wheel_max
-        
-        if self.clipped_position < self.wheel_min:
-            self.clipped_position = self.wheel_min
-
-        # Update position_within_range
-        # Compute the weight within the min/max range
-        position_within_range = (
-            (self.clipped_position - self.wheel_min) / 
-            (self.wheel_max - self.wheel_min))
-        
-        
-        # TURNS POLE! (comment out to disable closed-loop)
-        # self.surface_turner.target.get_lock():
-        # self.surface_turner.target.value = self.clipped_position
         
         ## Report to Dispatcher
         if force_report or np.mod(wheel_position, 10) == 0:
@@ -1821,34 +1798,32 @@ class PoleDetectionTask(WheelTask):
                 f'wheel;'
                 f'trial_number={self.trial_number}=int;'
                 f'wheel_position={wheel_position}=int;'
-                f'clipped_position={self.clipped_position}=int;'
+                f'clipped_position={clipped_position}=int;'
                 f'wheel_time={now.isoformat()}=str'
                 )
 
         
         ## Reward conditions
-        if (np.abs(self.clipped_position) < self.reward_range) and not self.reward_delivered:
-            # Within target range
-            # Reward and end trial
-            self.reward(self.max_reward)
+        if not self.reward_delivered:
+            if trial_type == 'present' and clipped_position > 500:
+                # They turned it positively on a present trial
+                # Reward and end trial
+                self.reward(self.max_reward)
 
-        elif self.reward_for_spinning and np.abs(wheel_position - 
-                self.last_rewarded_position) > self.wheel_reward_thresh:
-            
-            # Shaping stage: reward if it's moved far enough
-            # Set last rewarded position to current position
-            self.last_rewarded_position = wheel_position
-            
-            # Update reward size using temporal discounting
-            time_since_last_reward = (
-                now - self.last_reward_time).total_seconds()
-            reward_size = self.max_reward * (
-                1 - np.exp(-time_since_last_reward / self.reward_decay))
-            self.last_reward_time = now
-            
-            # Reward but do not end trial
-            self.reward(reward_size, report=False)
+            elif trial_type == 'absent' and clipped_position < -500:
+                # They turned it negatively on an absent trial
+                # Reward and end trial
+                self.reward(self.max_reward)
 
+            elif trial_type == 'present' and clipped_position < -500:
+                # They turned it negatively on a present trial
+                # Punish and end trial
+                self.reward(0)
+
+            elif trial_type == 'absent' and clipped_position > 500:
+                # They turned it positively on an absent trial
+                # Punish and end trial
+                self.reward(0)
 
 class WheelHabituationTask(WheelTask):
     """Agent that runs the wheel-based habituation task"""
