@@ -1569,7 +1569,6 @@ class SurfaceOrientationTask(WheelTask):
 class PoleDetectionTask(WheelTask):
     """Agent that runs the wheel-based pole detection task"""
     def __init__(self, *args, **kwargs):
-        
         ## Call parent __init___
         super().__init__(*args, **kwargs)        
 
@@ -1612,6 +1611,7 @@ class PoleDetectionTask(WheelTask):
         # 100 clicks is about 6 deg
         self.reward_range = 100
         
+        
         ## These are initialized later
         self.last_rewarded_position = None
         self.last_reported_time = None
@@ -1637,6 +1637,55 @@ class PoleDetectionTask(WheelTask):
             self.report_surface,
             )
 
+    def reward(self, reward_size, report=True):
+        """Open the reward port and optionally report to Dispatcher
+        
+        reward_size : numeric
+            Duration that the solenoid is open, in ms
+        
+        report : bool
+            If True, call self.report_reward
+            This likely triggers the trial to end, which we may not want
+        """
+        # Get current time
+        reward_time = datetime.datetime.now()
+        
+        # Log
+        self.logger.info(f'{[reward_time]} rewarding for {reward_size} s')
+        
+        # Issue reward
+        # TODO: rewrite with threading to avoid delay
+        self.pig.write(self.solenoid_pin, 1)
+        time.sleep(reward_size)
+        self.pig.write(self.solenoid_pin, 0)
+        
+        # Report
+        if report:
+            # This prevents multiple rewards per trial (excluding non-reported 
+            # rewards)
+            self.reward_delivered = True
+
+            self.report_reward(reward_time)
+    
+    
+        ## Move it to ITI position
+        self.surface_turner.target.value = 0        
+        time.sleep(2)
+    
+    def report_reward(self, reward_time):
+        """Called by WheelController upon reward. Reports to Dispatcher by ZMQ.
+        
+        """
+        # Log
+        self.logger.info(f'reporting reward at {reward_time}')
+        
+        # Report to Dispatcher
+        self.network_communicator.poke_socket.send_string(
+            f'reward;'
+            f'trial_number={self.trial_number}=int;'
+            f'reward_time={reward_time}=str'
+            )  
+    
     def stop_session(self):
         """Stop the session.
         
@@ -1681,6 +1730,13 @@ class PoleDetectionTask(WheelTask):
         
         # Restart callbacks
         self.wheel_listener.report_callback = self.report_wheel
+    
+    
+        ## Move to a position
+        # Right now, the variable `self.clipped_position` is set randomly
+        # to either wheel_max or wheel_min in the set_trial_parameters function
+        self.surface_turner.target.value = self.clipped_position
+        
     
     def report_surface(self):
         """Called by a RepeatedTimer to report surface movements"""
