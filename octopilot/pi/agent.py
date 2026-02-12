@@ -1805,22 +1805,22 @@ class PoleDetectionTask(WheelTask):
         
         ## Reward conditions
         if not self.reward_delivered:
-            if trial_type == 'present' and clipped_position > 500:
+            if self.trial_type == 'present' and clipped_position > 500:
                 # They turned it positively on a present trial
                 # Reward and end trial
                 self.reward(self.max_reward)
 
-            elif trial_type == 'absent' and clipped_position < -500:
+            elif self.trial_type == 'absent' and clipped_position < -500:
                 # They turned it negatively on an absent trial
                 # Reward and end trial
                 self.reward(self.max_reward)
 
-            elif trial_type == 'present' and clipped_position < -500:
+            elif self.trial_type == 'present' and clipped_position < -500:
                 # They turned it negatively on a present trial
                 # Punish and end trial
                 self.reward(0)
 
-            elif trial_type == 'absent' and clipped_position > 500:
+            elif self.trial_type == 'absent' and clipped_position > 500:
                 # They turned it positively on an absent trial
                 # Punish and end trial
                 self.reward(0)
