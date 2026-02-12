@@ -1724,24 +1724,25 @@ class PoleDetectionTask(WheelTask):
         ## Disable wheel updates until the surface has moved back
         self.wheel_listener.report_callback = None
         
-        # This time.sleep functions as an ITI
-        # It will not respond to any wheel movements during this time
-        time.sleep(5)
-        
-        # Reset the raw position to current
-        self.last_raw_position = self.wheel_listener.position
-        
-        # Restart callbacks
-        self.wheel_listener.report_callback = self.report_wheel
-    
-    
-        ## Move to a position
-        # Right now, the variable `self.clipped_position` is set randomly
-        # to either wheel_max or wheel_min in the set_trial_parameters function
+        # This time.sleep gives the motor time to move back to the 
+        # ITI position
+        time.sleep(2.5)
+
+        # Move to a position
         if self.trial_type == 'present':
             self.surface_turner.target.value = self.wheel_max
         elif self.trial_type == 'absent':
             self.surface_turner.target.value = self.wheel_min
+
+        # This time.sleep gives the motor time to move to its new position
+        time.sleep(2.5)
+        
+        # Reset the start trial position to current
+        self.position_at_trial_start = self.wheel_listener.position        
+        self.last_raw_position = self.wheel_listener.position
+        
+        # Restart callbacks
+        self.wheel_listener.report_callback = self.report_wheel
     
     def report_surface(self):
         """Called by a RepeatedTimer to report surface movements"""
