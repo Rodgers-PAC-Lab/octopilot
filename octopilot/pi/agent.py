@@ -1753,9 +1753,9 @@ class PoleDetectionTask(WheelTask):
             (self.wheel_max - self.wheel_min))
         
         
-        # Turn the surface
-        #~ with self.surface_turner.target.get_lock():
-        self.surface_turner.target.value = self.clipped_position
+        # TURNS POLE! (comment out to disable closed-loop)
+        # self.surface_turner.target.get_lock():
+        # self.surface_turner.target.value = self.clipped_position
         
         ## Report to Dispatcher
         if force_report or np.mod(wheel_position, 10) == 0:
