@@ -1846,6 +1846,15 @@ class PoleDetectionTask(WheelTask):
             self.reward(self.max_reward)
 
         self._end_trial(correct=is_correct)
+        
+    # New PDT function for smooth trial transition
+    def _end_trial(self, correct=None):
+        # stop listening to wheel position
+        self.wheel_listener.report_callback = None
+
+        # return pole to ITI position
+        self.surface_turner.target.value = 0
+        self.trial_state = "IDLE"
 
 
 class WheelHabituationTask(WheelTask):
