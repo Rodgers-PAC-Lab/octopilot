@@ -1722,6 +1722,9 @@ class PoleDetectionTask(WheelTask):
         
         ## Disable wheel updates until the surface has moved back
         self.wheel_listener.report_callback = None
+        
+        # This time.sleep functions as an ITI
+        # It will not respond to any wheel movements during this time
         time.sleep(3)
         
         # Reset the raw position to current
