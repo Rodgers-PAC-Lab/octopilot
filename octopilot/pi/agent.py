@@ -1670,7 +1670,6 @@ class PoleDetectionTask(WheelTask):
     
         ## Move it to ITI position
         self.surface_turner.target.value = 0        
-        time.sleep(2)
     
     def report_reward(self, reward_time):
         """Called by WheelController upon reward. Reports to Dispatcher by ZMQ.
@@ -1723,7 +1722,7 @@ class PoleDetectionTask(WheelTask):
         
         ## Disable wheel updates until the surface has moved back
         self.wheel_listener.report_callback = None
-        time.sleep(1)
+        time.sleep(3)
         
         # Reset the raw position to current
         self.last_raw_position = self.wheel_listener.position
