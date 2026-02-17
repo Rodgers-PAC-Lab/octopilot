@@ -1565,7 +1565,6 @@ class SurfaceOrientationTask(WheelTask):
             # Reward but do not end trial
             self.reward(reward_size, report=False)
 
-# SOT-PDT DEBUGGING
 class PoleDetectionTask(WheelTask):
     """Agent that runs the wheel-based pole detection task"""
     def __init__(self, *args, **kwargs):
