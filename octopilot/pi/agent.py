@@ -1565,8 +1565,6 @@ class SurfaceOrientationTask(WheelTask):
             # Reward but do not end trial
             self.reward(reward_size, report=False)
 
-# NEW WORKING/FINALIZED VERSION
-
 class PoleDetectionTask(WheelTask):
     """Agent that runs the wheel-based pole detection task"""
     def __init__(self, *args, **kwargs):
@@ -1602,14 +1600,14 @@ class PoleDetectionTask(WheelTask):
 
         # This defines the range in which turning the wheel changes the sound
         # Every trial starts at either max or min
-        # 1000 clicks is about 60 deg
-        self.wheel_max = 6000
-        self.wheel_min = -6000
+        # 1000 clicks is about 90 deg
+        self.wheel_max = 6200
+        self.wheel_min = -6200
 
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right
         # through it before it checks, which is probably pretty hard to do
-        # 100 clicks is about 6 deg
+        # 100 clicks is about 9
         self.reward_range = 100
 
 
@@ -1684,8 +1682,8 @@ class PoleDetectionTask(WheelTask):
         self.network_communicator.poke_socket.send_string(
             f'reward;'
             f'trial_number={self.trial_number}=int;'
-            f'trial_type={self.trial_type}=str;'
-            f'choice={self.choice}=str;'
+            f'trial_type={self.trial_type}=str;' # SPECIFIC TO PDT
+            f'choice={self.choice}=str;' # SPECIFIC TO PDT
             f'reward_time={reward_time}=str'
             )
 
