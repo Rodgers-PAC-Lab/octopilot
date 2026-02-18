@@ -1057,7 +1057,14 @@ class WheelDispatcher(Dispatcher):
         return
         self._log_flash(trial_number, identity, flash_time)
     
-    def handle_reward(self, identity, trial_number, reward_time):
+    def handle_reward(self, identity, trial_number, reward_time, 
+        trial_type=None, choice=None):
+            
+        if trial_type is not None:
+            self.trial_parameters['trial_type'] = trial_type
+        if choice is not None:
+            self.trial_parameters['choice'] = choice
+            
         # Log the trial
         self._log_trial(reward_time)
         
@@ -1111,7 +1118,7 @@ class WheelDispatcher(Dispatcher):
         # dict, plus also 'trial_number'
         #~ param_names = list(
             #~ self.trial_parameter_chooser.param2possible_values.keys())
-        param_names = []
+        param_names = ['trial_type', 'choice']
         
         # Order as follows: sort the param_names, prepend and postpend a few
         # that are not contained within param_names
