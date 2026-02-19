@@ -154,7 +154,7 @@ class Agent(object):
             )
         
         # Initialize this output pin for sound reporting
-        self.pig.set_mode(23, pigpio.OUTPUT)
+        self.pig.set_mode(24, pigpio.OUTPUT)
         
         
         ## Optionally set up networking
@@ -944,11 +944,16 @@ class WheelTask(Agent):
         self.wheel_listener = hardware.WheelListener(self.pig)
         
 
-        ## Set up reward
+        ## Set up output pins
+        # Unlike the octagon tasks, we have only a single solenoid pin
         self.solenoid_pin = 6
+        
+        # Note: this is the same pin used by sound_player
+        self.house_light_pin = 23
         
         # The default is INPUT, so only outputs have to be set
         self.pig.set_mode(self.solenoid_pin, pigpio.OUTPUT)
+        self.pig.set_mode(self.house_light_pin, pigpio.OUTPUT)
     
     def start_session(self):
         # Call Agent.start_session
@@ -1728,7 +1733,9 @@ class PoleDetectionTask(WheelTask):
 
         # This time.sleep gives the motor time to move back to the
         # ITI position
+        self.pig.write(self.house_light_pin, 1)
         time.sleep(2.5)
+        self.pig.write(self.house_light_pin, 0)
 
         # Move to a position
         if self.trial_type == 'present':
