@@ -1684,6 +1684,7 @@ class PoleDetectionTask(WheelTask):
             f'trial_number={self.trial_number}=int;'
             f'trial_type={self.trial_type}=str;' # SPECIFIC TO PDT
             f'choice={self.choice}=str;' # SPECIFIC TO PDT
+            f'direction={self.choice}=str;' # SPECIFIC TO PDT
             f'reward_time={reward_time}=str'
             )
 
@@ -1813,24 +1814,28 @@ class PoleDetectionTask(WheelTask):
                 # They turned it positively on a present trial
                 # Reward and end trial
                 self.choice = 'correct'
+                slef.direction = 'right'
                 self.reward(self.max_reward)
 
             elif self.trial_type == 'absent' and clipped_position < -500:
                 # They turned it negatively on an absent trial
                 # Reward and end trial
                 self.choice = 'correct'
+                self.direction = 'left'
                 self.reward(self.max_reward)
 
             elif self.trial_type == 'present' and clipped_position < -500:
                 # They turned it negatively on a present trial
                 # Punish and end trial
                 self.choice = 'incorrect'
+                self.choice = 'left'
                 self.reward(0)
 
             elif self.trial_type == 'absent' and clipped_position > 500:
                 # They turned it positively on an absent trial
                 # Punish and end trial
                 self.choice = 'incorrect'
+                self.direction = 'right'
                 self.reward(0)
 
 class WheelHabituationTask(WheelTask):
