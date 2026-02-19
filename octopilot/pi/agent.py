@@ -1821,7 +1821,7 @@ class PoleDetectionTask(WheelTask):
                 # They turned it positively on a present trial
                 # Reward and end trial
                 self.choice = 'correct'
-                slef.direction = 'right'
+                self.direction = 'right'
                 self.reward(self.max_reward)
 
             elif self.trial_type == 'absent' and clipped_position < -500:
