@@ -1591,7 +1591,7 @@ class PoleDetectionTask(WheelTask):
 
 
         ## Wheel and reward size parameters
-        # This is the size of a regular reward
+        # This is the size of a large reward (lower once getting better to 0.025)
         self.max_reward = .05
 
         # As time_since_last_reward increases, reward gets exponentially smaller
@@ -1817,28 +1817,28 @@ class PoleDetectionTask(WheelTask):
 
         ## Reward conditions
         if not self.reward_delivered:
-            if self.trial_type == 'present' and clipped_position > 500:
+            if self.trial_type == 'present' and clipped_position > 300:
                 # They turned it positively on a present trial
                 # Reward and end trial
                 self.choice = 'correct'
                 self.direction = 'right'
                 self.reward(self.max_reward)
 
-            elif self.trial_type == 'absent' and clipped_position < -500:
+            elif self.trial_type == 'absent' and clipped_position < -300:
                 # They turned it negatively on an absent trial
                 # Reward and end trial
                 self.choice = 'correct'
                 self.direction = 'left'
                 self.reward(self.max_reward)
 
-            elif self.trial_type == 'present' and clipped_position < -500:
+            elif self.trial_type == 'present' and clipped_position < -300:
                 # They turned it negatively on a present trial
                 # Punish and end trial
                 self.choice = 'incorrect'
                 self.choice = 'left'
                 self.reward(0)
 
-            elif self.trial_type == 'absent' and clipped_position > 500:
+            elif self.trial_type == 'absent' and clipped_position > 300:
                 # They turned it positively on an absent trial
                 # Punish and end trial
                 self.choice = 'incorrect'
