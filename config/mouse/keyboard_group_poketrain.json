@@ -1,5 +1,5 @@
 {
-    "display":false
+    "display":false,
     "reward_value": 1,
     "box": "box2",
     "task": "poketrain"
