@@ -381,7 +381,12 @@ class SoundSeekingDispatcher(Dispatcher):
 
     
     """
-
+    
+    # Class variable indicating the task json, which will be sent to 
+    # the Pi via the marshaller
+    # TODO: allow different tasks for each Dispatcher
+    task_name = 'SSS_variable'
+    
     def __init__(self, box_params, task_params, mouse_params, sandbox_path):
         """Initialize a new SoundSeekingDispatcher
         
@@ -483,7 +488,9 @@ class SoundSeekingDispatcher(Dispatcher):
             ip_addresses=self.pi_ip_addresses,
             sandbox_path=self.sandbox_path,
             )
-        self.marshaller.start()
+
+        # self.task_name is a class variable
+        self.marshaller.start(task_name=self.task_name)
 
     def init_history(self):
         """Set all history variables to defaults
