@@ -1689,7 +1689,7 @@ class PoleDetectionTask(WheelTask):
             f'trial_number={self.trial_number}=int;'
             f'trial_type={self.trial_type}=str;' # SPECIFIC TO PDT
             f'choice={self.choice}=str;' # SPECIFIC TO PDT
-            f'direction={self.choice}=str;' # SPECIFIC TO PDT
+            f'direction={self.direction}=str;' # SPECIFIC TO PDT
             f'reward_time={reward_time}=str'
             )
 
