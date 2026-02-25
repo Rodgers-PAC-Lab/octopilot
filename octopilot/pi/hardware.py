@@ -195,4 +195,88 @@ class Nosepoke(object):
 
     def turn_off_red_led(self):
         self.pig.write(self.red_pin, 0)
+
+class WheelListener(object):
+    def __init__(self, pi, report_callback=None):
+        """Initialize a new WheelListener
         
+        A decent turn will increment `position` every 1 ms.
+        A full rotation is a few thousand positions.
+        
+        pi : pigpio.pi
+        report_callback : method or None
+            If not None, this method is called every time the state changes.
+        """
+        # Store provided arguments
+        self.pi = pi
+        self.report_callback = report_callback
+        
+        # Set up logs for position and state
+        self.position = 0
+        self.event_log = []
+        self.state_log = []
+        self.a_state = 0
+        self.b_state = 0
+        
+        # Set up callbacks
+        self.pi.callback(17, pigpio.RISING_EDGE, self.pulseA_detected)
+        self.pi.callback(27, pigpio.RISING_EDGE, self.pulseB_detected)
+        self.pi.callback(17, pigpio.FALLING_EDGE, self.pulseA_down)
+        self.pi.callback(27, pigpio.FALLING_EDGE, self.pulseB_down)
+        
+    def pulseA_detected(self, pin, level, tick):
+        self.event_log.append('A')
+        self.a_state = 1
+        if self.b_state == 0:
+            self.position += 1
+        else:
+            self.position -= 1
+        self.state_log.append(
+            '{}{}_{}'.format(self.a_state, self.b_state, self.position))
+
+        if self.report_callback is not None:
+            self.report_callback()
+
+    def pulseB_detected(self, pin, level, tick):
+        self.event_log.append('B')
+        self.b_state = 1
+        if self.a_state == 0:
+            self.position -= 1
+        else:
+            self.position += 1
+        self.state_log.append(
+            '{}{}_{}'.format(self.a_state, self.b_state, self.position))
+
+        if self.report_callback is not None:
+            self.report_callback()
+    
+    def pulseA_down(self, pin, level, tick):
+        self.event_log.append('a')
+        self.a_state = 0
+        if self.b_state == 0:
+            self.position -= 1
+        else:
+            self.position += 1
+        self.state_log.append(
+            '{}{}_{}'.format(self.a_state, self.b_state, self.position))
+
+        if self.report_callback is not None:
+            self.report_callback()
+    
+    def pulseB_down(self, pin, level, tick):
+        self.event_log.append('b')
+        self.b_state = 0
+        if self.a_state == 0:
+            self.position += 1
+        else:
+            self.position -= 1
+        self.state_log.append(
+            '{}{}_{}'.format(self.a_state, self.b_state, self.position))
+
+        if self.report_callback is not None:
+            self.report_callback()
+    
+    def report(self):
+        print("current position: {}".format(self.position))
+        print('events: ' + ''.join(self.event_log[-60:]))
+        print('states: ' + '\t'.join(self.state_log[-4:]))

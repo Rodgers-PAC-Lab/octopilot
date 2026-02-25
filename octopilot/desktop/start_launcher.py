@@ -1,7 +1,10 @@
 ## Main script that runs the main launcher app on the desktop
 # Run this script as follows:
-#   python3 -m paclab_sukrith.gui.start_launcher
-
+#   python3 -m octopilot.desktop.start_launcher
+# 
+# This is the highest-level way to start octopilot. This script will use Popen
+# to run "python3 -m octopilot.desktop.start_gui" with specific parameters
+# for mouse, task, and box. 
 
 ## Module imports
 from ..shared import load_params
@@ -9,6 +12,7 @@ from ..shared import load_params
 # This defines standard QApplication
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QTableWidget, QTableWidgetItem, QVBoxLayout, QPushButton
 from PyQt5 import QtCore, QtGui
+import PyQt5.QtWidgets
 
 import functools
 import datetime
@@ -18,6 +22,7 @@ import signal
 import subprocess
 import glob
 import os
+import time
 import pandas
 
 # Helper function
@@ -89,6 +94,10 @@ def start_octopilot_gui_in_new_terminal(
     if keep_window_open:
         bash_command += '; read'    
 
+    # Generate a unique window name
+    window_name = f'Terminal for {box} {mouse} {task}'
+    #~ window_name = 'asdf'
+
     # Form the full list of Popen args, which are used to start the
     # gnome-terminal window and then run the bash_command inside it
     # Note: bash_command should NOT be enclosed in quotes here, because that
@@ -97,8 +106,10 @@ def start_octopilot_gui_in_new_terminal(
     popen_args = [
         'gnome-terminal', 
         f'--working-directory={sandbox_path}',
+        '--hide-menubar',
         '--geometry=%dx%d+%d+%d' % (ncols, nrows, xpos, ypos),
         '--zoom=%0.2f' % zoom,  
+        f'--title={window_name}',
         '--', # used to be -x
         'bash', '-l', '-c',
         bash_command,
@@ -110,6 +121,13 @@ def start_octopilot_gui_in_new_terminal(
     # Popen
     # TODO: keep track of this process in Launcher
     proc = subprocess.Popen(popen_args)
+    
+    # Remove the title bar
+    time.sleep(1)
+    os.system(
+        'xprop -f _MOTIF_WM_HINTS 32c -set _MOTIF_WM_HINTS '
+        '"0x2, 0x0, 0x2, 0x0, 0x0" ' 
+        f'-name "{window_name}"')
     
     return proc
 
@@ -160,6 +178,9 @@ class LauncherWindow(QWidget):
         # Super init for QWidget
         super().__init__()
         
+        # Keep track of launched processes
+        self.proc_l = []
+        
         # Set window title
         self.setWindowTitle('Octopilot Launcher')
         
@@ -209,20 +230,30 @@ class LauncherWindow(QWidget):
                 functools.partial(self.start_session_from_qb, qb))
             self.table_widget.setCellWidget(n_row, 3, qb)
 
-        # Create a layout
+        # Create a checkbox for debug mode
+        self.debug_check_box_label = PyQt5.QtWidgets.QLabel(self)
+        self.debug_check_box_label.setText('debug mode')
+        self.debug_check_box = PyQt5.QtWidgets.QCheckBox(self)
+        self.debug_check_box_layout = PyQt5.QtWidgets.QHBoxLayout()
+        self.debug_check_box_layout.addWidget(self.debug_check_box_label)
+        self.debug_check_box_layout.addWidget(self.debug_check_box)
+
+        # Initialize state of checkbox
+        if args.debug:
+            self.debug_check_box.setChecked(True)
+
+        # Create a layout and add items to it
         self.layout = QVBoxLayout()
-        
-        # Add table to the layout
         self.layout.addWidget(self.table_widget)
+        self.layout.addLayout(self.debug_check_box_layout)
         
         # Set the layout
         self.setLayout(self.layout)
         
         # Position in the upper left corner
-        self.resize(350, 1000)
+        self.resize(400, 1000)
         self.move(0, 0)
-        
-
+    
     def start_session_from_row_idx(self, n_row):
         """Use data from row in self.table_widget to start octopilot session
         
@@ -242,15 +273,20 @@ class LauncherWindow(QWidget):
         box_params = load_params.load_box_params(box)
         ypos = box_params['ypos_of_gui']
         
+        # Get state of debug check box
+        debug = self.debug_check_box.isChecked()
+        
         # Call start_octopilot_gui_in_new_terminal with that data
-        # TODO: keep track of this process
         proc = start_octopilot_gui_in_new_terminal(
             mouse=mouse,
             box=box,
             task=task,
             ypos=ypos,
-            keep_window_open=args.debug,
+            keep_window_open=debug,
         )
+        
+        # Store
+        self.proc_l.append(proc)
 
     def start_session_from_qb(self, row_qb):
         """Start the session associated with the push button for this row.

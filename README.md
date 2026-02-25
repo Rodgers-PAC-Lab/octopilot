@@ -42,7 +42,7 @@ Detailed documentation for all parameters in each of these files may be found in
 
     conda create --name octopilot
     conda activate octopilot
-    conda install pyqt==5.15.10 pyzmq pyqtgraph==0.13.1 numpy pandas ipython
+    conda install pyqt==5.15.10 pyzmq pyqtgraph==0.13.1 numpy pandas ipython urllib3 requests
     pip install pyqt-toast-notification
 
 ## Requirements for Pi
@@ -59,7 +59,8 @@ Activate that venv.
 Install dependencies
 
     sudo apt install jackd # say yes if it asks about real-time priority
-    pip install pyzmq pigpio numpy pandas ipython scipy JACK-Client
+    pip install pyzmq pigpio numpy pandas ipython scipy JACK-Client 
+    pip install RPi.GPIO # new
 
 Reboot after install jackd. For more info about installing jack: https://jackclient-python.readthedocs.io/en/0.5.4/installation.html#requirements
 
@@ -68,11 +69,16 @@ Reboot after install jackd. For more info about installing jack: https://jackcli
     cd ~/dev/octopilot
     pip install -e .
 
+## Setting up log location before first use 
+
+    mkdir ~/octopilot
+    mdkir ~/octopilot/logs
+
 # Running `octopilot`
 On the desktop:
 
     conda activate octopilot
-    python3 -m octopilot.desktop.start_gui
+    python3 -m octopilot.desktop.start_launcher
 
 The present version will automatically connect to each Pi and start `octopilot` on each Pi. Alternatively you can start it on the Pi like this:
 

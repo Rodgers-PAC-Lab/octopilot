@@ -1,4 +1,5 @@
 {
+    "main_window_name": "OctopilotSessionWindow",
     "play_targets": true,
     "target_log_amplitude_min": -2.25,
     "target_log_amplitude_max": -1,
@@ -13,3 +14,4 @@
     "target_center_freq_max": 15000.0,
     "target_center_freq_n_choices": 12
 }
+

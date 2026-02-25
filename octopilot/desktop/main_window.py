@@ -32,6 +32,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget
 from PyQt5.QtCore import QObject, pyqtSignal, QThread, QTimer
 
 # From this module
+from . import watchtower
 from . import plotting
 from . import controllers
 from ..shared.logtools import NonRepetitiveLogger
@@ -39,7 +40,70 @@ from ..shared.logtools import NonRepetitiveLogger
 
 import traceback
 
-class OctopilotSessionWindow(QtWidgets.QMainWindow):
+class SessionWindow(QtWidgets.QMainWindow):
+    """Parent class containing shared methods for all session windows
+    
+    """
+    def __init__(self, *args, **kwargs):
+        ## Superclass QMainWindow init
+        super().__init__()
+
+
+        ## Init logger
+        self.logger = NonRepetitiveLogger("test")
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter('[%(levelname)s] - %(message)s'))
+        self.logger.addHandler(sh)
+        self.logger.setLevel(logging.DEBUG)
+        
+        
+        ## This sets up self._exception_hook to handle any unexpected errors
+        self._set_up_exception_handling()    
+
+    def _set_up_exception_handling(self):
+        self.exception_occurred = False 
+        
+        # this registers the exception_hook() function as hook
+        sys.excepthook = self._exception_hook
+
+    def _exception_hook(self, exc_type, exc_value, exc_traceback):
+        """Function handling uncaught exceptions.
+        
+        It is triggered each time an uncaught exception occurs. 
+        # https://timlehr.com/2018/01/python-exception-hooks-with-qt-message-box/
+        """
+        if issubclass(exc_type, KeyboardInterrupt):
+            # ignore keyboard interrupt to support console applications
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        
+        else:
+            # Flag that an error has occured
+            self.exception_occurred = True
+            
+            # Get the exc_info
+            exc_info = (exc_type, exc_value, exc_traceback)
+            
+            # Form a log message
+            log_msg = '\n'.join([
+                ''.join(traceback.format_tb(exc_traceback)),
+                '{0}: {1}'.format(exc_type.__name__, exc_value),
+                ])
+            
+            # Log it
+            self.logger.error(
+                "Uncaught exception:\n {0}".format(log_msg))
+
+    def _check_if_error_occured(self):
+        """Called every time a dispatcher update is called
+        
+        Checks self.exception_occurred, which is set by self._exception_hook
+        after any uncaught exception. If it is True, set background color to
+        red. 
+        """
+        if self.exception_occurred:
+            self.setStyleSheet("background-color: red;") 
+    
+class OctopilotSessionWindow(SessionWindow):
     """Main window of the GUI that arranges all the widgets.
     
     Here we make objects of all the different elements of the GUI and arrange 
@@ -86,7 +150,7 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
           The stop button is connected to `self.dispatcher.stop_session` and
           the stop_plot of the plotting widgets.
         """
-        ## Superclass QMainWindow init
+        ## Superclass init
         super().__init__()
 
 
@@ -102,8 +166,26 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         self._set_up_exception_handling()
         
         
+        ## Store params (TODO: add others)
+        self.box_params = box_params
+
+        # Pull out camera name if available
+        try:
+            self.camera_name = self.box_params['camera']
+            self.logger.info(f'will use camera {self.camera_name}')
+        except KeyError:
+            self.camera_name = None
+            self.logger.info('warning: no camera specified')
+        
+        if self.camera_name == '':
+            self.logger.info('warning: camera is specified as empty string')
+            self.camera_name = None
+        
+        self.watchtowerurl = 'https://192.168.11.121:4343'
+        
+        
         ## Create the Dispatcher that will run the task
-        self.dispatcher = controllers.Dispatcher(
+        self.dispatcher = controllers.SoundSeekingDispatcher(
             box_params=box_params, 
             task_params=task_params, 
             mouse_params=mouse_params, 
@@ -198,6 +280,238 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         self.start_session_timer.timeout.connect(self.start_session)
         self.start_session_timer.start(500)
 
+    def set_up_stop_button(self):
+        """Create a stop button and connect to self.stop_session and plot stops
+        
+        """
+        # Create button
+        self.stop_button = QPushButton("Stop Session")
+        
+        # Stop the dispatcher and the updates
+        self.stop_button.clicked.connect(self.dispatcher.stop_session)
+        self.stop_button.clicked.connect(self.poke_plot_widget.stop_plot)
+        self.stop_button.clicked.connect(
+            self.performance_metric_display_widget.stop)
+        self.stop_button.clicked.connect(self.stop_watchtower_save)
+        self.stop_button.clicked.connect(
+            lambda *_: self.stop_button.setText("Session stopped"))
+
+    def stop_watchtower_save(self):
+        """Called by stop_session. Stops watchtower save"""
+        ## Always stop save even if it crashes
+        # The problem is that this line doesn't run if the terminal window is closed
+        # Try this xprop hack: https://forums.linuxmint.com/viewtopic.php?t=300908
+        if self.camera_name is not None:
+            if self.watchtower_connection_up:
+                self.logger.debug('telling watchtower to stop save')
+                self.watchtower_connection_up = (
+                    watchtower.watchtower_stop_save(
+                        self.watchtowerurl, 
+                        self.watchtower_apit, 
+                        self.camera_name, 
+                        self.logger))
+            else:
+                self.logger.warning(
+                    'cannot tell watchtower to stop save because '
+                    'connection is not up')
+
+    def start_session(self):
+        """Called by self.start_session_timer to start session
+        
+        We want to start the session right away, but this can't go in 
+        __init__, because the timers don't start running until __init__ is
+        done, and we need some timers to be running to update the dispatcher
+        and handle messages from the agent.
+        
+        Every time this function is called by self.start_session_timer, it
+        checks if all the Agents are connected. If not, nothing happens. If so,
+        self.dispatcher.start_session() starts the session, and we also start
+        the plot widgets.
+        
+        Finaly self.start_session_timer is stopped so that we don't start
+        twice.
+        """
+        
+        ## Log 
+        self.logger.info(
+            f'{datetime.datetime.now(): } '
+            'MainWindow attempting to start session...')
+        
+        
+        ## Wait until Pis are connected
+        if not self.dispatcher.network_communicator.check_if_all_pis_connected():
+            self.logger.info(
+                'waiting for Agents to connect before starting...')
+            return
+
+
+        ## Start saving video (if camera specified)
+        if self.camera_name is not None:
+            # Setup
+            self.watchtower_connection_up, self.watchtower_apit = (
+                watchtower.watchtower_setup(self.watchtowerurl, logger=self.logger))
+            
+            # Start save
+            if self.watchtower_connection_up:
+                # Stop save if it's saving
+                self.logger.debug('telling watchtower to stop save')
+                self.watchtower_connection_up = (
+                    watchtower.watchtower_stop_save(
+                        self.watchtowerurl, 
+                        self.watchtower_apit, 
+                        self.camera_name, 
+                        self.logger))
+                
+                # Start save
+                self.logger.debug('telling watchtower to start save')
+                self.watchtower_connection_up = (
+                    watchtower.watchtower_start_save(
+                        self.watchtowerurl, 
+                        self.watchtower_apit, 
+                        self.camera_name, 
+                        self.logger))
+            else:
+                self.logger.warning('could not initialize watchtower!')
+
+        
+        ## Start the dispatcher and the updates
+        self.dispatcher.start_session()
+        
+        # Error if it failed to start (e.g., a Pi disconnected)
+        if not self.dispatcher.session_is_running:
+            raise ValueError('dispatcher failed to start!')
+
+        # TODO: Instead of these objects having their own timers, 
+        # OctopilotSessionWindow should keep track of that
+        self.poke_plot_widget.start_plot()
+        self.arena_widget.start()
+        self.performance_metric_display_widget.start()        
+        
+        # Don't start the session again
+        self.start_session_timer.stop()
+
+    def closeEvent(self, event):
+        """Executes when the window is closed
+        
+        Send 'exit' signal to all IP addresses bound to the GUI
+        """
+        # Iterate through identities and send 'exit' message
+        self.timer_dispatcher.stop()
+        self.dispatcher.stop_session()
+        self.stop_watchtower_save()
+        
+        # TODO: how to stop watchtower save if it's force-quit?
+        event.accept()
+
+class WheelSessionWindow(SessionWindow):
+    """Main window of the GUI that arranges all the widgets.
+
+    """
+    def __init__(self, box_params, task_params, mouse_params, sandbox_path, 
+        timer_dispatcher_period_ms=50):
+        """Initialize a new WheelSessionWindow
+        
+        """
+        ## Superclass init
+        super().__init__()
+
+
+        ## Create the Dispatcher that will run the task
+        self.dispatcher = controllers.WheelDispatcher(
+            box_params=box_params, 
+            task_params=task_params, 
+            mouse_params=mouse_params, 
+            sandbox_path=sandbox_path,
+            )
+
+        
+        ## Create a timer to update the Dispatcher
+        self.timer_dispatcher = QTimer(self)
+        
+        # Any error that happens in dispatcher.update will just crash the
+        # timer thread, not the main thread. When this happens, 
+        # self._exception_hook is called and sets self.exception_occured.
+        # self._check_if_error_occurred will then set the background to red.
+        self.timer_dispatcher.timeout.connect(self._check_if_error_occured)
+        self.timer_dispatcher.timeout.connect(self.dispatcher.update)
+
+
+        ## Set up the graphical objects
+        # Instantiate a ArenaWidget to show the ports
+        #~ self.arena_widget = plotting.ArenaWidget(self.dispatcher)
+        
+        # Initializing PokePlotWidget to show the pokes
+        #~ self.poke_plot_widget = plotting.PokePlotWidget(self.dispatcher)
+
+
+        ## Creating container widgets for each component 
+        #~ # These containers determine size and arrangment of widgets
+        #~ arena_widget_container = QWidget()
+        #~ arena_widget_container.setFixedWidth(200)  
+        #~ arena_widget_container.setLayout(QVBoxLayout())
+        #~ arena_widget_container.layout().addWidget(self.arena_widget)
+
+        #~ # Create PerformanceMetricDisplay
+        #~ self.performance_metric_display_widget = (
+            #~ plotting.PerformanceMetricDisplay(self.dispatcher))
+
+        # Create self.stop_button and connect it to self.stop_sqeuence
+        self.set_up_stop_button()
+        
+        # Creating vertical layout for start and stop buttons
+        start_stop_layout = QVBoxLayout()
+        start_stop_layout.addWidget(self.stop_button)        
+        
+        # Also add PerformanceMetricDisplay
+        #~ start_stop_layout.addWidget(self.performance_metric_display_widget)
+
+
+        ## Create a layout for all containers
+        container_widget = QWidget(self)
+        
+        # Horizontal layout because it will contain three things side by side
+        container_layout = QtWidgets.QHBoxLayout(container_widget)
+        
+        # Add config_list_container, arena_widget_container, and poke_plot_widget
+        # poke_plot_widget is handled separately because we are not creating a container
+        # for it. This means that its width and height will both change when resizing
+        # the main window. it does not have a fixed width like the other widgets
+        #~ container_layout.addWidget(arena_widget_container)
+        #~ container_layout.addWidget(self.poke_plot_widget)
+        container_layout.addLayout(start_stop_layout)
+        
+        # Set this one as the central widget
+        self.setCentralWidget(container_widget)
+
+        
+        ## Set the size and title of the main window
+        # Title
+        self.setWindowTitle(
+            f'Octopilot: box={box_params['name']} '
+            f'task={task_params['name']} '
+            f'mouse={mouse_params['name']}')
+        
+        # Size in pixels (can be used to modify the size of window)
+        self.resize(1200, 200)
+        self.move(700, box_params['ypos_of_gui'])
+        
+        # Show it
+        self.show()
+
+        
+        ## Prepare to start session
+        # Wait till after the OctopilotSessionWindow is fully initialized
+        # This timer calls Dispatcher.update, which is what actually handles
+        # messages and enables the Agents to connect when ready
+        self.timer_dispatcher.start(timer_dispatcher_period_ms)
+        
+        # Start a timer to start the session
+        # See documentation in self.start_session about why this has to be a 
+        # timer
+        self.start_session_timer = QTimer(self)
+        self.start_session_timer.timeout.connect(self.start_session)
+        self.start_session_timer.start(500)
+
     def start_session(self):
         """Called by self.start_session_timer to start session
         
@@ -234,55 +548,12 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
 
         # TODO: Instead of these objects having their own timers, 
         # OctopilotSessionWindow should keep track of that
-        self.poke_plot_widget.start_plot()
-        self.arena_widget.start()
-        self.performance_metric_display_widget.start()        
+        #~ self.poke_plot_widget.start_plot()
+        #~ self.arena_widget.start()
+        #~ self.performance_metric_display_widget.start()        
         
         # Don't start the session again
         self.start_session_timer.stop()
-
-    def _set_up_exception_handling(self):
-        self.exception_occurred = False 
-        
-        # this registers the exception_hook() function as hook
-        sys.excepthook = self._exception_hook
-
-    def _exception_hook(self, exc_type, exc_value, exc_traceback):
-        """Function handling uncaught exceptions.
-        
-        It is triggered each time an uncaught exception occurs. 
-        # https://timlehr.com/2018/01/python-exception-hooks-with-qt-message-box/
-        """
-        if issubclass(exc_type, KeyboardInterrupt):
-            # ignore keyboard interrupt to support console applications
-            sys.__excepthook__(exc_type, exc_value, exc_traceback)
-        
-        else:
-            # Flag that an error has occured
-            self.exception_occurred = True
-            
-            # Get the exc_info
-            exc_info = (exc_type, exc_value, exc_traceback)
-            
-            # Form a log message
-            log_msg = '\n'.join([
-                ''.join(traceback.format_tb(exc_traceback)),
-                '{0}: {1}'.format(exc_type.__name__, exc_value),
-                ])
-            
-            # Log it
-            self.logger.error(
-                "Uncaught exception:\n {0}".format(log_msg))
-
-    def _check_if_error_occured(self):
-        """Called every time a dispatcher update is called
-        
-        Checks self.exception_occurred, which is set by self._exception_hook
-        after any uncaught exception. If it is True, set background color to
-        red. 
-        """
-        if self.exception_occurred:
-            self.setStyleSheet("background-color: red;") 
 
     def set_up_stop_button(self):
         """Create a stop button and connect to self.stop_session and plot stops
@@ -293,14 +564,20 @@ class OctopilotSessionWindow(QtWidgets.QMainWindow):
         
         # Stop the dispatcher and the updates
         self.stop_button.clicked.connect(self.dispatcher.stop_session)
-        self.stop_button.clicked.connect(self.poke_plot_widget.stop_plot)
+        self.stop_button.clicked.connect(self.timer_dispatcher.stop)
+
+        #~ self.stop_button.clicked.connect(self.poke_plot_widget.stop_plot)
+        #~ self.stop_button.clicked.connect(
+            #~ self.performance_metric_display_widget.stop)
 
     def closeEvent(self, event):
         """Executes when the window is closed
         
-        Send 'exit' signal to all IP addresses bound to the GUI
+        This goes through the same sequence of events from stop_button
         """
-        # Iterate through identities and send 'exit' message
+        # TODO: any need to stop the widgets?
+        # TODO: make a single stop_session function, and put all of these in 
+        # it, and have stop_button call that same function.
         self.timer_dispatcher.stop()
         self.dispatcher.stop_session()
         event.accept()
