@@ -49,7 +49,11 @@ params['bonsai_ip'] = box_params['bonsai_ip']
 params['bonsai_port'] = box_params['bonsai_port']
 
 # Load the json for the task specified on the command line
+# The ONLY thing that this task json is used for is to extract agent_name
+# TODO: send agent_name instead of task name (unless there is some reason
+# that the Pi needs to know about other task parameters)
 task_params = load_params.load_task_params(args.task)
+print(f'loaded task_params for {args.task}:\n{task_params}')
 
 # Get the agent name from the task params
 params['agent_name'] = task_params['agent_name']
