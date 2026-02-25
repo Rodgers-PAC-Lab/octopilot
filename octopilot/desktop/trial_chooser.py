@@ -36,6 +36,10 @@ class TrialParameterChooser(object):
         # Copy this so we don't break it for upstream stuff
         task_params = task_params.copy()
         
+        # Pop this one which is not necessary for choosing parameters
+        if 'agent_name' in task_params:
+            task_params.pop('agent_name')
+        
         # Identify whether these have ranges
         ranged_params = [
             'target_rate',
