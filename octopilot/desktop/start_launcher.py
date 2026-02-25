@@ -135,11 +135,18 @@ def start_octopilot_gui_in_new_terminal(
 parser = argparse.ArgumentParser(
     description="Launch octopilot")
 
-# Optional debug
-parser.add_argument('--debug', action=argparse.BooleanOptionalAction)
+#~ # Optional debug
+#~ parser.add_argument('--debug', action=argparse.BooleanOptionalAction)
 
+# Get a list of all attached boxes
+# At least one box must be attached, or there will be no mice to run
+parser.add_argument(
+    'attached_boxes', type=str, nargs='+', 
+    help='a list of attached box names, matching configs in config/box/*.json')
+    
 # Parse the args
 args = parser.parse_args()
+print(f'attached boxes: {args.attached_boxes}')
 
 
 ## Load all the mice
@@ -166,6 +173,10 @@ for mouse_json in all_mouse_json:
         task = mouse_params['task']
     except KeyError:
         raise IOError(f'params file for {mouse_name} is missing a key')
+    
+    # Skip if not in attached boxes
+    if box not in args.attached_boxes:
+        continue
     
     # Store
     records_l.append((mouse_name, box, task))
@@ -244,8 +255,8 @@ class LauncherWindow(QWidget):
         self.debug_check_box_layout.addWidget(self.debug_check_box)
 
         # Initialize state of checkbox
-        if args.debug:
-            self.debug_check_box.setChecked(True)
+        #~ if args.debug:
+            #~ self.debug_check_box.setChecked(True)
 
         # Create a layout and add items to it
         self.layout = QVBoxLayout()
