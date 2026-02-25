@@ -37,6 +37,9 @@ class TrialParameterChooser(object):
         task_params = task_params.copy()
         
         # Pop this one which is not necessary for choosing parameters
+        if 'task_filename' in task_params:
+            task_params.pop('task_filename')
+
         if 'agent_name' in task_params:
             task_params.pop('agent_name')
         

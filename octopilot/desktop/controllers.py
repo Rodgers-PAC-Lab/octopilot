@@ -381,12 +381,7 @@ class SoundSeekingDispatcher(Dispatcher):
 
     
     """
-    
-    # Class variable indicating the task json, which will be sent to 
-    # the Pi via the marshaller
-    # TODO: allow different tasks for each Dispatcher
-    task_name = 'SSS_variable'
-    
+
     def __init__(self, box_params, task_params, mouse_params, sandbox_path):
         """Initialize a new SoundSeekingDispatcher
         
@@ -489,8 +484,9 @@ class SoundSeekingDispatcher(Dispatcher):
             sandbox_path=self.sandbox_path,
             )
 
-        # self.task_name is a class variable
-        self.marshaller.start(task_name=self.task_name)
+        # This is the name of the task JSON (minus '.json') so that
+        # the Pi can pull out the 'agent_name' and start the right Agent
+        self.marshaller.start(task_name=self.task_params['task_filename'])
 
     def init_history(self):
         """Set all history variables to defaults
@@ -947,8 +943,9 @@ class WheelDispatcher(Dispatcher):
             sandbox_path=self.sandbox_path,
             )
         
-        # self.task_name is a class variable
-        self.marshaller.start(task_name=self.task_name)
+        # This is the name of the task JSON (minus '.json') so that
+        # the Pi can pull out the 'agent_name' and start the right Agent
+        self.marshaller.start(task_name=self.task_params['task_filename'])
 
     def init_history(self):
         """Set all history variables to defaults
@@ -1237,7 +1234,8 @@ class SoundCenteringDispatcher(WheelDispatcher):
     """
     # Class variable indicating the task json, which will be sent to 
     # the Pi via the marshaller
-    task_name = 'SCT'
+    # task_name = 'SCT'
+    pass
 
 class SurfaceOrientationDispatcher(WheelDispatcher):
     """Dispatcher for the wheel-based surface orientation task. 
@@ -1246,7 +1244,8 @@ class SurfaceOrientationDispatcher(WheelDispatcher):
     """
     # Class variable indicating the task json, which will be sent to 
     # the Pi via the marshaller
-    task_name = 'SOT'
+    # task_name = 'SOT'
+    pass
     
 class PoleDetectionDispatcher(WheelDispatcher):
     """Dispatcher for the wheel-based surface orientation task. 
@@ -1255,9 +1254,12 @@ class PoleDetectionDispatcher(WheelDispatcher):
     """
     # Class variable indicating the task json, which will be sent to 
     # the Pi via the marshaller
-    task_name = 'PDT'
+    # task_name = 'PDT'
+    pass
 
 class WheelHabituationDispatcher(WheelDispatcher):
     # Class variable indicating the task json, which will be sent to 
     # the Pi via the marshaller
-    task_name = 'wheel_habituate'
+    # task_name = 'wheel_habituate'
+    pass
+    

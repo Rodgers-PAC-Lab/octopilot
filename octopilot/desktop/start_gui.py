@@ -74,6 +74,10 @@ def main(box, task, mouse, sandbox_path=None):
     task_params = load_params.load_task_params(args.task)
     mouse_params = load_params.load_mouse_params(args.mouse)
     
+    # Keep track of the value of `args.task`, because eventually this
+    # has to be sent to the Pi
+    task_params['task_filename'] = args.task
+    
     # Apparently QApplication needs sys.argv for some reason
     # https://stackoverflow.com/questions/27940378/why-do-i-need-sys-argv-to-start-a-qapplication-in-pyqt
     app = QApplication(sys.argv)
