@@ -1,4 +1,5 @@
 {
+    "display": true,
     "reward_value": 0.5,
     "box": "box4",
     "task": "SSS_variable"
