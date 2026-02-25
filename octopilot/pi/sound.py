@@ -835,8 +835,8 @@ class SoundPlayer(object):
             # Report by pulsing a pin
             if self.pigpio_handle is not None:
                 # Pulse the pin
-                # Use BCM 23 (board 16) = LED - C - Blue because we're not using it
-                self.pigpio_handle.write(23, True)
+                # Use BCM 24 (board 18) = LED - C - Green because we're not using it
+                self.pigpio_handle.write(24, True)
             
             # Report by calling a function
             if self.report_method is not None:
@@ -864,7 +864,7 @@ class SoundPlayer(object):
         else:
             # Unpulse the pin
             if self.pigpio_handle is not None:
-                self.pigpio_handle.write(23, False)
+                self.pigpio_handle.write(24, False)
         
         # Write one column to each channel
         self.client.outports[0].get_array()[:] = data[:, 0]
