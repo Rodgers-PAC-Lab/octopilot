@@ -111,6 +111,8 @@ def load_task_params(task):
     "center_freq_max": 5000.0,
     "bandwidth": 3000.0,
     "reward_value": 0.5    
+    
+    It should also specify "agent_name" for the Pi to initialize
     """
     # Constructing the full path to the config file
     full_path = os.path.join(config_path, 'task', task + '.json')

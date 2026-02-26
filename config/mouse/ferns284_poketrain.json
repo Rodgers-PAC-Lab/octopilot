@@ -1,5 +1,6 @@
 {
+    "display":false,
     "reward_value": 0.5,
     "box": "box5",
-    "task": "SSS_variable"
+    "task": "poketrain"
 }

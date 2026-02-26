@@ -69,11 +69,16 @@ Reboot after install jackd. For more info about installing jack: https://jackcli
     cd ~/dev/octopilot
     pip install -e .
 
+## Setting up log location before first use 
+
+    mkdir ~/octopilot
+    mdkir ~/octopilot/logs
+
 # Running `octopilot`
 On the desktop:
 
     conda activate octopilot
-    python3 -m octopilot.desktop.start_gui
+    python3 -m octopilot.desktop.start_launcher
 
 The present version will automatically connect to each Pi and start `octopilot` on each Pi. Alternatively you can start it on the Pi like this:
 

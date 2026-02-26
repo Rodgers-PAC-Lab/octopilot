@@ -17,6 +17,7 @@ import sys
 import signal
 import logging
 import time
+import json
 
 # shared defines all widgets
 from . import main_window
@@ -74,6 +75,22 @@ def main(box, task, mouse, sandbox_path=None):
     task_params = load_params.load_task_params(args.task)
     mouse_params = load_params.load_mouse_params(args.mouse)
     
+    # Keep track of the value of `args.task`, because eventually this
+    # has to be sent to the Pi
+    task_params['task_filename'] = args.task
+    
+    # Save these params in the sandbox
+    config_dir = os.path.join(sandbox_path, 'config')
+    os.mkdir(config_dir)
+    with open(os.path.join(config_dir, f'box__{args.box}.json'), 'w') as fi:
+        json.dump(box_params, fi, indent=4)
+    with open(os.path.join(config_dir, f'task__{args.task}.json'), 'w') as fi:
+        json.dump(task_params, fi, indent=4)
+    with open(os.path.join(config_dir, f'mouse__{args.mouse}.json'), 'w') as fi:
+        json.dump(mouse_params, fi, indent=4)
+    
+    
+    ## set up QApplication
     # Apparently QApplication needs sys.argv for some reason
     # https://stackoverflow.com/questions/27940378/why-do-i-need-sys-argv-to-start-a-qapplication-in-pyqt
     app = QApplication(sys.argv)

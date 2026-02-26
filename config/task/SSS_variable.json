@@ -1,5 +1,6 @@
 {
     "main_window_name": "OctopilotSessionWindow",
+    "agent_name": "SoundSeekingAgent",
     "play_targets": true,
     "target_log_amplitude_min": -2.25,
     "target_log_amplitude_max": -1,
