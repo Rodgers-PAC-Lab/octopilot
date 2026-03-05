@@ -1057,25 +1057,19 @@ class WheelTask(Agent):
         #if np.mod(self.trial_number, 2) == 0:
         
         # Sets anti-bias trials for PDT
-        if (self.incorrect_present / self.trial_number) >= 0.2 and 
-        self.trial_number > 10:
+        if (self.incorrect_present / self.trial_number) >= 0.2 and self.trial_number > 10:
             self.left_bias == True
-        elif (self.incorrect_absent / self.trial_number) >= 0.2 and 
-        self.trial_number > 10:
+        elif (self.incorrect_absent / self.trial_number) >= 0.2 and self.trial_number > 10:
             self.right_bias == True
-        elif (self.incorrect_present / self.trial_number) < 0.2 and 
-        self.trial_number > 10:
+        elif (self.incorrect_present / self.trial_number) < 0.2 and self.trial_number > 10:
             self.left_bias == False
-        elif (self.incorrect_absent / self.trial_number) < 0.2 and 
-        self.trial_number > 10:
+        elif (self.incorrect_absent / self.trial_number) < 0.2 and self.trial_number > 10:
             self.right_bias == False
         
         # Sets random trial type (includes anti-bias for PDT)
-        if np.random.random() < 0.5 and self.right_bias is False and 
-        self.left_bias is False:
+        if np.random.random() < 0.5 and self.right_bias is False and self.left_bias is False:
             self.trial_type = 'present'
-        elif np.random.random() >= 0.5 and self.right_bias is False and 
-        self.left_bias is False:
+        elif np.random.random() >= 0.5 and self.right_bias is False and self.left_bias is False:
             self.trial_type = 'absent'
         elif self.left_bias is True:
             self.trial_type = 'present'
