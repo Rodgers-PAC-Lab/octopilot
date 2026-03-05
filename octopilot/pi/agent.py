@@ -1056,23 +1056,23 @@ class WheelTask(Agent):
         # Starting position - TODO get from Dispatcher
         #if np.mod(self.trial_number, 2) == 0:
         
-        self.right_bias == False
-        self.left_bias == False
+        self.right_bias = False
+        self.left_bias = False
         
         # Sets anti-bias trials for PDT
         if (self.incorrect_present / self.trial_number) >= 0.2 and self.trial_number > 10:
-            self.left_bias == True
+            self.left_bias = True
         elif (self.incorrect_absent / self.trial_number) >= 0.2 and self.trial_number > 10:
-            self.right_bias == True
+            self.right_bias = True
         
         # Sets random trial type (includes anti-bias for PDT)
-        if np.random.random() < 0.5 and self.right_bias is False and self.left_bias is False:
+        if np.random.random() < 0.5 and self.right_bias == False and self.left_bias == False:
             self.trial_type = 'present'
-        elif np.random.random() >= 0.5 and self.right_bias is False and self.left_bias is False:
+        elif np.random.random() >= 0.5 and self.right_bias == False and self.left_bias == False:
             self.trial_type = 'absent'
-        elif self.left_bias is True:
+        elif self.left_bias == True:
             self.trial_type = 'present'
-        elif self.right_bias is True:
+        elif self.right_bias == True:
             self.trial_type = 'absent'
 
         # Everything should be locked to raw position at the start of the trial
