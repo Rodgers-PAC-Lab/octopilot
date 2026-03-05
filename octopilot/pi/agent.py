@@ -954,10 +954,6 @@ class WheelTask(Agent):
         # The default is INPUT, so only outputs have to be set
         self.pig.set_mode(self.solenoid_pin, pigpio.OUTPUT)
         self.pig.set_mode(self.house_light_pin, pigpio.OUTPUT)
-        
-        # Sets anti-bias trials
-        self.right_bias == False
-        self.left_bias == False
     
     def start_session(self):
         # Call Agent.start_session
