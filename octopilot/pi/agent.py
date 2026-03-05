@@ -954,6 +954,10 @@ class WheelTask(Agent):
         # The default is INPUT, so only outputs have to be set
         self.pig.set_mode(self.solenoid_pin, pigpio.OUTPUT)
         self.pig.set_mode(self.house_light_pin, pigpio.OUTPUT)
+        
+        # Sets anti-bias trials
+        self.right_bias == False
+        self.left_bias == False
     
     def start_session(self):
         # Call Agent.start_session
@@ -1051,9 +1055,25 @@ class WheelTask(Agent):
         ## Update other trial parameters
         # Starting position - TODO get from Dispatcher
         #if np.mod(self.trial_number, 2) == 0:
-        if np.random.random() < 0.5:
+        
+        # Sets anti-bias trials for PDT
+        if self.incorrect_present / self.trial_number >= 0.2) and 
+        self.trial_number > 10:
+            self.left_bias == True
+        elif self.incorrect_absent / self.trial_number >= 0.2) and 
+        self.trial_number > 10:
+            self.right_bias == True
+        
+        # Sets random trial type (includes anti-bias for PDT)
+        if np.random.random() < 0.5 and self.right_bias is False and 
+        self.left_bias is False:
             self.trial_type = 'present'
-        else:
+        elif np.random.random() >= 0.5 and self.right_bias is False and 
+        self.left_bias is False:
+            self.trial_type = 'absent'
+        elif self.left_bias is True:
+            self.trial_type = 'present'
+        elif self.right_bias is True:
             self.trial_type = 'absent'
 
         # Everything should be locked to raw position at the start of the trial
@@ -1800,7 +1820,7 @@ class PoleDetectionTask(WheelTask):
         # Get actual wheel position
         wheel_position = self.wheel_listener.position
 
-        # Normalize to the wheel_position at the start of the triasl
+        # Normalize to the wheel_position at the start of the trial
         clipped_position = wheel_position - self.position_at_trial_start
 
 
@@ -1836,6 +1856,7 @@ class PoleDetectionTask(WheelTask):
                 # Punish and end trial
                 self.choice = 'incorrect'
                 self.direction = 'left'
+                self.incorrect_present += 1
                 self.reward(0)
 
             elif self.trial_type == 'absent' and clipped_position > 300:
@@ -1843,6 +1864,7 @@ class PoleDetectionTask(WheelTask):
                 # Punish and end trial
                 self.choice = 'incorrect'
                 self.direction = 'right'
+                self.incorrect_absent += 1
                 self.reward(0)
 
 class WheelHabituationTask(WheelTask):
