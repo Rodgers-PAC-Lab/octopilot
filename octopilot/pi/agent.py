@@ -1056,15 +1056,14 @@ class WheelTask(Agent):
         # Starting position - TODO get from Dispatcher
         #if np.mod(self.trial_number, 2) == 0:
         
+        self.right_bias == False
+        self.left_bias == False
+        
         # Sets anti-bias trials for PDT
         if (self.incorrect_present / self.trial_number) >= 0.2 and self.trial_number > 10:
             self.left_bias == True
         elif (self.incorrect_absent / self.trial_number) >= 0.2 and self.trial_number > 10:
             self.right_bias == True
-        elif (self.incorrect_present / self.trial_number) < 0.2 and self.trial_number > 10:
-            self.left_bias == False
-        elif (self.incorrect_absent / self.trial_number) < 0.2 and self.trial_number > 10:
-            self.right_bias == False
         
         # Sets random trial type (includes anti-bias for PDT)
         if np.random.random() < 0.5 and self.right_bias is False and self.left_bias is False:
