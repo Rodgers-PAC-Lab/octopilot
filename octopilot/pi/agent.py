@@ -1057,10 +1057,16 @@ class WheelTask(Agent):
         #if np.mod(self.trial_number, 2) == 0:
         
         # Sets anti-bias trials for PDT
-        if self.incorrect_present / self.trial_number >= 0.2) and 
+        if (self.incorrect_present / self.trial_number >= 0.2) and 
         self.trial_number > 10:
             self.left_bias == True
-        elif self.incorrect_absent / self.trial_number >= 0.2) and 
+        elif (self.incorrect_absent / self.trial_number >= 0.2) and 
+        self.trial_number > 10:
+            self.right_bias == True
+        elif (self.incorrect_present / self.trial_number < 0.2) and 
+        self.trial_number > 10:
+            self.left_bias == False
+        elif (self.incorrect_absent / self.trial_number < 0.2) and 
         self.trial_number > 10:
             self.right_bias == True
         
