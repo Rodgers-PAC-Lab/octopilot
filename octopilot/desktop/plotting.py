@@ -387,9 +387,11 @@ class PerformanceMetricDisplay_SOT(QWidget):
         else:
             time_from_session_start_sec = None
 
-        # TODO: get actual data here
-        n_correct_trials = 0
-        n_incorrect_trials = 0
+        # Count correct and incorrect trials
+        n_correct_trials = np.sum(
+            self.dispatcher.history_of_trial_choices == 'correct')
+        n_incorrect_trials = np.sum(
+            self.dispatcher.history_of_trial_choices != 'correct')
 
         
         ## Calculate performance metrics

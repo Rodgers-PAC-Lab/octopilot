@@ -975,6 +975,9 @@ class WheelDispatcher(Dispatcher):
         
         # Reward history
         self.history_of_rewards = []
+        self.history_of_trial_choices = []
+        self.history_of_trial_types = []
+        self.history_of_trial_directions = []
     
     def start_trial(self):
         ## Choose and broadcast reward_port
@@ -1071,7 +1074,12 @@ class WheelDispatcher(Dispatcher):
             self.trial_parameters['choice'] = choice
         if direction is not None:
             self.trial_parameters['direction'] = direction
-            
+        
+        # Add the outcome of this trial to the history
+        self.history_of_trial_choices.append(choice)
+        self.history_of_trial_types.append(trial_type)
+        self.history_of_trial_directions.append(direction)
+        
         # Log the trial
         self._log_trial(reward_time)
         
