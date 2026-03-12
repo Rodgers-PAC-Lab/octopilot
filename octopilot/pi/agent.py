@@ -1646,6 +1646,9 @@ class PoleDetectionTask(WheelTask):
         self.reward_delivered = False
         self.current_surface_position = 0
         self.trial_type = None
+        self.choice = None
+        self.direction = None
+        self.anti_bias = 'none'
 
 
         ## Create the serial_reader object
