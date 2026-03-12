@@ -1057,12 +1057,15 @@ class WheelTask(Agent):
         
         self.right_bias = False
         self.left_bias = False
+        anti_bias = 'none'
         
         # Sets anti-bias trials for PDT
         if self.trial_number != 0 and (self.incorrect_present / self.trial_number) >= 0.4 and self.trial_number > 10:
             self.left_bias = True
+            self.anti_bias = 'left'
         elif self.trial_number != 0 and (self.incorrect_absent / self.trial_number) >= 0.4 and self.trial_number > 10:
             self.right_bias = True
+            self.anti_bias = 'right'
         
         # Sets random trial type (includes anti-bias for PDT)
         if np.random.random() < 0.5 and self.right_bias == False and self.left_bias == False:
@@ -1706,9 +1709,10 @@ class PoleDetectionTask(WheelTask):
         self.network_communicator.poke_socket.send_string(
             f'reward;'
             f'trial_number={self.trial_number}=int;'
-            f'trial_type={self.trial_type}=str;' # SPECIFIC TO PDT
-            f'choice={self.choice}=str;' # SPECIFIC TO PDT
-            f'direction={self.direction}=str;' # SPECIFIC TO PDT
+            f'trial_type={self.trial_type}=str;' # present/absent
+            f'choice={self.choice}=str;' # correct/incorrect
+            f'direction={self.direction}=str;' # left/right
+            f'anti_bias={self.anti_bias}=str;' # left/right/none
             f'reward_time={reward_time}=str'
             )
 
@@ -1907,6 +1911,7 @@ class WheelHabituationTask(WheelTask):
         self.clipped_position = 0
         self.last_raw_position = 0
         self.reward_delivered = False
+        self.alternate_spin = True
 
     def stop_session(self):
         """Stop the session"""
@@ -1916,7 +1921,12 @@ class WheelHabituationTask(WheelTask):
     def set_trial_parameters(self, **msg_params):
         ## Call parent's method
         super().set_trial_parameters(**msg_params)
-
+        
+        if self.alternate_spin and (self.trial_number % 2 = 0):
+            self.clipped position = self.wheel_max
+        elif self.alternate_spin and (self.trial_number % 2 != 0):
+            self.clipped position = self.wheel_min
+            
     def report_wheel(self, force_report=False):
         """Called by self.wheel_listener every time the wheel moves
         
@@ -1984,12 +1994,12 @@ class WheelHabituationTask(WheelTask):
             # Reward and end trial
             self.reward(self.max_reward)
 
-        elif self.reward_for_spinning and np.abs(wheel_position - 
-                self.last_rewarded_position) > self.wheel_reward_thresh:
+        elif self.reward_for_spinning and np.abs(self.clipped_position - 
+                self.last_rewarded_position) > self.wheel_reward_thresh and not self.reward_delivered:
             
             # Shaping stage: reward if it's moved far enough
             # Set last rewarded position to current position
-            self.last_rewarded_position = wheel_position
+            self.last_rewarded_position = self.clipped_position
             
             # Update reward size using temporal discounting
             time_since_last_reward = (

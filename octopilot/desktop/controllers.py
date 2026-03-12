@@ -978,6 +978,7 @@ class WheelDispatcher(Dispatcher):
         self.history_of_trial_choices = []
         self.history_of_trial_types = []
         self.history_of_trial_directions = []
+        self.history_of_trial_anti_bias = []
     
     def start_trial(self):
         ## Choose and broadcast reward_port
@@ -1065,7 +1066,7 @@ class WheelDispatcher(Dispatcher):
         self._log_flash(trial_number, identity, flash_time)
     
     def handle_reward(self, identity, trial_number, reward_time, 
-        trial_type=None, choice=None, direction=None):
+        trial_type=None, choice=None, direction=None, anti_bias=None):
             
         # ONLY USED BY PDT
         if trial_type is not None:
@@ -1074,11 +1075,14 @@ class WheelDispatcher(Dispatcher):
             self.trial_parameters['choice'] = choice
         if direction is not None:
             self.trial_parameters['direction'] = direction
+        if anti_bias is not None:
+            self.trial_parameters['anti_bias'] = anti_bias
         
         # Add the outcome of this trial to the history
         self.history_of_trial_choices.append(choice)
         self.history_of_trial_types.append(trial_type)
         self.history_of_trial_directions.append(direction)
+        self.history_of_trial_anti_bias.append(anti_bias)
         
         # Log the trial
         self._log_trial(reward_time)
@@ -1133,7 +1137,7 @@ class WheelDispatcher(Dispatcher):
         # dict, plus also 'trial_number'
         #~ param_names = list(
             #~ self.trial_parameter_chooser.param2possible_values.keys())
-        param_names = ['trial_type', 'choice', 'direction'] # FOR PDT
+        param_names = ['trial_type', 'choice', 'direction', 'anti_bias'] # FOR PDT
         
         # Order as follows: sort the param_names, prepend and postpend a few
         # that are not contained within param_names
