@@ -1922,7 +1922,7 @@ class WheelHabituationTask(WheelTask):
         ## Call parent's method
         super().set_trial_parameters(**msg_params)
         
-        if self.alternate_spin and (self.trial_number % 2 = 0):
+        if self.alternate_spin and (self.trial_number % 2 == 0):
             self.clipped position = self.wheel_max
         elif self.alternate_spin and (self.trial_number % 2 != 0):
             self.clipped position = self.wheel_min
