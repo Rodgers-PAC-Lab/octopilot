@@ -1059,23 +1059,41 @@ class WheelTask(Agent):
         self.left_bias = False
         anti_bias = 'none'
         
+        # Keeps incorrect trial counts (for anti-bias) limited to 40 trials
+        if (self.trial_number != 0) and (self.trial_number % 40 == 0) and (self.trial_number != 40):
+            self.incorrect_present = 0
+            self.incorrect_absent = 0
+        
         # Sets anti-bias trials for PDT
-        if self.trial_number != 0 and (self.incorrect_present / self.trial_number) >= 0.4 and self.trial_number > 10:
+        if self.trial_number != 0 and (self.incorrect_present / self.trial_number >= 0.3) and self.trial_number > 20:
             self.left_bias = True
             self.anti_bias = 'left'
-        elif self.trial_number != 0 and (self.incorrect_absent / self.trial_number) >= 0.4 and self.trial_number > 10:
+        elif self.trial_number != 0 and (self.incorrect_absent / self.trial_number) >= 0.3) and self.trial_number > 20:
             self.right_bias = True
             self.anti_bias = 'right'
         
         # Sets random trial type (includes anti-bias for PDT)
         if np.random.random() < 0.5 and self.right_bias == False and self.left_bias == False:
             self.trial_type = 'present'
+            self.anti_bias_count = 0
         elif np.random.random() >= 0.5 and self.right_bias == False and self.left_bias == False:
             self.trial_type = 'absent'
+            self.anti_bias_count = 0
+        
+        # Sets anti-bias while including occasional opposite stimulus 
         elif self.left_bias == True:
-            self.trial_type = 'present'
+            if (self.anti_bias_count % 7 == 0):
+                self.trial_type = 'absent'
+            else:
+                self.trial_type = 'present'
+            self.anti_bias_count += 1    
+            
         elif self.right_bias == True:
-            self.trial_type = 'absent'
+            if (self.anti_bias_count % 7 == 0):
+                self.trial_type = 'present'
+            else:
+                self.trial_type = 'absent'
+            self.anti_bias_count += 1
 
         # Everything should be locked to raw position at the start of the trial
         self.position_at_trial_start = self.wheel_listener.position
@@ -1992,27 +2010,54 @@ class WheelHabituationTask(WheelTask):
 
         
         ## Reward conditions
-        if (np.abs(self.clipped_position) < self.reward_range) and not self.reward_delivered:
-            # Within target range
-            # Reward and end trial
-            self.reward(self.max_reward)
+        
+        # Rewards for alternating spin direction
+        if self.alternate_spin:
+            if (np.abs(self.clipped_position) < self.reward_range) and not self.reward_delivered:
+                # Within target range
+                # Reward and end trial
+                self.reward(self.max_reward)
 
-        elif self.reward_for_spinning and np.abs(self.clipped_position - 
+            elif self.reward_for_spinning and np.abs(self.clipped_position - 
                 self.last_rewarded_position) > self.wheel_reward_thresh and not self.reward_delivered:
             
-            # Shaping stage: reward if it's moved far enough
-            # Set last rewarded position to current position
-            self.last_rewarded_position = self.clipped_position
+                # Shaping stage: reward if it's moved far enough
+                # Set last rewarded position to current position
+                self.last_rewarded_position = self.clipped_position
             
-            # Update reward size using temporal discounting
-            time_since_last_reward = (
-                now - self.last_reward_time).total_seconds()
-            reward_size = self.max_reward * (
-                1 - np.exp(-time_since_last_reward / self.reward_decay))
-            self.last_reward_time = now
+                # Update reward size using temporal discounting
+                time_since_last_reward = (
+                    now - self.last_reward_time).total_seconds()
+                reward_size = self.max_reward * (
+                    1 - np.exp(-time_since_last_reward / self.reward_decay))
+                self.last_reward_time = now
             
-            # Reward but do not end trial
-            self.reward(reward_size, report=False)
+                # Reward but do not end trial
+                self.reward(reward_size, report=False)
+        
+        # Rewards for spinning any direction
+        else:
+            if (np.abs(self.clipped_position) < self.reward_range) and not self.reward_delivered:
+                # Within target range
+                # Reward and end trial
+                self.reward(self.max_reward)
+
+            elif self.reward_for_spinning and np.abs(self.clipped_position - 
+                self.last_rewarded_position) > self.wheel_reward_thresh and not self.reward_delivered:
+            
+                # Shaping stage: reward if it's moved far enough
+                # Set last rewarded position to current position
+                self.last_rewarded_position = self.clipped_position
+            
+                # Update reward size using temporal discounting
+                time_since_last_reward = (
+                    now - self.last_reward_time).total_seconds()
+                reward_size = self.max_reward * (
+                    1 - np.exp(-time_since_last_reward / self.reward_decay))
+                self.last_reward_time = now
+            
+                # Reward but do not end trial
+                self.reward(reward_size, report=False)
 
 class SurfaceTurner(object):
     """Object that turns the stepper while running in its own process.
