@@ -2050,8 +2050,8 @@ class WheelHabituationTask(WheelTask):
                     1 - np.exp(-time_since_last_reward / self.reward_decay))
                 self.last_reward_time = now
             
-            # Reward but do not end trial
-            self.reward(reward_size, report=False)
+                # Reward but do not end trial
+                self.reward(reward_size, report=False)
 
 class SurfaceTurner(object):
     """Object that turns the stepper while running in its own process.
