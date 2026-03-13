@@ -1930,7 +1930,7 @@ class WheelHabituationTask(WheelTask):
         self.clipped_position = 0
         self.last_raw_position = 0
         self.reward_delivered = False
-        self.alternate_spin = False
+        self.alternate_spin = True
 
     def stop_session(self):
         """Stop the session"""
