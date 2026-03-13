@@ -1898,7 +1898,6 @@ class WheelHabituationTask(WheelTask):
         ## Call parent __init___
         super().__init__(*args, **kwargs)        
 
-
         ## Wheel and reward size parameters
         # This is the size of a regular reward
         self.max_reward = .025
@@ -1924,7 +1923,6 @@ class WheelHabituationTask(WheelTask):
         # 100 clicks is about 6 deg
         self.reward_range = 100
 
-        
         ## These are initialized later
         self.last_rewarded_position = None
         self.last_reported_time = None
@@ -1969,7 +1967,6 @@ class WheelHabituationTask(WheelTask):
         ## Get time
         now = datetime.datetime.now()        
         
-        
         ## Update wheel positions
         # At the beginning of each trial
         # self.last_raw_position = self.wheel_listener.position
@@ -1997,7 +1994,6 @@ class WheelHabituationTask(WheelTask):
             (self.clipped_position - self.wheel_min) / 
             (self.wheel_max - self.wheel_min))
         
-        
         ## Report to Dispatcher
         if force_report or np.mod(wheel_position, 10) == 0:
             self.network_communicator.poke_socket.send_string(
@@ -2008,7 +2004,6 @@ class WheelHabituationTask(WheelTask):
                 f'wheel_time={now.isoformat()}=str'
                 )
 
-        
         ## Reward conditions
         # Rewards for alternating spin direction
         if self.alternate_spin:
@@ -2017,8 +2012,8 @@ class WheelHabituationTask(WheelTask):
                 # Reward and end trial
                 self.reward(self.max_reward)
 
-            elif self.reward_for_spinning and (np.abs(self.clipped_position) - 
-                np.abs(self.last_rewarded_position)) > self.wheel_reward_thresh and not self.reward_delivered:
+            elif self.reward_for_spinning and np.abs(self.clipped_position -
+                self.last_rewarded_position) > self.wheel_reward_thresh:
             
                 # Shaping stage: reward if it's moved far enough
                 # Set last rewarded position to current position
@@ -2037,16 +2032,16 @@ class WheelHabituationTask(WheelTask):
         # Rewards for spinning any direction
         else:
             if (np.abs(self.clipped_position) < self.reward_range) and not self.reward_delivered:
-                # Within target range
-                # Reward and end trial
-                self.reward(self.max_reward)
+            # Within target range
+            # Reward and end trial
+            self.reward(self.max_reward)
 
-            elif self.reward_for_spinning and (np.abs(self.last_raw_position) - 
-                np.abs(self.last_rewarded_position)) > self.wheel_reward_thresh and not self.reward_delivered:
+            elif self.reward_for_spinning and np.abs(wheel_position - 
+                self.last_rewarded_position) > self.wheel_reward_thresh:
             
                 # Shaping stage: reward if it's moved far enough
                 # Set last rewarded position to current position
-                self.last_rewarded_position = self.clipped_position
+                self.last_rewarded_position = wheel_position
             
                 # Update reward size using temporal discounting
                 time_since_last_reward = (
@@ -2055,8 +2050,8 @@ class WheelHabituationTask(WheelTask):
                     1 - np.exp(-time_since_last_reward / self.reward_decay))
                 self.last_reward_time = now
             
-                # Reward but do not end trial
-                self.reward(reward_size, report=False)
+            # Reward but do not end trial
+            self.reward(reward_size, report=False)
 
 class SurfaceTurner(object):
     """Object that turns the stepper while running in its own process.
