@@ -1065,10 +1065,10 @@ class WheelTask(Agent):
             self.incorrect_absent = 0
         
         # Sets anti-bias trials for PDT
-        if self.trial_number != 0 and (self.incorrect_present / self.trial_number >= 0.3) and self.trial_number > 20:
+        if self.trial_number != 0 and ((self.incorrect_present / self.trial_number) >= 0.3) and self.trial_number > 20:
             self.left_bias = True
             self.anti_bias = 'left'
-        elif self.trial_number != 0 and (self.incorrect_absent / self.trial_number) >= 0.3) and self.trial_number > 20:
+        elif self.trial_number != 0 and ((self.incorrect_absent / self.trial_number) >= 0.3) and self.trial_number > 20:
             self.right_bias = True
             self.anti_bias = 'right'
         
@@ -1861,21 +1861,21 @@ class PoleDetectionTask(WheelTask):
 
         ## Reward conditions
         if not self.reward_delivered:
-            if self.trial_type == 'present' and clipped_position > 300:
+            if self.trial_type == 'present' and clipped_position > 150:
                 # They turned it positively on a present trial
                 # Reward and end trial
                 self.choice = 'correct'
                 self.direction = 'right'
                 self.reward(self.max_reward)
 
-            elif self.trial_type == 'absent' and clipped_position < -300:
+            elif self.trial_type == 'absent' and clipped_position < -150:
                 # They turned it negatively on an absent trial
                 # Reward and end trial
                 self.choice = 'correct'
                 self.direction = 'left'
                 self.reward(self.max_reward)
 
-            elif self.trial_type == 'present' and clipped_position < -300:
+            elif self.trial_type == 'present' and clipped_position < -150:
                 # They turned it negatively on a present trial
                 # Punish and end trial
                 self.choice = 'incorrect'
@@ -1883,7 +1883,7 @@ class PoleDetectionTask(WheelTask):
                 self.incorrect_present += 1
                 self.reward(0)
 
-            elif self.trial_type == 'absent' and clipped_position > 300:
+            elif self.trial_type == 'absent' and clipped_position > 150:
                 # They turned it positively on an absent trial
                 # Punish and end trial
                 self.choice = 'incorrect'
