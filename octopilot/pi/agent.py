@@ -2032,9 +2032,9 @@ class WheelHabituationTask(WheelTask):
         # Rewards for spinning any direction
         else:
             if (np.abs(self.clipped_position) < self.reward_range) and not self.reward_delivered:
-            # Within target range
-            # Reward and end trial
-            self.reward(self.max_reward)
+                # Within target range
+                # Reward and end trial
+                self.reward(self.max_reward)
 
             elif self.reward_for_spinning and np.abs(wheel_position - 
                 self.last_rewarded_position) > self.wheel_reward_thresh:
