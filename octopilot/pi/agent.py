@@ -1969,8 +1969,8 @@ class WheelHabituationTask(WheelTask):
         
         ## Update wheel positions
         # At the beginning of each trial
-        self.last_raw_position = self.wheel_listener.position
-        # self.clipped_position = random
+        # self.last_raw_position = self.wheel_listener.position
+        # self.clipped_position = either wheel_max or wheel_min
         
         # Get actual wheel position
         wheel_position = self.wheel_listener.position
