@@ -1936,6 +1936,7 @@ class WheelHabituationTask(WheelTask):
         self.last_raw_position = 0
         self.reward_delivered = False
         self.alternate_spin = True
+        self.reward_count = 0
 
     def stop_session(self):
         """Stop the session"""
@@ -2035,6 +2036,7 @@ class WheelHabituationTask(WheelTask):
                 # Within target range
                 # Reward and end trial
                 self.reward(self.max_reward)
+                self.reward_count += 1
 
             elif self.reward_for_spinning and np.abs(wheel_position - 
                 self.last_rewarded_position) > self.wheel_reward_thresh:
