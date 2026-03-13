@@ -1943,12 +1943,10 @@ class WheelHabituationTask(WheelTask):
         ## Call parent's method
         super().set_trial_parameters(**msg_params)
         
-        '''
         if self.alternate_spin and (self.trial_number % 2 == 0):
             self.clipped_position = self.wheel_max
         elif self.alternate_spin and (self.trial_number % 2 != 0):
             self.clipped_position = self.wheel_min
-        '''
             
     def report_wheel(self, force_report=False):
         """Called by self.wheel_listener every time the wheel moves
@@ -2019,8 +2017,8 @@ class WheelHabituationTask(WheelTask):
                 # Reward and end trial
                 self.reward(self.max_reward)
 
-            elif self.reward_for_spinning and np.abs(self.clipped_position - 
-                self.last_rewarded_position) > self.wheel_reward_thresh and not self.reward_delivered:
+            elif self.reward_for_spinning and (np.abs(self.clipped_position) - 
+                nps.(self.last_rewarded_position)) > self.wheel_reward_thresh and not self.reward_delivered:
             
                 # Shaping stage: reward if it's moved far enough
                 # Set last rewarded position to current position
@@ -2043,8 +2041,8 @@ class WheelHabituationTask(WheelTask):
                 # Reward and end trial
                 self.reward(self.max_reward)
 
-            elif self.reward_for_spinning and np.abs(self.last_raw_position - 
-                self.last_rewarded_position) > self.wheel_reward_thresh and not self.reward_delivered:
+            elif self.reward_for_spinning and (np.abs(self.last_raw_position) - 
+                nps.abs(self.last_rewarded_position)) > self.wheel_reward_thresh and not self.reward_delivered:
             
                 # Shaping stage: reward if it's moved far enough
                 # Set last rewarded position to current position
