@@ -1941,10 +1941,11 @@ class WheelHabituationTask(WheelTask):
         ## Call parent's method
         super().set_trial_parameters(**msg_params)
         
+        # Sets either max or min clipped at trial start for alt spinning
         if self.alternate_spin and (self.trial_number % 2 == 0):
-            self.clipped_position = self.wheel_max
+            self.position_at_trial_start = self.wheel_max
         elif self.alternate_spin and (self.trial_number % 2 != 0):
-            self.clipped_position = self.wheel_min
+            self.position_at_trial_start = self.wheel_min
             
     def report_wheel(self, force_report=False):
         """Called by self.wheel_listener every time the wheel moves
