@@ -957,6 +957,7 @@ class WheelTask(Agent):
         
         self.incorrect_present = 0
         self.incorrect_absent = 0
+        self.alternate_spin = False
     
     def start_session(self):
         # Call Agent.start_session
@@ -1045,15 +1046,18 @@ class WheelTask(Agent):
         # the correct trial number
         self.trial_number = msg_params['trial_number']
         
-        
         ## Log trial start (after trial number update)
         # Report trial start
         self.report_trial_start(timestamp)
         
-        
         ## Update other trial parameters
-        # Starting position - TODO get from Dispatcher
-        #if np.mod(self.trial_number, 2) == 0:
+        # Starting position used for WHT (alt spin)
+        if self.alternate_spin and np.mod(self.trial_number, 2) == 0:
+            self.clipped_position = self.wheel_max
+        elif self.alternate_spin and np.mod(self.trial_number, 2) != 0:
+            self.clipped_position = self.wheel_min
+            
+        ## START OF PDT ADDITIONS ========================
         
         self.right_bias = False
         self.left_bias = False
@@ -1095,12 +1099,13 @@ class WheelTask(Agent):
                 self.trial_type = 'absent'
             self.anti_bias_count += 1
 
+        ## END OF PDT ADDITIONS =========================
+
         # Everything should be locked to raw position at the start of the trial
-        self.position_at_trial_start = self.wheel_listener.position
+        self.last_raw_position = self.wheel_listener.position
         
         # Prevents multiple rewards
         self.reward_delivered = False
-        
         
         ## Do a report_wheel to indicate the new raw position has changed
         self.report_wheel(force_report=True)
@@ -1940,12 +1945,6 @@ class WheelHabituationTask(WheelTask):
     def set_trial_parameters(self, **msg_params):
         ## Call parent's method
         super().set_trial_parameters(**msg_params)
-        
-        # Sets either max or min clipped at trial start for alt spinning
-        if self.alternate_spin and (self.trial_number % 2 == 0):
-            self.position_at_trial_start = self.wheel_max
-        elif self.alternate_spin and (self.trial_number % 2 != 0):
-            self.position_at_trial_start = self.wheel_min
             
     def report_wheel(self, force_report=False):
         """Called by self.wheel_listener every time the wheel moves
