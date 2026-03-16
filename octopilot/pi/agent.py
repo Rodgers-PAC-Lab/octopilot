@@ -1104,6 +1104,8 @@ class WheelTask(Agent):
         # Everything should be locked to raw position at the start of the trial
         self.last_raw_position = self.wheel_listener.position
         
+        self.position_at_trial_start = self.wheel_listener.position
+        
         # Prevents multiple rewards
         self.reward_delivered = False
         
@@ -1935,7 +1937,7 @@ class WheelHabituationTask(WheelTask):
         self.clipped_position = 0
         self.last_raw_position = 0
         self.reward_delivered = False
-        self.alternate_spin = True
+        self.alternate_spin = False
         self.reward_count = 0
 
     def stop_session(self):
