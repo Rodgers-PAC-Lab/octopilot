@@ -957,7 +957,6 @@ class WheelTask(Agent):
         
         self.incorrect_present = 0
         self.incorrect_absent = 0
-        self.alternate_spin = False
     
     def start_session(self):
         # Call Agent.start_session
@@ -1937,7 +1936,7 @@ class WheelHabituationTask(WheelTask):
         self.clipped_position = 0
         self.last_raw_position = 0
         self.reward_delivered = False
-        self.alternate_spin = False
+        self.alternate_spin = True
         self.reward_count = 0
 
     def stop_session(self):
