@@ -1781,39 +1781,7 @@ class SoundDetectionTask(WheelTask):
         if self.clipped_position < self.wheel_min:
             self.clipped_position = self.wheel_min
         
-        
-        ## Update lr_weight
-        # Compute the weight within the min/max range
-        position_within_range = (
-            (self.clipped_position - self.wheel_min) / 
-            (self.wheel_max - self.wheel_min))
-        
-        # Clip to [0, 1], just in case we left the clipped range somehow
-        if position_within_range < 0:
-            position_within_range = 0
-        elif position_within_range > 1:
-            position_within_range = 1
-        
-        def convert_position_to_weight(position, max_db=40):
-            # Map this onto (R-L) in dB [-10, 10]
-            # Add a minus sign here to make the mouse turn away from the sound
-            db_diff = -(position - 0.5) * 2 * max_db
-            
-            # Map this db_diff onto a R/L ratio
-            lr_ratio = 10 ** (db_diff / 20)
-            
-            # Map R/L ratio onto weight of R
-            weight = lr_ratio / (lr_ratio + 1)
-            
-            return weight
-        
-        weight = convert_position_to_weight(position_within_range)
-        
-        # Update the weight in sound player, using the range [0, 1]
-        # TODO: this should be done with a multiprocessing.Event or similar
-        self.sound_player.lr_weight = weight
-        
-        
+
         ## Report to Dispatcher
         if force_report or np.mod(wheel_position, 10) == 0:
             self.network_communicator.poke_socket.send_string(
@@ -1827,32 +1795,36 @@ class SoundDetectionTask(WheelTask):
 
         
         ## Reward conditions
-        if (np.abs(self.clipped_position) < self.reward_range) and not self.reward_delivered:
-            # Within target range
-            # Reward and end trial
-            self.reward(self.max_reward)
-            
-            print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
+        if not self.reward_delivered:
+            if self.trial_type == 'present' and clipped_position > 150:
+                # They turned it positively on a present trial
+                # Reward and end trial
+                self.choice = 'correct'
+                self.direction = 'right'
+                self.reward(self.max_reward)
 
-        elif self.reward_for_spinning and np.abs(wheel_position - 
-                self.last_rewarded_position) > self.wheel_reward_thresh:
-            
-            
-            print('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
-            
-            # Shaping stage: reward if it's moved far enough
-            # Set last rewarded position to current position
-            self.last_rewarded_position = wheel_position
-            
-            # Update reward size using temporal discounting
-            time_since_last_reward = (
-                now - self.last_reward_time).total_seconds()
-            reward_size = self.max_reward * (
-                1 - np.exp(-time_since_last_reward / self.reward_decay))
-            self.last_reward_time = now
-            
-            # Reward but do not end trial
-            self.reward(reward_size, report=False)
+            elif self.trial_type == 'absent' and clipped_position < -150:
+                # They turned it negatively on an absent trial
+                # Reward and end trial
+                self.choice = 'correct'
+                self.direction = 'left'
+                self.reward(self.max_reward)
+
+            elif self.trial_type == 'present' and clipped_position < -150:
+                # They turned it negatively on a present trial
+                # Punish and end trial
+                self.choice = 'incorrect'
+                self.direction = 'left'
+                self.incorrect_present += 1
+                self.reward(0)
+
+            elif self.trial_type == 'absent' and clipped_position > 150:
+                # They turned it positively on an absent trial
+                # Punish and end trial
+                self.choice = 'incorrect'
+                self.direction = 'right'
+                self.incorrect_absent += 1
+                self.reward(0)
 
 class WheelHabituationTask(WheelTask):
     """Agent that runs the wheel-based habituation task"""
