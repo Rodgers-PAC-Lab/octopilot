@@ -1565,6 +1565,295 @@ class SurfaceOrientationTask(WheelTask):
             # Reward but do not end trial
             self.reward(reward_size, report=False)
 
+
+class SoundDetectionTask(WheelTask):
+    """Agent that runs the wheel-based sound detection task"""
+    def __init__(self, *args, **kwargs):
+        
+        ## Call parent __init___
+        super().__init__(*args, **kwargs)        
+
+
+        ## Wheel and reward size parameters
+        # This is the size of a large reward (lower once getting better to 0.025)
+        self.max_reward = .05
+
+        # As time_since_last_reward increases, reward gets exponentially smaller
+        # When time_since_last_reward == reward_decay, the reward size
+        # is 63.7% of full.
+        # As reward_decay increases, mouse has to wait longer
+        # 300 clicks is about 20 deg (easy)
+        self.reward_for_spinning = False
+        self.reward_decay = 0.5
+        self.wheel_reward_thresh = 300
+
+        # This defines the range in which turning the wheel changes the sound
+        # Every trial starts at either max or min
+        # 1000 clicks is about 90 deg
+        self.wheel_max = 6400
+        self.wheel_min = -6400
+
+        # This is how close the mouse has to get to the reward zone
+        # This can be small, just not so small that the mouse spins right
+        # through it before it checks, which is probably pretty hard to do
+        # 100 clicks is about 9
+        self.reward_range = 100
+
+
+        ## These are initialized later
+        self.last_rewarded_position = None
+        self.last_reported_time = None
+        self.last_reward_time = None
+        self.clipped_position = 0
+        self.last_raw_position = 0
+        self.reward_delivered = False
+        self.current_surface_position = 0
+        self.trial_type = None
+        self.choice = None
+        self.direction = None
+        self.anti_bias = 'none'
+
+    def reward(self, reward_size, report=True):
+        """Open the reward port and optionally report to Dispatcher
+
+        reward_size : numeric
+            Duration that the solenoid is open, in ms
+
+        report : bool
+            If True, call self.report_reward
+            This likely triggers the trial to end, which we may not want
+        """
+        # Get current time
+        reward_time = datetime.datetime.now()
+
+        # Log
+        self.logger.info(f'{[reward_time]} rewarding for {reward_size} s')
+
+        if reward_size > 0:
+            # Issue reward
+            # TODO: rewrite with threading to avoid delay
+            self.pig.write(self.solenoid_pin, 1)
+            time.sleep(reward_size)
+            self.pig.write(self.solenoid_pin, 0)
+
+        # Report
+        if report:
+            # This prevents multiple rewards per trial (excluding non-reported
+            # rewards)
+            self.reward_delivered = True
+
+            self.report_reward(reward_time)
+
+    def report_reward(self, reward_time):
+        """Called by WheelController upon reward. Reports to Dispatcher by ZMQ.
+
+        """
+        # Log
+        self.logger.info(f'reporting reward at {reward_time}')
+
+        # Report to Dispatcher
+        self.network_communicator.poke_socket.send_string(
+            f'reward;'
+            f'trial_number={self.trial_number}=int;'
+            f'trial_type={self.trial_type}=str;' # present/absent
+            f'choice={self.choice}=str;' # correct/incorrect
+            f'direction={self.direction}=str;' # left/right
+            f'anti_bias={self.anti_bias}=str;' # left/right/none
+            f'reward_time={reward_time}=str'
+            )
+        
+    def report_sound(self, data, last_frame_time, frames_since_cycle_start, dt):
+        """Called by SoundPlayer when audio is played. Reports to Dispatcher.
+        
+        Arguments
+        ---
+        data : 2d array
+            The actual sound that is played
+        last_frame_time, frames_since_cycle_start : int
+            Timing data from jack.client
+        dt: str
+            Isoformat string when the sound was played
+        """
+        # This is only an approximate hash because it excludes the
+        # middle of the data
+        data_hash = hash(str(data))
+        
+        # Determine which channel is playing sound
+        data_left = data[:, 0].std()
+        data_right = data[:, 1].std()
+        
+        # Report to Dispatcher
+        self.network_communicator.poke_socket.send_string(
+            f'sound;'
+            f'trial_number={self.trial_number}=int;'
+            f'data_left={data_left}=float;'
+            f'data_right={data_right}=float;'
+            f'last_frame_time={last_frame_time}=int;'
+            f'frames_since_cycle_start={frames_since_cycle_start}=int;'
+            f'data_hash={data_hash}=int;'
+            f'dt={dt}=str'
+            )  
+
+    def report_sound_plan(self, sound_plan):
+        """Called by SoundGenerator when new plan made. Reports to Dispatcher.
+        
+        sound_plan : DataFrame
+            Plan for sound to play
+        """
+        # The first time this is called, the network_communicator hasn't
+        # been instantiated yet
+        try:
+            self.network_communicator
+        except AttributeError:
+            return
+        
+        # Report to Dispatcher
+        self.network_communicator.poke_socket.send_string(
+            f'sound_plan;'
+            f'trial_number={self.trial_number}=int;'
+            f'sound_plan={sound_plan.to_csv(index=None)}=str'
+            )  
+
+    def set_trial_parameters(self, **msg_params):
+        
+        ## Call parent
+        super().set_trial_parameters(**msg_params)
+        
+        
+        ## Split into left_params and right_params
+        # For the wheel task, we use left sound only, and reweight it later
+        left_params = {
+            'rate': 4, #msg_params['left_target_rate'],
+            'temporal_log_std': -1, #msg_params['target_temporal_log_std'],
+            'center_freq': 25000, #msg_params['target_center_freq'],
+            'log_amplitude': -2, #msg_params['target_log_amplitude'],
+            'bandwidth': 40000, #msg_params['target_bandwidth'],
+            }
+
+        right_params = {
+            }
+    
+    
+        ## Use those params to set the new sounds
+        self.logger.info(
+            'setting audio parameters. '
+            f'LEFT={left_params}. RIGHT={right_params}')
+        self.sound_generator.set_audio_parameters(left_params, right_params)
+        
+        # Saving these params to be modified by other methods
+        self.prev_trial_params = msg_params
+        
+        # Empty and refill the queue with new sounds
+        self.sound_queuer.empty_queue()
+        self.sound_queuer.append_sound_to_queue_as_needed()   
+
+    def report_wheel(self, force_report=False):
+        """Called by self.wheel_listener every time the wheel moves
+        
+        Updates the internal variables about position of the wheel
+        Reports the wheel position if it has moved far enough (or if
+        force_report is True)
+        Rewards if conditions are met
+        """
+        
+        ## Get time
+        now = datetime.datetime.now()        
+        
+        
+        ## Update wheel positions
+        # At the beginning of each trial
+        # self.last_raw_position = self.wheel_listener.position
+        # self.clipped_position = random
+        
+        # Get actual wheel position
+        wheel_position = self.wheel_listener.position
+        
+        # Compute movement since last_raw_position and update it
+        diff = wheel_position - self.last_raw_position
+        self.last_raw_position = wheel_position
+        
+        # Clip the new position
+        self.clipped_position += diff
+        
+        if self.clipped_position > self.wheel_max:
+            self.clipped_position = self.wheel_max
+        
+        if self.clipped_position < self.wheel_min:
+            self.clipped_position = self.wheel_min
+        
+        
+        ## Update lr_weight
+        # Compute the weight within the min/max range
+        position_within_range = (
+            (self.clipped_position - self.wheel_min) / 
+            (self.wheel_max - self.wheel_min))
+        
+        # Clip to [0, 1], just in case we left the clipped range somehow
+        if position_within_range < 0:
+            position_within_range = 0
+        elif position_within_range > 1:
+            position_within_range = 1
+        
+        def convert_position_to_weight(position, max_db=40):
+            # Map this onto (R-L) in dB [-10, 10]
+            # Add a minus sign here to make the mouse turn away from the sound
+            db_diff = -(position - 0.5) * 2 * max_db
+            
+            # Map this db_diff onto a R/L ratio
+            lr_ratio = 10 ** (db_diff / 20)
+            
+            # Map R/L ratio onto weight of R
+            weight = lr_ratio / (lr_ratio + 1)
+            
+            return weight
+        
+        weight = convert_position_to_weight(position_within_range)
+        
+        # Update the weight in sound player, using the range [0, 1]
+        # TODO: this should be done with a multiprocessing.Event or similar
+        self.sound_player.lr_weight = weight
+        
+        
+        ## Report to Dispatcher
+        if force_report or np.mod(wheel_position, 10) == 0:
+            self.network_communicator.poke_socket.send_string(
+                f'wheel;'
+                f'trial_number={self.trial_number}=int;'
+                f'wheel_position={wheel_position}=int;'
+                f'clipped_position={self.clipped_position}=int;'
+                f'weight={weight}=float;'
+                f'wheel_time={now.isoformat()}=str'
+                )
+
+        
+        ## Reward conditions
+        if (np.abs(self.clipped_position) < self.reward_range) and not self.reward_delivered:
+            # Within target range
+            # Reward and end trial
+            self.reward(self.max_reward)
+            
+            print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
+
+        elif self.reward_for_spinning and np.abs(wheel_position - 
+                self.last_rewarded_position) > self.wheel_reward_thresh:
+            
+            
+            print('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
+            
+            # Shaping stage: reward if it's moved far enough
+            # Set last rewarded position to current position
+            self.last_rewarded_position = wheel_position
+            
+            # Update reward size using temporal discounting
+            time_since_last_reward = (
+                now - self.last_reward_time).total_seconds()
+            reward_size = self.max_reward * (
+                1 - np.exp(-time_since_last_reward / self.reward_decay))
+            self.last_reward_time = now
+            
+            # Reward but do not end trial
+            self.reward(reward_size, report=False)
+
 class WheelHabituationTask(WheelTask):
     """Agent that runs the wheel-based habituation task"""
     def __init__(self, *args, **kwargs):
@@ -1830,3 +2119,6 @@ class SurfaceTurner(object):
         # Store in queue
         self.output_q.put_nowait(
             (datetime.datetime.now(), log_steps_moved, self.state))
+
+
+
