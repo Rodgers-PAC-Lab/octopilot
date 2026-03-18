@@ -913,7 +913,7 @@ class WheelTrialWidget(QWidget):
         
         # Set the ticks
         # Hard-code in for now that there are just two trial types
-        ticks = [0, 1]
+        ticks = ['absent', 'present']
         
         # Some syntax error here
         #~ self.plot_widget.getPlotItem().getAxis('left').setTicks([ticks, []])
@@ -933,7 +933,7 @@ class WheelTrialWidget(QWidget):
             y=[],
             pen=None, # no connecting line
             symbol="o",  
-            symbolSize=10,
+            symbolSize=3,
             symbolBrush='r',
             symbolPen=None,
         )
@@ -944,7 +944,7 @@ class WheelTrialWidget(QWidget):
             y=[],
             pen=None, # no connecting line
             symbol="o",  
-            symbolSize=10,
+            symbolSize=3,
             symbolBrush='g',
             symbolPen=None,
         )
@@ -955,7 +955,7 @@ class WheelTrialWidget(QWidget):
             y=[],
             pen=None, # no connecting line
             symbol="arrow_down",  
-            symbolSize=20,
+            symbolSize=10,
             symbolBrush='white',
             symbolPen=None,
         )
@@ -1007,3 +1007,90 @@ class WheelTrialWidget(QWidget):
         self.plot_handle_forced_trials.setData(xdata, ydata)
         
         # TODO: Update XRange here as trials go on
+        
+class PerformanceMetricDisplay_WHT(QWidget):
+    ## Creates time elapsed/N rewards GUI for WHT (minimal version of SOT)
+    
+    def __init__(self, dispatcher):
+        """Create a PerformanceMetricDisplay_WHT
+        
+        dispatcher : controllers.Dispatcher
+            Get data from here
+        """
+        # Superclass init
+        super(PerformanceMetricDisplay_WHT, self).__init__()
+        
+        # Store the dispatcher
+        self.dispatcher = dispatcher
+        
+        # Create QVBoxLayout for session details 
+        self.details_layout = QVBoxLayout()
+
+        # Making labels that constantly update according to the session details
+        self.time_label = QLabel("", self)
+        self.reward_count = QLabel("Number of Rewards: 0", self)
+        
+        # Adding these labels to the layout used to contain the session information 
+        self.details_layout.addWidget(self.time_label)
+        self.details_layout.addWidget(self.reward_count)
+        
+        # Init these
+        self.update()
+        
+        # set layout
+        self.setLayout(self.details_layout)
+
+        # Create a timer and connect to self.update_time_elapsed
+        self.timer_update = QTimer(self)
+        self.timer_update.timeout.connect(self.update) 
+
+    def start(self):
+        # Start the timer
+        # The faster this is, the more responsive it will be, but when an 
+        # error occurs it will spam the terminal
+        self.timer_update.start(250)
+    
+    def stop(self):
+        """Stop updating the elapsed time
+        
+        Called by main_window.stop_button. 
+        """
+        self.timer_update.stop()
+    
+    def update(self):
+        ## Get data from dispatcher
+        # Time since session start
+        if self.dispatcher.session_start_time is not None:
+            time_from_session_start_sec = (
+                datetime.datetime.now() - 
+                self.dispatcher.session_start_time).total_seconds()        
+        else:
+            time_from_session_start_sec = None
+
+        
+        # Get reward count
+        n_rewards = self.dispatcher.reward_count
+        
+        # Update trial count
+        self.trial_count.setText(f"N rewards: {n_rewards}")
+
+        # Update timing
+        if time_from_session_start_sec is not None:
+            self.time_label.setText(
+                "elapsed time: {}".format(
+                    self.format_time(int(time_from_session_start_sec))
+                )
+            )
+        else:
+            self.time_label.setText(
+                'elapsed time: NA')
+
+    @staticmethod
+    def format_time(seconds):
+        hours, remainder = divmod(seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        match hours > 0:
+            case True:
+                return f"{hours:02}:{minutes:02}:{seconds:02}"
+            case False:
+                return f"{minutes:02}:{seconds:02}"

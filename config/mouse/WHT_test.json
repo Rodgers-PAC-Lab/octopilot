@@ -1,5 +1,6 @@
 {
     "display": true,
     "box": "room_d_plankton2",
-    "task": "wheel_habituate"
+    "task": "wheel_habituate",
+    "alternate": false
 }

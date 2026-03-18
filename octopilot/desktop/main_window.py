@@ -603,3 +603,11 @@ class WheelHabituationSessionWindow(WheelSessionWindow):
     # This class variable determines what Dispatcher class is instantiated
     dispatcher_class = controllers.WheelHabituationDispatcher
     
+    # Uses separate metric display for just rewards
+    def __init__(self):
+        
+        super().__init__()
+        self.performance_metric_display_widget = (plotting.PerformanceMetricDisplay_WHT(self.dispatcher))
+    
+    
+    
