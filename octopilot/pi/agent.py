@@ -1050,11 +1050,6 @@ class WheelTask(Agent):
         self.report_trial_start(timestamp)
         
         ## Update other trial parameters
-        # Starting position used for WHT (alt spin)
-        if self.alternate_spin and np.mod(self.trial_number, 2) == 0:
-            self.clipped_position = self.wheel_max
-        elif self.alternate_spin and np.mod(self.trial_number, 2) != 0:
-            self.clipped_position = self.wheel_min
             
         ## START OF PDT ADDITIONS ========================
         
@@ -1947,6 +1942,12 @@ class WheelHabituationTask(WheelTask):
     def set_trial_parameters(self, **msg_params):
         ## Call parent's method
         super().set_trial_parameters(**msg_params)
+        
+        # Starting positions used for deterring spin direction bias
+        if self.alternate_spin and np.mod(self.trial_number, 2) == 0:
+            self.clipped_position = self.wheel_max
+        elif self.alternate_spin and np.mod(self.trial_number, 2) != 0:
+            self.clipped_position = self.wheel_min
             
     def report_wheel(self, force_report=False):
         """Called by self.wheel_listener every time the wheel moves
