@@ -849,3 +849,161 @@ class WheelPositionWidget(QWidget):
         # Surface
         self.plot_handle_surface_position.setData(
             x=surface_pos_x, y=surface_pos_y)
+
+
+class WheelTrialWidget(QWidget):
+    """Widget to plot trial progress in wheel-based tasks
+    
+    """
+    def __init__(self, dispatcher, *args, **kwargs):
+        """Initialize a new WheelTrialWidget
+
+        """
+        ## Superclass QWidget init
+        super().__init__(*args, **kwargs)
+        
+        
+        ## Instance variables
+        # Dispatcher, where the data comes from
+        self.dispatcher = dispatcher
+        
+        # Timers for continuous updating
+        # Create a QTimer object to continuously update the plot         
+        self.timer_update_plot = QTimer(self) 
+        self.timer_update_plot.timeout.connect(self.update_plot)  
+
+        
+        ## Initialize the plot_widget which actually does the plotting
+        # Initializing the pyqtgraph widget
+        self.plot_widget = pg.PlotWidget() 
+        
+        # Setting the layout of the plotting widget 
+        self.layout = QVBoxLayout(self) 
+        self.layout.addWidget(self.plot_widget)
+        
+        # Set labels and colors of `plot_widget`
+        self.setup_plot_graphics()
+       
+        # Plots line_of_current_time and line
+        self.initalize_plot_handles()
+
+    def setup_plot_graphics(self):
+        """Sets colors and labels of plot_widget
+        
+        Flow
+        * Sets background to black and font to white
+        * Sets title and axis labels
+        * Adds a grid
+        * Sets y-limits to [1, 9]
+        """
+        # Set x-axis in trials
+        self.plot_widget.setXRange(0, 80)  
+        
+        # Setting the background of the plot to be black. Use 'w' for white
+        self.plot_widget.setBackground("k") 
+        
+        # Setting the font/style for the rest of the text used in the plot
+        styles = {"color": "white", "font-size": "11px"} 
+        
+        # Adding a grid background to make it easier to see where trials are
+        self.plot_widget.showGrid(x=True, y=True) 
+        
+        # Setting the range for the Y axis
+        self.plot_widget.setYRange(-0.5, 1.5)
+        
+        # Set the ticks
+        # Hard-code in for now that there are just two trial types
+        ticks = [0, 1]
+        
+        # Some syntax error here
+        #~ self.plot_widget.getPlotItem().getAxis('left').setTicks([ticks, []])
+
+    def initalize_plot_handles(self):
+        """Plots line_of_current_time and line
+        
+        Creates these handles:
+            self.plot_handle_incorrect_trials : a raster plot of unrewarded
+                trials in red
+            self.plot_handle_correct_trials : a raster plot of 
+                rewarded trials in green
+        """
+        # Incorrect trials in red
+        self.plot_handle_incorrect_trials = self.plot_widget.plot(
+            x=[],
+            y=[],
+            pen=None, # no connecting line
+            symbol="o",  
+            symbolSize=10,
+            symbolBrush='r',
+            symbolPen=None,
+        )
+    
+        # Correct trials in green
+        self.plot_handle_correct_trials = self.plot_widget.plot(
+            x=[],
+            y=[],
+            pen=None, # no connecting line
+            symbol="o",  
+            symbolSize=10,
+            symbolBrush='g',
+            symbolPen=None,
+        )
+
+        # Forced trials as black arrows
+        self.plot_handle_forced_trials = self.plot_widget.plot(
+            x=[],
+            y=[],
+            pen=None, # no connecting line
+            symbol="arrow_down",  
+            symbolSize=20,
+            symbolBrush='white',
+            symbolPen=None,
+        )
+
+    def start(self):
+        """Activates plot updates.
+        
+        """
+        # Plot updates every 200 ms
+        self.timer_update_plot.start(200)  
+
+    def stop(self):
+        """Deactivates plot updates"""
+        self.timer_update_plot.stop()
+
+    def update_plot(self):
+        """Update plot handles with trials from the dispatcher
+        
+        * Extracts trials from 
+          self.dispatcher.history_of_...
+          and plots as 
+          self.plot_handle_..._trials
+        """
+        # This is a list of 'present', 'absent', ...
+        htt = np.array(self.dispatcher.history_of_trial_types)
+
+        # This is a list of 'correct', 'incorrect', ...
+        hc = np.array(self.dispatcher.history_of_trial_choices)
+
+        # This is a list of 'left', 'right', ...
+        htab = np.array(self.dispatcher.history_of_trial_anti_bias)
+
+        # Plot the correct ones 
+        mask = hc == 'correct'
+        xdata = np.where(mask)[0]
+        ydata = (htt[mask] == 'present').astype(int)
+        self.plot_handle_correct_trials.setData(xdata, ydata)
+        
+        # Plot the incorrect ones
+        mask = hc == 'incorrect'
+        xdata = np.where(mask)[0]
+        ydata = (htt[mask] == 'present').astype(int)
+        self.plot_handle_incorrect_trials.setData(xdata, ydata)
+        
+        # Plot the forced trials
+        mask = htab != 'none'
+        xdata = np.where(mask)[0]
+        ydata = (htt[mask] == 'present').astype(int)
+        self.plot_handle_forced_trials.setData(xdata, ydata)
+        
+        # TODO: Update XRange here as trials go on

@@ -441,6 +441,9 @@ class WheelSessionWindow(SessionWindow):
 
 
         ## Set up the graphical objects
+        # Instantiate a WheelTrialWidget to show the progress of trials
+        self.wheel_trial_widget = plotting.WheelTrialWidget(self.dispatcher)
+        
         # Instantiate a WheelPositionWidget to show the movement of the wheel
         self.wheel_position_widget = plotting.WheelPositionWidget(
             self.dispatcher)
@@ -467,6 +470,7 @@ class WheelSessionWindow(SessionWindow):
         
         # Add widgets to the container_layout
         container_layout.addWidget(self.wheel_position_widget)
+        container_layout.addWidget(self.wheel_trial_widget)
         container_layout.addLayout(start_stop_layout)
         
         # Set this one as the central widget
@@ -538,6 +542,7 @@ class WheelSessionWindow(SessionWindow):
         # TODO: Instead of these objects having their own timers, 
         # OctopilotSessionWindow should keep track of that
         self.wheel_position_widget.start()
+        self.wheel_trial_widget.start()
         self.performance_metric_display_widget.start()        
         
         # Don't start the session again
@@ -553,7 +558,7 @@ class WheelSessionWindow(SessionWindow):
         # Stop the dispatcher and the updates
         self.stop_button.clicked.connect(self.dispatcher.stop_session)
         self.stop_button.clicked.connect(self.timer_dispatcher.stop)
-
+        self.stop_button.clicked.connect(self.wheel_trial_widget.stop)
         self.stop_button.clicked.connect(self.wheel_position_widget.stop_plot)
         self.stop_button.clicked.connect(
             self.performance_metric_display_widget.stop)
