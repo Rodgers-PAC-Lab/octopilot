@@ -1915,8 +1915,8 @@ class WheelHabituationTask(WheelTask):
         # This defines the range in which turning the wheel changes the sound
         # Every trial starts at either max or min
         # 1000 clicks is about 60 deg
-        self.wheel_max = 1000
-        self.wheel_min = -1000
+        self.wheel_max = 2000
+        self.wheel_min = -2000
         
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right 
@@ -1931,7 +1931,7 @@ class WheelHabituationTask(WheelTask):
         self.clipped_position = 0
         self.last_raw_position = 0
         self.reward_delivered = False
-        self.alternate_spin = True
+        self.alternate_spin = self.params['alternate']
         self.reward_count = 0
 
     def stop_session(self):
@@ -2004,6 +2004,7 @@ class WheelHabituationTask(WheelTask):
                 f'trial_number={self.trial_number}=int;'
                 f'wheel_position={wheel_position}=int;'
                 f'clipped_position={self.clipped_position}=int;'
+                f'reward_count={self.reward_count}=int;'
                 f'wheel_time={now.isoformat()}=str'
                 )
 
@@ -2014,6 +2015,7 @@ class WheelHabituationTask(WheelTask):
                 # Within target range
                 # Reward and end trial
                 self.reward(self.max_reward)
+                self.reward_count += 1
 
             elif self.reward_for_spinning and np.abs(self.clipped_position -
                 self.last_rewarded_position) > self.wheel_reward_thresh:
