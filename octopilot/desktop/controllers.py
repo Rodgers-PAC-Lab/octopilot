@@ -1090,6 +1090,8 @@ class WheelDispatcher(Dispatcher):
         # Log N rewards for WHT
         if reward_count is not None:
             self.reward_count = reward_count
+        else:
+            self.reward_count = None
         
         # Log the trial
         self._log_trial(reward_time)
