@@ -602,7 +602,7 @@ class WheelHabituationSessionWindow(WheelSessionWindow):
     """
     # This class variable determines what Dispatcher class is instantiated
     dispatcher_class = controllers.WheelHabituationDispatcher
-    self.performance_metric_display_widget = (plotting.PerformanceMetricDisplay_WHT(self.dispatcher))
+    performance_metric_display_widget = (plotting.PerformanceMetricDisplay_WHT(dispatcher))
     
     
     
