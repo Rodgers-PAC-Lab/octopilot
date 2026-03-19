@@ -851,6 +851,7 @@ class WheelPositionWidget(QWidget):
             x=surface_pos_x, y=surface_pos_y)
 
 
+## Widget to plot wheel choices
 class WheelTrialWidget(QWidget):
     """Widget to plot trial progress in wheel-based tasks
     
@@ -1008,6 +1009,7 @@ class WheelTrialWidget(QWidget):
         
         # TODO: Update XRange here as trials go on
         
+## Widget to plot WheelHabituationTask rewards
 class PerformanceMetricDisplay_WHT(QWidget):
     ## Creates time elapsed/N rewards GUI for WHT (minimal version of SOT)
     
