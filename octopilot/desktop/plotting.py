@@ -1069,6 +1069,7 @@ class PerformanceMetricDisplay_WHT(QWidget):
         else:
             time_from_session_start_sec = None
 
+        # Working trial counter (used for N rewards in WHT)
         history_choices = np.array(self.dispatcher.history_of_trial_choices)
         n_correct_trials = np.sum(history_choices == 'correct')
         n_incorrect_trials = np.sum(history_choices != 'correct')
@@ -1078,7 +1079,7 @@ class PerformanceMetricDisplay_WHT(QWidget):
         n_rewards = n_trials
         
         # Update trial count
-        self.trial_count.setText(f"N rewards: {n_rewards}")
+        self.reward_count.setText(f"N rewards: {n_rewards}")
 
         # Update timing
         if time_from_session_start_sec is not None:
