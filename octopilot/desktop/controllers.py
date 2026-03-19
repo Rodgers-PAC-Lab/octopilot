@@ -1066,7 +1066,7 @@ class WheelDispatcher(Dispatcher):
         self._log_flash(trial_number, identity, flash_time)
     
     def handle_reward(self, identity, trial_number, reward_time, 
-        trial_type=None, choice=None, direction=None, anti_bias=None, reward_count=0):
+        trial_type=None, choice=None, direction=None, anti_bias=None, reward_count=None):
             
         ## PDT Additions ============
         
@@ -1088,7 +1088,8 @@ class WheelDispatcher(Dispatcher):
         ## End of PDT Additions =====
         
         # Log N rewards for WHT
-        self.reward_count = reward_count
+        if reward_count is not None:
+            self.reward_count = reward_count
         
         # Log the trial
         self._log_trial(reward_time)

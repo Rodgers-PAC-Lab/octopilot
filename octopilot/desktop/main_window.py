@@ -449,8 +449,12 @@ class WheelSessionWindow(SessionWindow):
             self.dispatcher)
 
         # Create PerformanceMetricDisplay
-        self.performance_metric_display_widget = (
-            plotting.PerformanceMetricDisplay_SOT(self.dispatcher))
+        if self.dispatcher.reward_count is not None
+            self.performance_metric_display_widget = (
+                plotting.PerformanceMetricDisplay_WHT(self.dispatcher))
+        else:
+            self.performance_metric_display_widget = (
+                plotting.PerformanceMetricDisplay_SOT(self.dispatcher))
 
         # Create self.stop_button and connect it to self.stop_sqeuence
         self.set_up_stop_button()
@@ -602,7 +606,6 @@ class WheelHabituationSessionWindow(WheelSessionWindow):
     """
     # This class variable determines what Dispatcher class is instantiated
     dispatcher_class = controllers.WheelHabituationDispatcher
-    performance_metric_display_widget = (plotting.PerformanceMetricDisplay_WHT(dispatcher))
     
     
     
