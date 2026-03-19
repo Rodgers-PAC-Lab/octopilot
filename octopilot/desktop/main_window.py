@@ -449,7 +449,7 @@ class WheelSessionWindow(SessionWindow):
             self.dispatcher)
 
         # Create PerformanceMetricDisplay
-        if self.dispatcher.reward_count is not None:
+        if self.dispatcher.mouse_params['task'] == 'wheel_habituate':
             self.performance_metric_display_widget = (
                 plotting.PerformanceMetricDisplay_WHT(self.dispatcher))
         else:
