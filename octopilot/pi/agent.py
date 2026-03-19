@@ -1931,7 +1931,7 @@ class WheelHabituationTask(WheelTask):
         self.clipped_position = 0
         self.last_raw_position = 0
         self.reward_delivered = False
-        self.alternate_spin = self.params['alternate']
+        self.alternate_spin = self.mouse_params['alternate']
         self.reward_count = 0
 
     def stop_session(self):
