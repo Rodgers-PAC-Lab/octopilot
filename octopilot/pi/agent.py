@@ -955,8 +955,9 @@ class WheelTask(Agent):
         self.pig.set_mode(self.solenoid_pin, pigpio.OUTPUT)
         self.pig.set_mode(self.house_light_pin, pigpio.OUTPUT)
         
-        self.incorrect_present = 0
-        self.incorrect_absent = 0
+        self.incorrect_left = 0
+        self.incorrect_right = 0
+        self.reward_count = 0
     
     def start_session(self):
         # Call Agent.start_session
@@ -1053,45 +1054,56 @@ class WheelTask(Agent):
             
         ## START OF PDT ADDITIONS ========================
         
-        self.right_bias = False
         self.left_bias = False
-        anti_bias = 'none'
+        self.right_bias = False
+        self.anti_bias = 'none'
         
         # Keeps incorrect trial counts (for anti-bias) limited to 40 trials
         if (self.trial_number != 0) and (self.trial_number % 40 == 0) and (self.trial_number != 40):
-            self.incorrect_present = 0
-            self.incorrect_absent = 0
+            self.incorrect_left = 0
+            self.incorrect_right = 0
         
         # Sets anti-bias trials for PDT
-        if self.trial_number != 0 and ((self.incorrect_present / self.trial_number) >= 0.3) and self.trial_number > 20:
-            self.left_bias = True
-            self.anti_bias = 'left'
-        elif self.trial_number != 0 and ((self.incorrect_absent / self.trial_number) >= 0.3) and self.trial_number > 20:
-            self.right_bias = True
-            self.anti_bias = 'right'
+        if self.trial_number != 0 and self.trial_number > 40 and 
+            self.trial_number % 40 != 0:
+            if ((self.incorrect_right / (self.trial_number % 40)) <= 0.8) and 
+                ((self.incorrect_left / (self.trial_number % 40)) >= 0.2):
+                self.left_bias = True
+                self.anti_bias = 'left'
+            elif ((self.incorrect_left / (self.trial_number % 40)) <= 0.8) and 
+                ((self.incorrect_right / (self.trial_number % 40)) >= 0.2):
+                self.right_bias = True
+                self.anti_bias = 'right'
         
         # Sets random trial type (includes anti-bias for PDT)
-        if np.random.random() < 0.5 and self.right_bias == False and self.left_bias == False:
-            self.trial_type = 'present'
-            self.anti_bias_count = 0
-        elif np.random.random() >= 0.5 and self.right_bias == False and self.left_bias == False:
-            self.trial_type = 'absent'
+        self.rand = np.random.random()
+        
+        if self.right_bias, self.left_bias == False:
+            if self.rand < 0.5:
+                self.trial_type = 'present'
+            elif self.rand >= 0.5:
+                self.trial_type = 'absent'
+                
             self.anti_bias_count = 0
         
-        # Sets anti-bias while including occasional opposite stimulus 
-        elif self.left_bias == True:
+        elif self.left_bias == True and self.right_bias == False:
             if (self.anti_bias_count % 7 == 0):
                 self.trial_type = 'absent'
             else:
                 self.trial_type = 'present'
+                
             self.anti_bias_count += 1    
             
-        elif self.right_bias == True:
+        elif self.right_bias == True and self.left_bias == False:
             if (self.anti_bias_count % 7 == 0):
                 self.trial_type = 'present'
             else:
                 self.trial_type = 'absent'
+                
             self.anti_bias_count += 1
+            
+        else:
+            1/0
 
         ## END OF PDT ADDITIONS =========================
 
@@ -1931,8 +1943,7 @@ class WheelHabituationTask(WheelTask):
         self.clipped_position = 0
         self.last_raw_position = 0
         self.reward_delivered = False
-        self.alternate_spin = self.mouse_params['alternate']
-        self.reward_count = 0
+        self.alternate_spin = True
 
     def stop_session(self):
         """Stop the session"""
@@ -2004,7 +2015,6 @@ class WheelHabituationTask(WheelTask):
                 f'trial_number={self.trial_number}=int;'
                 f'wheel_position={wheel_position}=int;'
                 f'clipped_position={self.clipped_position}=int;'
-                f'reward_count={self.reward_count}=int;'
                 f'wheel_time={now.isoformat()}=str'
                 )
 
@@ -2015,7 +2025,6 @@ class WheelHabituationTask(WheelTask):
                 # Within target range
                 # Reward and end trial
                 self.reward(self.max_reward)
-                self.reward_count += 1
 
             elif self.reward_for_spinning and np.abs(self.clipped_position -
                 self.last_rewarded_position) > self.wheel_reward_thresh:
@@ -2040,7 +2049,6 @@ class WheelHabituationTask(WheelTask):
                 # Within target range
                 # Reward and end trial
                 self.reward(self.max_reward)
-                self.reward_count += 1
 
             elif self.reward_for_spinning and np.abs(wheel_position - 
                 self.last_rewarded_position) > self.wheel_reward_thresh:

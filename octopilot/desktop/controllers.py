@@ -1066,10 +1066,11 @@ class WheelDispatcher(Dispatcher):
         self._log_flash(trial_number, identity, flash_time)
     
     def handle_reward(self, identity, trial_number, reward_time, 
-        trial_type=None, choice=None, direction=None, anti_bias=None, reward_count=None):
+        trial_type=None, choice=None, direction=None, anti_bias=None):
             
-        ## PDT Additions ============
+        ## Start of PDT Additions ============
         
+        # Adds trial type(s) and outcomes
         if trial_type is not None:
             self.trial_parameters['trial_type'] = trial_type
         if choice is not None:
@@ -1079,17 +1080,13 @@ class WheelDispatcher(Dispatcher):
         if anti_bias is not None:
             self.trial_parameters['anti_bias'] = anti_bias
         
-        # Add the outcome of this trial to the history
+        # Add the outcomes of the trial to the history
         self.history_of_trial_choices.append(choice)
         self.history_of_trial_types.append(trial_type)
         self.history_of_trial_directions.append(direction)
         self.history_of_trial_anti_bias.append(anti_bias)
         
         ## End of PDT Additions =====
-        
-        # Log N rewards for WHT
-        if reward_count is not None:
-            self.reward_count = reward_count
         
         # Log the trial
         self._log_trial(reward_time)
