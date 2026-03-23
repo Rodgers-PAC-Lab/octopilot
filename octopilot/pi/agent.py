@@ -1064,12 +1064,10 @@ class WheelTask(Agent):
         
         # Sets anti-bias trials for PDT
         if (self.trial_number != 0) and (self.trial_number > 40) and (self.trial_number % 40 != 0):
-            if ((self.incorrect_right / (self.trial_number % 40)) < 0.2) and 
-                ((self.incorrect_left / (self.trial_number % 40)) >= 0.2):
+            if ((self.incorrect_right / (self.trial_number % 40)) < 0.2) and ((self.incorrect_left / (self.trial_number % 40)) >= 0.2):
                 self.left_bias = True
                 self.anti_bias = 'left'
-            elif ((self.incorrect_left / (self.trial_number % 40)) < 0.2) and 
-                ((self.incorrect_right / (self.trial_number % 40)) >= 0.2):
+            elif ((self.incorrect_left / (self.trial_number % 40)) < 0.2) and ((self.incorrect_right / (self.trial_number % 40)) >= 0.2):
                 self.right_bias = True
                 self.anti_bias = 'right'
         
