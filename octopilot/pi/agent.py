@@ -957,7 +957,6 @@ class WheelTask(Agent):
         
         self.incorrect_left = 0
         self.incorrect_right = 0
-        self.reward_count = 0
     
     def start_session(self):
         # Call Agent.start_session
