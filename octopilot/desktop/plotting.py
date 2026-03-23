@@ -917,7 +917,7 @@ class WheelTrialWidget(QWidget):
         ticks = ['absent', 'present']
         
         # Some syntax error here
-        #~ self.plot_widget.getPlotItem().getAxis('left').setTicks([ticks, []])
+        self.plot_widget.getPlotItem().getAxis('left').setTicks([ticks, []])
 
     def initalize_plot_handles(self):
         """Plots line_of_current_time and line
