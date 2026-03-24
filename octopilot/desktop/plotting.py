@@ -914,10 +914,10 @@ class WheelTrialWidget(QWidget):
         
         # Set the ticks
         # Hard-code in for now that there are just two trial types
-        ticks = ['absent', 'present']
+        ticks = [(0, 'absent'), (1, 'present')]
         
-        # Some syntax error here
-        #self.plot_widget.getPlotItem().getAxis('left').setTicks([ticks, []])
+        # Plots ticks at indicated positions on y-axis
+        self.plot_widget.getPlotItem().getAxis('left').setTicks([ticks])
 
     def initalize_plot_handles(self):
         """Plots line_of_current_time and line
