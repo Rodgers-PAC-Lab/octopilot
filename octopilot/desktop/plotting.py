@@ -914,7 +914,7 @@ class WheelTrialWidget(QWidget):
         
         # Set the ticks
         # Hard-code in for now that there are just two trial types
-        ticks = ['absent', 'present']
+        ticks = list(['absent', 'present'])
         
         # Some syntax error here
         self.plot_widget.getPlotItem().getAxis('left').setTicks([ticks, []])
