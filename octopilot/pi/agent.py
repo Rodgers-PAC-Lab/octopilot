@@ -1933,7 +1933,7 @@ class WheelHabituationTask(WheelTask):
         self.reward_range = 100
 
         ## These are initialized later
-        self.last_rewarded_position = None
+        self.last_rewarded_position = wheel_max
         self.last_reported_time = None
         self.last_reward_time = None
         self.clipped_position = 0
