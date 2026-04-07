@@ -441,8 +441,6 @@ class WheelSessionWindow(SessionWindow):
 
 
         ## Set up the graphical objects
-        # Instantiate a WheelTrialWidget to show the progress of trials
-        self.wheel_trial_widget = plotting.WheelTrialWidget(self.dispatcher)
         
         # Instantiate a WheelPositionWidget to show the movement of the wheel
         self.wheel_position_widget = plotting.WheelPositionWidget(
@@ -455,6 +453,9 @@ class WheelSessionWindow(SessionWindow):
         else:
             self.performance_metric_display_widget = (
                 plotting.PerformanceMetricDisplay_SOT(self.dispatcher))
+                
+                # Instantiate a WheelTrialWidget to show the progress of trials
+                self.wheel_trial_widget = plotting.WheelTrialWidget(self.dispatcher)
 
         # Create self.stop_button and connect it to self.stop_sqeuence
         self.set_up_stop_button()

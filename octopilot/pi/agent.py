@@ -1074,7 +1074,10 @@ class WheelTask(Agent):
         # Sets random trial type (includes anti-bias for PDT)
         self.rand = np.random.random()
         
-        if self.right_bias == False and self.left_bias == False:
+        if self.catch_trials == True and self.anti_bias == 'none' and self.rand < 0.1:
+            self.trial_type = 'catch'
+        
+        elif self.right_bias == False and self.left_bias == False:
             if self.rand < 0.5:
                 self.trial_type = 'present'
             elif self.rand >= 0.5:
@@ -1628,18 +1631,23 @@ class PoleDetectionTask(WheelTask):
         ## Set up control over stepper
         self.stepper_step_pin = 26
         self.stepper_dir_pin = 16
+        self.stepper_step_pin2 = 0
+        self.stepper_dir_pin2 = 0
 
         # The default is INPUT, so only outputs have to be set
         self.pig.set_mode(self.stepper_step_pin, pigpio.OUTPUT)
         self.pig.set_mode(self.stepper_dir_pin, pigpio.OUTPUT)
+        self.pig.set_mode(self.stepper_step_pin2, pigpio.OUTPUT)
+        self.pig.set_mode(self.stepper_dir_pin2, pigpio.OUTPUT)
 
         # Also set with GPIO, since use that one for stepping
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.stepper_step_pin, GPIO.OUT)
+        GPIO.setup(self.stepper_step_pin2, GPIO.OUT)
 
 
         ## Wheel and reward size parameters
-        # This is the size of a large reward (lower once getting better to 0.025)
+        # This is the size of a large reward (lower once perfomance increases)
         self.max_reward = .05
 
         # As time_since_last_reward increases, reward gets exponentially smaller
@@ -1656,6 +1664,10 @@ class PoleDetectionTask(WheelTask):
         # 1000 clicks is about 90 deg
         self.wheel_max = 6400
         self.wheel_min = -6400
+        
+        # Catch trial positions with second stepper motor
+        self.catch_max = 500
+        self.catch_min = -500
 
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right
@@ -1673,15 +1685,18 @@ class PoleDetectionTask(WheelTask):
         self.reward_delivered = False
         self.current_surface_position = 0
         self.trial_type = None
+        self.trial_number = 0
+        self.prev_trial_outcome = None
         self.choice = None
         self.direction = None
+        self.catch_trials = False
         self.anti_bias = 'none'
+        self.response_window = False
 
 
-        ## Create the serial_reader object
-        self.surface_turner = SurfaceTurner(
-            pig=self.pig,
-            )
+        ## Create the serial_reader object (for PDT, sets up present/absent motor and catch trial motor)
+        self.surface_turner = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin, dir_pin=self.stepper_dir_pin)
+        self.surface_turner2 = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin2, dir_pin=self.stepper_dir_pin2)
 
         # Start acquistion in a separate Process
         self.proc = multiprocessing.Process(target=self.surface_turner.start)
@@ -1786,16 +1801,26 @@ class PoleDetectionTask(WheelTask):
 
         # This time.sleep gives the motor time to move back to the
         # ITI position
-        self.pig.write(self.house_light_pin, 1)
-        time.sleep(2.5)
-        self.pig.write(self.house_light_pin, 0)
+        
+        if self.prev_trial_outcome == 'correct' or self.trial_number == 0:
+            self.pig.write(self.house_light_pin, 1)
+            time.sleep(2.5)
+            self.pig.write(self.house_light_pin, 0)
+        
+        elif self.prev_trial_outcome == 'incorrect':
+            self.pig.write(self.house_light_pin, 1)
+            time.sleep(7.5)
+            self.pig.write(self.house_light_pin, 0)
+        
+        else:
+            1/0
 
         # Move to a position
         if self.trial_type == 'present':
             self.surface_turner.target.value = self.wheel_max
-        elif self.trial_type == 'absent':
+        elif self.trial_type == 'absent' or self.trial_type == 'catch':
             self.surface_turner.target.value = self.wheel_min
-
+            
         # This time.sleep gives the motor time to move to its new position
         time.sleep(2.5)
 
@@ -1805,6 +1830,16 @@ class PoleDetectionTask(WheelTask):
 
         # Restart callbacks
         self.wheel_listener.report_callback = self.report_wheel
+        
+        # Enacts catch trial motor movement and ends trial (no reward)
+        if self.trial_type == 'catch':
+            self.surface_turner2.target.value = self.catch_min
+            time.sleep(2.5)
+            self.surface_turner2.target.value = self.catch_max
+            time.sleep(2.5)
+            self.surface_turner2.target.value = 0
+            time.sleep(2.5)
+            self.reward(0)
 
     def report_surface(self):
         """Called by a RepeatedTimer to report surface movements"""
@@ -1875,6 +1910,7 @@ class PoleDetectionTask(WheelTask):
                 # Reward and end trial
                 self.choice = 'correct'
                 self.direction = 'right'
+                self.prev_trial_outcome = 'correct'
                 self.reward(self.max_reward)
 
             elif self.trial_type == 'absent' and clipped_position < -150:
@@ -1882,6 +1918,7 @@ class PoleDetectionTask(WheelTask):
                 # Reward and end trial
                 self.choice = 'correct'
                 self.direction = 'left'
+                self.prev_trial_outcome = 'correct'
                 self.reward(self.max_reward)
 
             elif self.trial_type == 'present' and clipped_position < -150:
@@ -1889,6 +1926,7 @@ class PoleDetectionTask(WheelTask):
                 # Punish and end trial
                 self.choice = 'incorrect'
                 self.direction = 'left'
+                self.prev_trial_outcome = 'incorrect'
                 self.incorrect_left += 1
                 self.reward(0)
 
@@ -1897,6 +1935,7 @@ class PoleDetectionTask(WheelTask):
                 # Punish and end trial
                 self.choice = 'incorrect'
                 self.direction = 'right'
+                self.prev_trial_outcome = 'incorrect'
                 self.incorrect_right += 1
                 self.reward(0)
 
@@ -1917,6 +1956,7 @@ class WheelHabituationTask(WheelTask):
         # As reward_decay increases, mouse has to wait longer 
         # 300 clicks is about 20 deg (easy)
         self.reward_for_spinning = True
+        self.alternate_spin = False
         self.reward_decay = 0.5
         self.wheel_reward_thresh = 300 
         
@@ -1939,7 +1979,6 @@ class WheelHabituationTask(WheelTask):
         self.clipped_position = 0
         self.last_raw_position = 0
         self.reward_delivered = False
-        self.alternate_spin = True
 
     def stop_session(self):
         """Stop the session"""
@@ -2045,7 +2084,8 @@ class WheelHabituationTask(WheelTask):
                 # Within target range
                 # Reward and end trial
                 self.reward(self.max_reward)
-
+            
+            # rewards any spinning (very frequent small rewards)
             elif self.reward_for_spinning and np.abs(wheel_position - 
                 self.last_rewarded_position) > self.wheel_reward_thresh:
             
@@ -2080,7 +2120,7 @@ class SurfaceTurner(object):
     * Set `self.target` as needed.
     * When done, set `self.stop_event`, and then join the process.
     """
-    def __init__(self, pig):
+    def __init__(self, pig, step_pin, dir_pin):
         """Initialize a new SurfaceTurner
         
         self.pig : pigpio handle
@@ -2091,8 +2131,8 @@ class SurfaceTurner(object):
         
         ## Params
         # Pins
-        self.stepper_step_pin = 26
-        self.stepper_dir_pin = 16
+        self.stepper_step_pin = step_pin
+        self.stepper_dir_pin = dir_pin
         
         # How many steps to turn per unit of `target`
         self.gain = 2
