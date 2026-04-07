@@ -453,9 +453,7 @@ class WheelSessionWindow(SessionWindow):
         else:
             self.performance_metric_display_widget = (
                 plotting.PerformanceMetricDisplay_SOT(self.dispatcher))
-                
-                # Instantiate a WheelTrialWidget to show the progress of trials
-                self.wheel_trial_widget = plotting.WheelTrialWidget(self.dispatcher)
+            self.wheel_trial_widget = plotting.WheelTrialWidget(self.dispatcher)
 
         # Create self.stop_button and connect it to self.stop_sqeuence
         self.set_up_stop_button()
@@ -475,7 +473,10 @@ class WheelSessionWindow(SessionWindow):
         
         # Add widgets to the container_layout
         container_layout.addWidget(self.wheel_position_widget)
-        container_layout.addWidget(self.wheel_trial_widget)
+        
+        if self.dispatcher.mouse_params['task'] != 'wheel_habituate':
+            container_layout.addWidget(self.wheel_trial_widget)
+       
         container_layout.addLayout(start_stop_layout)
         
         # Set this one as the central widget
@@ -547,7 +548,10 @@ class WheelSessionWindow(SessionWindow):
         # TODO: Instead of these objects having their own timers, 
         # OctopilotSessionWindow should keep track of that
         self.wheel_position_widget.start()
-        self.wheel_trial_widget.start()
+        
+        if self.dispatcher.mouse_params['task'] != 'wheel_habituate':
+            self.wheel_trial_widget.start()
+            
         self.performance_metric_display_widget.start()        
         
         # Don't start the session again
@@ -563,7 +567,10 @@ class WheelSessionWindow(SessionWindow):
         # Stop the dispatcher and the updates
         self.stop_button.clicked.connect(self.dispatcher.stop_session)
         self.stop_button.clicked.connect(self.timer_dispatcher.stop)
-        self.stop_button.clicked.connect(self.wheel_trial_widget.stop)
+        
+        if self.dispatcher.mouse_params['task'] != 'wheel_habituate':
+            self.stop_button.clicked.connect(self.wheel_trial_widget.stop)
+            
         self.stop_button.clicked.connect(self.wheel_position_widget.stop_plot)
         self.stop_button.clicked.connect(
             self.performance_metric_display_widget.stop)
