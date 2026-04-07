@@ -955,6 +955,7 @@ class WheelTask(Agent):
         self.pig.set_mode(self.solenoid_pin, pigpio.OUTPUT)
         self.pig.set_mode(self.house_light_pin, pigpio.OUTPUT)
         
+        self.catch_trials = False
         self.incorrect_left = 0
         self.incorrect_right = 0
     
