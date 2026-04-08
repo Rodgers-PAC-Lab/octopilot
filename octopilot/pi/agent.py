@@ -1964,8 +1964,8 @@ class WheelHabituationTask(WheelTask):
         # This defines the range in which turning the wheel changes the sound
         # Every trial starts at either max or min
         # 1000 clicks is about 60 deg
-        self.wheel_max = 2000
-        self.wheel_min = -2000
+        self.wheel_max = 1000
+        self.wheel_min = -1000
         
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right 
@@ -1974,7 +1974,7 @@ class WheelHabituationTask(WheelTask):
         self.reward_range = 100
 
         ## These are initialized later
-        self.last_rewarded_position = self.wheel_max
+        self.last_rewarded_position = None
         self.last_reported_time = None
         self.last_reward_time = None
         self.clipped_position = 0
