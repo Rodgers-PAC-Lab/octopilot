@@ -955,6 +955,7 @@ class WheelTask(Agent):
         self.pig.set_mode(self.solenoid_pin, pigpio.OUTPUT)
         self.pig.set_mode(self.house_light_pin, pigpio.OUTPUT)
         
+        self.catch_trials = False
         self.incorrect_left = 0
         self.incorrect_right = 0
     
@@ -1955,16 +1956,16 @@ class WheelHabituationTask(WheelTask):
         # is 63.7% of full. 
         # As reward_decay increases, mouse has to wait longer 
         # 300 clicks is about 20 deg (easy)
-        self.reward_for_spinning = True
-        self.alternate_spin = False
+        self.reward_for_spinning = False
+        self.alternate_spin = True
         self.reward_decay = 0.5
         self.wheel_reward_thresh = 300 
         
         # This defines the range in which turning the wheel changes the sound
         # Every trial starts at either max or min
         # 1000 clicks is about 60 deg
-        self.wheel_max = 2000
-        self.wheel_min = -2000
+        self.wheel_max = 1000
+        self.wheel_min = -1000
         
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right 
@@ -1973,7 +1974,7 @@ class WheelHabituationTask(WheelTask):
         self.reward_range = 100
 
         ## These are initialized later
-        self.last_rewarded_position = wheel_max
+        self.last_rewarded_position = None
         self.last_reported_time = None
         self.last_reward_time = None
         self.clipped_position = 0
