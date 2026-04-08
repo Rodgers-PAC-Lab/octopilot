@@ -82,6 +82,6 @@ On the desktop:
 
 The present version will automatically connect to each Pi and start `octopilot` on each Pi. Alternatively you can start it on the Pi like this:
 
-    source ~/.venv/py3/bin/activate
+    source ~/.venv/octopilot/bin/activate
     python3 -m octopilot.pi.start_cli
 
