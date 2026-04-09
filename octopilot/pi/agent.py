@@ -1958,8 +1958,8 @@ class WheelHabituationTask(WheelTask):
         # is 63.7% of full. 
         # As reward_decay increases, mouse has to wait longer 
         # 300 clicks is about 20 deg (easy)
-        self.reward_for_spinning = False
-        self.alternate_spin = True
+        self.reward_for_spinning = True
+        self.alternate_spin = False
         self.reward_decay = 0.5
         self.wheel_reward_thresh = 300 
         
