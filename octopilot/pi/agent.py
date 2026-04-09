@@ -1629,9 +1629,11 @@ class PoleDetectionTask(WheelTask):
         super().__init__(*args, **kwargs)
 
 
-        ## Set up control over stepper
+        # Original motor control 
         self.stepper_step_pin = 26
         self.stepper_dir_pin = 16
+        
+        # Catch trial motor control
         self.stepper_step_pin2 = 0
         self.stepper_dir_pin2 = 0
 
@@ -1755,7 +1757,7 @@ class PoleDetectionTask(WheelTask):
         self.network_communicator.poke_socket.send_string(
             f'reward;'
             f'trial_number={self.trial_number}=int;'
-            f'trial_type={self.trial_type}=str;' # present/absent
+            f'trial_type={self.trial_type}=str;' # present/absent/catch
             f'choice={self.choice}=str;' # correct/incorrect
             f'direction={self.direction}=str;' # left/right
             f'anti_bias={self.anti_bias}=str;' # left/right/none
@@ -1801,7 +1803,7 @@ class PoleDetectionTask(WheelTask):
         self.wheel_listener.report_callback = None
 
         # This time.sleep gives the motor time to move back to the
-        # ITI position
+        # ITI position and can do timeout if incorrect choice is made
         
         if self.prev_trial_outcome == 'correct' or self.trial_number == 0:
             self.pig.write(self.house_light_pin, 1)
@@ -2019,7 +2021,7 @@ class WheelHabituationTask(WheelTask):
         
         ## Update wheel positions
         # At the beginning of each trial
-        self.last_raw_position = self.wheel_listener.position
+        # self.last_raw_position = self.wheel_listener.position
         # self.clipped_position = either wheel_max or wheel_min
         
         # Get actual wheel position
