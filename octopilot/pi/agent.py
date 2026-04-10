@@ -2088,6 +2088,10 @@ class SoundDetectionTask(WheelTask):
             )  
 
     def set_trial_parameters(self, **msg_params):
+
+        ## Disable these until everything is set up
+        self.wheel_listener.report_callback = None
+        
         
         ## Call parent
         super().set_trial_parameters(**msg_params)
@@ -2134,6 +2138,13 @@ class SoundDetectionTask(WheelTask):
         # Empty and refill the queue with new sounds
         self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed()   
+        
+        
+        ## Ready to restart
+        self.wheel_listener.report_callback = self.report_wheel        
+        
+        # Force one to update
+        self.report_wheel(force_report=True)
 
     def report_wheel(self, force_report=False):
         """Called by self.wheel_listener every time the wheel moves
