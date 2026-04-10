@@ -2171,21 +2171,21 @@ class SoundDetectionTask(WheelTask):
         
         ## Reward conditions
         if not self.reward_delivered:
-            if self.trial_type == 'present' and clipped_position > 150:
+            if self.trial_type == 'present' and self.clipped_position > 150:
                 # They turned it positively on a present trial
                 # Reward and end trial
                 self.choice = 'correct'
                 self.direction = 'right'
                 self.reward(self.max_reward)
 
-            elif self.trial_type == 'absent' and clipped_position < -150:
+            elif self.trial_type == 'absent' and self.clipped_position < -150:
                 # They turned it negatively on an absent trial
                 # Reward and end trial
                 self.choice = 'correct'
                 self.direction = 'left'
                 self.reward(self.max_reward)
 
-            elif self.trial_type == 'present' and clipped_position < -150:
+            elif self.trial_type == 'present' and self.clipped_position < -150:
                 # They turned it negatively on a present trial
                 # Punish and end trial
                 self.choice = 'incorrect'
@@ -2193,7 +2193,7 @@ class SoundDetectionTask(WheelTask):
                 self.incorrect_present += 1
                 self.reward(0)
 
-            elif self.trial_type == 'absent' and clipped_position > 150:
+            elif self.trial_type == 'absent' and self.clipped_position > 150:
                 # They turned it positively on an absent trial
                 # Punish and end trial
                 self.choice = 'incorrect'
