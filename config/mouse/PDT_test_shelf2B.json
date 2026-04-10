@@ -1,6 +1,7 @@
 {
     "display": true,
-    "box": "room_d_darkbox",
+    "box": "room_d_shelf2B",
     "task": "PDT",
     "catch_trials": false
 }
+

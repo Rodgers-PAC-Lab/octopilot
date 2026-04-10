@@ -1,5 +1,6 @@
 {
     "display": true,
     "box": "room_d_darkbox",
-    "task": "SCT"
+    "task": "wheel_habituate",
+    "alternate": false
 }
