@@ -1987,54 +1987,6 @@ class SoundDetectionTask(WheelTask):
         self.direction = None
         self.anti_bias = 'none'
 
-    def reward(self, reward_size, report=True):
-        """Open the reward port and optionally report to Dispatcher
-
-        reward_size : numeric
-            Duration that the solenoid is open, in ms
-
-        report : bool
-            If True, call self.report_reward
-            This likely triggers the trial to end, which we may not want
-        """
-        # This prevents multiple rewards per trial
-        self.reward_delivered = True
-        
-        # Get current time
-        reward_time = datetime.datetime.now()
-
-        # Log
-        self.logger.info(f'{[reward_time]} rewarding for {reward_size} s')
-
-        if reward_size > 0:
-            # Issue reward
-            # TODO: rewrite with threading to avoid delay
-            self.pig.write(self.solenoid_pin, 1)
-            time.sleep(reward_size)
-            self.pig.write(self.solenoid_pin, 0)
-
-        # Report
-        if report:
-            self.report_reward(reward_time)
-
-    def report_reward(self, reward_time):
-        """Called by WheelController upon reward. Reports to Dispatcher by ZMQ.
-
-        """
-        # Log
-        self.logger.info(f'reporting reward at {reward_time}')
-
-        # Report to Dispatcher
-        self.network_communicator.poke_socket.send_string(
-            f'reward;'
-            f'trial_number={self.trial_number}=int;'
-            f'trial_type={self.trial_type}=str;' # present/absent
-            f'choice={self.choice}=str;' # correct/incorrect
-            f'direction={self.direction}=str;' # left/right
-            f'anti_bias={self.anti_bias}=str;' # left/right/none
-            f'reward_time={reward_time}=str'
-            )
-        
     def report_sound(self, data, last_frame_time, frames_since_cycle_start, dt):
         """Called by SoundPlayer when audio is played. Reports to Dispatcher.
         
@@ -2089,20 +2041,13 @@ class SoundDetectionTask(WheelTask):
 
     def set_trial_parameters(self, **msg_params):
 
-        ## Disable these until everything is set up
-        self.wheel_listener.report_callback = None
-        
+        time.sleep(1)
         
         ## Call parent
         super().set_trial_parameters(**msg_params)
         
         
-        ## Reset the start trial position to current
-        # TODO: This is also done in the WheelTask parent
-        self.position_at_trial_start = self.wheel_listener.position
-        self.last_raw_position = self.wheel_listener.position
-        self.clipped_position = 0
-        
+        ## Set trial type
         # TODO: get this from params
         if np.random.random() < 0.5:
             self.trial_type = 'present'
@@ -2138,14 +2083,7 @@ class SoundDetectionTask(WheelTask):
         # Empty and refill the queue with new sounds
         self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed()   
-        
-        
-        ## Ready to restart
-        self.wheel_listener.report_callback = self.report_wheel        
-        
-        # Force one to update
-        self.report_wheel(force_report=True)
-
+    
     def report_wheel(self, force_report=False):
         """Called by self.wheel_listener every time the wheel moves
         
@@ -2199,7 +2137,6 @@ class SoundDetectionTask(WheelTask):
                 # Reward and end trial
                 self.choice = 'correct'
                 self.direction = 'right'
-                self.wheel_listener.report_callback = None
                 self.reward_delivered = True
                 self.reward(self.max_reward)
 
@@ -2208,7 +2145,6 @@ class SoundDetectionTask(WheelTask):
                 # Reward and end trial
                 self.choice = 'correct'
                 self.direction = 'left'
-                self.wheel_listener.report_callback = None
                 self.reward_delivered = True
                 self.reward(self.max_reward)
 
@@ -2217,7 +2153,6 @@ class SoundDetectionTask(WheelTask):
                 # Punish and end trial
                 self.choice = 'incorrect'
                 self.direction = 'left'
-                self.wheel_listener.report_callback = None
                 self.reward_delivered = True
                 self.reward(0)
 
@@ -2226,7 +2161,6 @@ class SoundDetectionTask(WheelTask):
                 # Punish and end trial
                 self.choice = 'incorrect'
                 self.direction = 'right'
-                self.wheel_listener.report_callback = None
                 self.reward_delivered = True
                 self.reward(0)
 
