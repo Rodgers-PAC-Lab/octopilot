@@ -2190,7 +2190,6 @@ class SoundDetectionTask(WheelTask):
                 # Punish and end trial
                 self.choice = 'incorrect'
                 self.direction = 'left'
-                self.incorrect_present += 1
                 self.reward(0)
 
             elif self.trial_type == 'absent' and self.clipped_position > 150:
@@ -2198,7 +2197,6 @@ class SoundDetectionTask(WheelTask):
                 # Punish and end trial
                 self.choice = 'incorrect'
                 self.direction = 'right'
-                self.incorrect_absent += 1
                 self.reward(0)
 
 class WheelHabituationTask(WheelTask):
