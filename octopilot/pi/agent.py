@@ -1964,8 +1964,8 @@ class SoundDetectionTask(WheelTask):
         # This defines the range in which turning the wheel changes the sound
         # Every trial starts at either max or min
         # 1000 clicks is about 90 deg
-        self.wheel_max = 6400
-        self.wheel_min = -6400
+        self.wheel_max = 200
+        self.wheel_min = -200
 
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right
