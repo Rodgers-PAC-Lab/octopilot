@@ -1701,7 +1701,7 @@ class PoleDetectionTask(WheelTask):
 
         ## Create the serial_reader object (for PDT, sets up present/absent motor and catch trial motor)
         self.surface_turner = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin, dir_pin=self.stepper_dir_pin)
-        self.surface_turner2 = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin2, dir_pin=self.stepper_dir_pin2)
+        #~ self.surface_turner2 = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin2, dir_pin=self.stepper_dir_pin2)
 
         # Start acquistion in a separate Process
         self.proc = multiprocessing.Process(target=self.surface_turner.start)
