@@ -1987,6 +1987,24 @@ class SoundDetectionTask(WheelTask):
         self.direction = None
         self.anti_bias = 'none'
 
+    def report_reward(self, reward_time):
+        """Called by WheelController upon reward. Reports to Dispatcher by ZMQ.
+
+        """
+        # Log
+        self.logger.info(f'reporting reward at {reward_time}')
+
+        # Report to Dispatcher
+        self.network_communicator.poke_socket.send_string(
+            f'reward;'
+            f'trial_number={self.trial_number}=int;'
+            f'trial_type={self.trial_type}=str;' # present/absent/catch
+            f'choice={self.choice}=str;' # correct/incorrect
+            f'direction={self.direction}=str;' # left/right
+            f'anti_bias={self.anti_bias}=str;' # left/right/none
+            f'reward_time={reward_time}=str'
+            )
+    
     def report_sound(self, data, last_frame_time, frames_since_cycle_start, dt):
         """Called by SoundPlayer when audio is played. Reports to Dispatcher.
         
@@ -2047,7 +2065,7 @@ class SoundDetectionTask(WheelTask):
         
         ## Reset wheel position
         self.last_raw_position = self.wheel_listener.position
-        self.clipped_wheel_position = 0
+        self.clipped_position = 0
         
         
         ## Set trial type
