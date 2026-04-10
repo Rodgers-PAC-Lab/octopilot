@@ -600,6 +600,13 @@ class SurfaceOrientationSessionWindow(WheelSessionWindow):
     """
     # This class variable determines what Dispatcher class is instantiated
     dispatcher_class = controllers.SurfaceOrientationDispatcher
+
+class SoundDetectionSessionWindow(WheelSessionWindow):
+    """Main Window for the sound detection task.
+
+    """
+    # This class variable determines what Dispatcher class is instantiated
+    dispatcher_class = controllers.SoundDetectionDispatcher
     
 class PoleDetectionSessionWindow(WheelSessionWindow):
     """Main Window for the surface orientation task. 

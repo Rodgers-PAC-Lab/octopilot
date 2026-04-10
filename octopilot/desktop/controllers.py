@@ -1273,6 +1273,14 @@ class SurfaceOrientationDispatcher(WheelDispatcher):
     # task_name = 'SOT'
     pass
     
+
+class SoundDetectionDispatcher(WheelDispatcher):
+    """Dispatcher for the wheel-based sound detection task. 
+
+    Currently all WheelDispatcher have the same functionality.
+    """
+    pass
+
 class PoleDetectionDispatcher(WheelDispatcher):
     """Dispatcher for the wheel-based surface orientation task. 
 
