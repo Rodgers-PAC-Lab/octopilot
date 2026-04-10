@@ -1999,6 +1999,9 @@ class SoundDetectionTask(WheelTask):
             If True, call self.report_reward
             This likely triggers the trial to end, which we may not want
         """
+        # This prevents multiple rewards per trial
+        self.reward_delivered = True
+        
         # Get current time
         reward_time = datetime.datetime.now()
 
@@ -2014,10 +2017,6 @@ class SoundDetectionTask(WheelTask):
 
         # Report
         if report:
-            # This prevents multiple rewards per trial (excluding non-reported
-            # rewards)
-            self.reward_delivered = True
-
             self.report_reward(reward_time)
 
     def report_reward(self, reward_time):
