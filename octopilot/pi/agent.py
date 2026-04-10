@@ -2058,15 +2058,9 @@ class SoundDetectionTask(WheelTask):
             )  
 
     def set_trial_parameters(self, **msg_params):
-
         ## Call parent
         super().set_trial_parameters(**msg_params)
 
-        
-        ## Reset wheel position
-        self.last_raw_position = self.wheel_listener.position
-        self.clipped_position = 0
-        
         
         ## Set trial type
         # TODO: get this from params
@@ -2122,13 +2116,10 @@ class SoundDetectionTask(WheelTask):
         # Get actual wheel position
         wheel_position = self.wheel_listener.position
         
-        # Compute movement since last_raw_position and update it
-        diff = wheel_position - self.last_raw_position
-        self.last_raw_position = wheel_position
-        
+        # Since trial start
+        self.clipped_position = wheel_position - self.position_at_trial_start
+
         # Clip the new position
-        self.clipped_position += diff
-        
         if self.clipped_position > self.wheel_max:
             self.clipped_position = self.wheel_max
         
