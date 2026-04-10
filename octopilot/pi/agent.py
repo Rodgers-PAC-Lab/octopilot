@@ -2098,20 +2098,25 @@ class SoundDetectionTask(WheelTask):
         self.position_at_trial_start = self.wheel_listener.position
         self.last_raw_position = self.wheel_listener.position
         self.clipped_position = 0
+        
+        # TODO: get this from params
+        self.trial_type = 'present'
     
     
         ## Split into left_params and right_params
-        # For the wheel task, we use left sound only, and reweight it later
-        left_params = {
-            'rate': 4, #msg_params['left_target_rate'],
-            'temporal_log_std': -1, #msg_params['target_temporal_log_std'],
-            'center_freq': 25000, #msg_params['target_center_freq'],
-            'log_amplitude': -2, #msg_params['target_log_amplitude'],
-            'bandwidth': 40000, #msg_params['target_bandwidth'],
-            }
-
-        right_params = {
-            }
+        if self.trial_type == 'present':
+            left_params = {
+                'rate': 4, #msg_params['left_target_rate'],
+                'temporal_log_std': -1, #msg_params['target_temporal_log_std'],
+                'center_freq': 25000, #msg_params['target_center_freq'],
+                'log_amplitude': -2, #msg_params['target_log_amplitude'],
+                'bandwidth': 40000, #msg_params['target_bandwidth'],
+                }
+        else:
+            left_params = {}
+        
+        # Always left side for now
+        right_params = {}
 
 
         ## Use those params to set the new sounds
