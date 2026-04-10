@@ -1,5 +1,4 @@
 {
-    "trial_duration": 5,
     "main_window_name": "SoundDetectionSessionWindow",
     "agent_name": "SoundDetectionTask"
 }
