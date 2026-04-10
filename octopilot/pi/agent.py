@@ -1046,70 +1046,15 @@ class WheelTask(Agent):
         # the correct trial number
         self.trial_number = msg_params['trial_number']
         
+        
         ## Log trial start (after trial number update)
         # Report trial start
         self.report_trial_start(timestamp)
+
         
         ## Update other trial parameters
-            
-        ## START OF PDT ADDITIONS ========================
-        
-        self.left_bias = False
-        self.right_bias = False
-        self.anti_bias = 'none'
-        
-        # Keeps incorrect trial counts (for anti-bias) limited to 40 trials
-        if (self.trial_number != 0) and (self.trial_number % 40 == 0) and (self.trial_number != 40):
-            self.incorrect_left = 0
-            self.incorrect_right = 0
-        
-        # Sets anti-bias trials for PDT
-        if (self.trial_number != 0) and (self.trial_number > 40) and (self.trial_number % 40 != 0):
-            if ((self.incorrect_right / (self.trial_number % 40)) < 0.2) and ((self.incorrect_left / (self.trial_number % 40)) >= 0.2):
-                self.left_bias = True
-                self.anti_bias = 'left'
-            elif ((self.incorrect_left / (self.trial_number % 40)) < 0.2) and ((self.incorrect_right / (self.trial_number % 40)) >= 0.2):
-                self.right_bias = True
-                self.anti_bias = 'right'
-        
-        # Sets random trial type (includes anti-bias for PDT)
-        self.rand = np.random.random()
-        
-        if self.catch_trials == True and self.anti_bias == 'none' and self.rand < 0.1:
-            self.trial_type = 'catch'
-        
-        elif self.right_bias == False and self.left_bias == False:
-            if self.rand < 0.5:
-                self.trial_type = 'present'
-            elif self.rand >= 0.5:
-                self.trial_type = 'absent'
-                
-            self.anti_bias_count = 0
-        
-        elif self.left_bias == True and self.right_bias == False:
-            if (self.anti_bias_count % 7 == 0):
-                self.trial_type = 'absent'
-            else:
-                self.trial_type = 'present'
-                
-            self.anti_bias_count += 1    
-            
-        elif self.right_bias == True and self.left_bias == False:
-            if (self.anti_bias_count % 7 == 0):
-                self.trial_type = 'present'
-            else:
-                self.trial_type = 'absent'
-                
-            self.anti_bias_count += 1
-            
-        else:
-            1/0
-
-        ## END OF PDT ADDITIONS =========================
-
         # Everything should be locked to raw position at the start of the trial
         self.last_raw_position = self.wheel_listener.position
-        
         self.position_at_trial_start = self.wheel_listener.position
         
         # Prevents multiple rewards
@@ -1798,6 +1743,59 @@ class PoleDetectionTask(WheelTask):
         ## Call parent
         super().set_trial_parameters(**msg_params)
 
+        
+        ## Bias correction code
+        self.left_bias = False
+        self.right_bias = False
+        self.anti_bias = 'none'
+        
+        # Keeps incorrect trial counts (for anti-bias) limited to 40 trials
+        if (self.trial_number != 0) and (self.trial_number % 40 == 0) and (self.trial_number != 40):
+            self.incorrect_left = 0
+            self.incorrect_right = 0
+        
+        # Sets anti-bias trials for PDT
+        if (self.trial_number != 0) and (self.trial_number > 40) and (self.trial_number % 40 != 0):
+            if ((self.incorrect_right / (self.trial_number % 40)) < 0.2) and ((self.incorrect_left / (self.trial_number % 40)) >= 0.2):
+                self.left_bias = True
+                self.anti_bias = 'left'
+            elif ((self.incorrect_left / (self.trial_number % 40)) < 0.2) and ((self.incorrect_right / (self.trial_number % 40)) >= 0.2):
+                self.right_bias = True
+                self.anti_bias = 'right'
+        
+        # Sets random trial type (includes anti-bias for PDT)
+        self.rand = np.random.random()
+        
+        if self.catch_trials == True and self.anti_bias == 'none' and self.rand < 0.1:
+            self.trial_type = 'catch'
+        
+        elif self.right_bias == False and self.left_bias == False:
+            if self.rand < 0.5:
+                self.trial_type = 'present'
+            elif self.rand >= 0.5:
+                self.trial_type = 'absent'
+                
+            self.anti_bias_count = 0
+        
+        elif self.left_bias == True and self.right_bias == False:
+            if (self.anti_bias_count % 7 == 0):
+                self.trial_type = 'absent'
+            else:
+                self.trial_type = 'present'
+                
+            self.anti_bias_count += 1    
+            
+        elif self.right_bias == True and self.left_bias == False:
+            if (self.anti_bias_count % 7 == 0):
+                self.trial_type = 'present'
+            else:
+                self.trial_type = 'absent'
+                
+            self.anti_bias_count += 1
+            
+        else:
+            1/0
+
 
         ## Disable wheel updates until the surface has moved back
         self.wheel_listener.report_callback = None
@@ -1982,7 +1980,7 @@ class SoundDetectionTask(WheelTask):
         self.last_reward_time = None
         self.clipped_position = 0
         self.last_raw_position = 0
-        self.reward_delivered = False
+        self.reward_delivered = True
         self.current_surface_position = 0
         self.trial_type = None
         self.choice = None
@@ -2095,6 +2093,13 @@ class SoundDetectionTask(WheelTask):
         super().set_trial_parameters(**msg_params)
         
         
+        ## Reset the start trial position to current
+        # TODO: This is also done in the WheelTask parent
+        self.position_at_trial_start = self.wheel_listener.position
+        self.last_raw_position = self.wheel_listener.position
+        self.clipped_position = 0
+    
+    
         ## Split into left_params and right_params
         # For the wheel task, we use left sound only, and reweight it later
         left_params = {
@@ -2109,12 +2114,6 @@ class SoundDetectionTask(WheelTask):
             }
 
 
-        ## Reset the start trial position to current
-        self.position_at_trial_start = self.wheel_listener.position
-        self.last_raw_position = self.wheel_listener.position
-        self.clipped_position = 0
-    
-    
         ## Use those params to set the new sounds
         self.logger.info(
             'setting audio parameters. '
