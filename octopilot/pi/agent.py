@@ -1455,7 +1455,9 @@ class SurfaceOrientationTask(WheelTask):
 
         ## Create the serial_reader object
         self.surface_turner = SurfaceTurner(
-            pig=self.pig,
+            pig=self.pig, 
+            step_pin=self.stepper_step_pin, 
+            dir_pin=self.stepper_dir_pin,
             )
         
         # Start acquistion in a separate Process
