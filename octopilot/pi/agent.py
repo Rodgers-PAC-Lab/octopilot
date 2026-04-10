@@ -2113,6 +2113,7 @@ class SoundDetectionTask(WheelTask):
         ## Reset the start trial position to current
         self.position_at_trial_start = self.wheel_listener.position
         self.last_raw_position = self.wheel_listener.position
+        self.clipped_position = 0
     
     
         ## Use those params to set the new sounds
