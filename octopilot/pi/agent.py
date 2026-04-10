@@ -2068,6 +2068,14 @@ class SoundDetectionTask(WheelTask):
             self.trial_type = 'present'
         else:
             self.trial_type = 'absent'
+
+        
+        ## This implements the inter-trial interval
+        # TODO: move this to the parent class
+        self.wheel_listener.report_callback = None
+        time.sleep(3)
+        self.position_at_trial_start = self.wheel_listener.position
+        self.wheel_listener.report_callback = self.report_wheel
     
     
         ## Split into left_params and right_params
