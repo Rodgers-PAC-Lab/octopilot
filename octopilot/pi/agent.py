@@ -1980,7 +1980,7 @@ class SoundDetectionTask(WheelTask):
         self.last_reward_time = None
         self.clipped_position = 0
         self.last_raw_position = 0
-        self.reward_delivered = True
+        self.reward_delivered = False
         self.current_surface_position = 0
         self.trial_type = None
         self.choice = None
