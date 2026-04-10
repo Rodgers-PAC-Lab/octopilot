@@ -2100,7 +2100,10 @@ class SoundDetectionTask(WheelTask):
         self.clipped_position = 0
         
         # TODO: get this from params
-        self.trial_type = 'present'
+        if np.random.random() < 0.5:
+            self.trial_type = 'present'
+        else:
+            self.trial_type = 'absent'
     
     
         ## Split into left_params and right_params
