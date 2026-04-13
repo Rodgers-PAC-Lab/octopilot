@@ -2077,19 +2077,19 @@ class WheelHabituationTask(WheelTask):
             if self.reward_for_spinning:
                 if np.abs(self.clipped_position - self.last_rewarded_position) > self.wheel_reward_thresh:
             
-                # Shaping stage: reward if it's moved far enough
-                # Set last rewarded position to current position
-                self.last_rewarded_position = self.clipped_position
+                    # Shaping stage: reward if it's moved far enough
+                    # Set last rewarded position to current position
+                    self.last_rewarded_position = self.clipped_position
             
-                # Update reward size using temporal discounting
-                time_since_last_reward = (
-                    now - self.last_reward_time).total_seconds()
-                reward_size = self.max_reward * (
-                    1 - np.exp(-time_since_last_reward / self.reward_decay))
-                self.last_reward_time = now
+                    # Update reward size using temporal discounting
+                    time_since_last_reward = (
+                        now - self.last_reward_time).total_seconds()
+                    reward_size = self.max_reward * (
+                        1 - np.exp(-time_since_last_reward / self.reward_decay))
+                    self.last_reward_time = now
             
-                # Reward but do not end trial
-                self.reward(reward_size, report=False)
+                    # Reward but do not end trial
+                    self.reward(reward_size, report=False)
         
         # Rewards continuously for spinning any direction (omitted 'reward at 0' rule)
         else:
