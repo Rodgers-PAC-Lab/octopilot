@@ -1993,10 +1993,20 @@ class WheelHabituationTask(WheelTask):
         super().set_trial_parameters(**msg_params)
         
         # Starting positions used for deterring spin direction bias
-        if self.alternate_spin and np.mod(self.trial_number, 2) == 0:
-            self.clipped_position = self.wheel_max
-        elif self.alternate_spin and np.mod(self.trial_number, 2) != 0:
-            self.clipped_position = self.wheel_min
+        if self.alternate_spin:
+            if np.mod(self.trial_number, 2) == 0:
+                self.clipped_position = self.wheel_max
+            else:
+                self.clipped_position = self.wheel_min
+            
+            # In alternating mode, shaping uses clipped position
+            self.last_rewarded_position = self.clipped_position
+            
+        # Uses raw position for shaping and omits the 'reward at zero' rule
+        else:
+            self.clipped_position = 0
+            self.last_rewarded_position = wheel_position
+            
             
     def report_wheel(self, force_report=False):
         """Called by self.wheel_listener every time the wheel moves
@@ -2064,8 +2074,8 @@ class WheelHabituationTask(WheelTask):
                 # Reward and end trial
                 self.reward(self.max_reward)
 
-            elif self.reward_for_spinning and np.abs(self.clipped_position -
-                self.last_rewarded_position) > self.wheel_reward_thresh:
+            if self.reward_for_spinning:
+                if np.abs(self.clipped_position - self.last_rewarded_position) > self.wheel_reward_thresh:
             
                 # Shaping stage: reward if it's moved far enough
                 # Set last rewarded position to current position
@@ -2081,30 +2091,24 @@ class WheelHabituationTask(WheelTask):
                 # Reward but do not end trial
                 self.reward(reward_size, report=False)
         
-        # Rewards for spinning any direction
+        # Rewards continuously for spinning any direction (omitted 'reward at 0' rule)
         else:
-            if (np.abs(self.clipped_position) < self.reward_range) and not self.reward_delivered:
-                # Within target range
-                # Reward and end trial
-                self.reward(self.max_reward)
+           if self.reward_for_spinning:
+                if np.abs(wheel_position - self.last_rewarded_position) > self.wheel_reward_thresh:
             
-            # rewards any spinning (very frequent small rewards)
-            elif self.reward_for_spinning and np.abs(wheel_position - 
-                self.last_rewarded_position) > self.wheel_reward_thresh:
+                    # Shaping stage: reward if it's moved far enough
+                    # Set last rewarded position to current position
+                    self.last_rewarded_position = wheel_position
             
-                # Shaping stage: reward if it's moved far enough
-                # Set last rewarded position to current position
-                self.last_rewarded_position = wheel_position
+                    # Update reward size using temporal discounting
+                    time_since_last_reward = (
+                        now - self.last_reward_time).total_seconds()
+                    reward_size = self.max_reward * (
+                        1 - np.exp(-time_since_last_reward / self.reward_decay))
+                    self.last_reward_time = now
             
-                # Update reward size using temporal discounting
-                time_since_last_reward = (
-                    now - self.last_reward_time).total_seconds()
-                reward_size = self.max_reward * (
-                    1 - np.exp(-time_since_last_reward / self.reward_decay))
-                self.last_reward_time = now
-            
-                # Reward but do not end trial
-                self.reward(reward_size, report=False)
+                    # Reward but do not end trial
+                    self.reward(reward_size, report=False)
 
 class SurfaceTurner(object):
     """Object that turns the stepper while running in its own process.
