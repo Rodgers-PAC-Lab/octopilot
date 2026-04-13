@@ -1961,13 +1961,13 @@ class WheelHabituationTask(WheelTask):
         self.reward_for_spinning = True
         self.alternate_spin = False
         self.reward_decay = 0.5
-        self.wheel_reward_thresh = 300 
+        self.wheel_reward_thresh = 150 
         
         # This defines the range in which turning the wheel changes the sound
         # Every trial starts at either max or min
         # 1000 clicks is about 60 deg
-        self.wheel_max = 1000
-        self.wheel_min = -1000
+        self.wheel_max = 500
+        self.wheel_min = -500
         
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right 
@@ -1994,6 +1994,12 @@ class WheelHabituationTask(WheelTask):
         
         # Starting positions used for deterring spin direction bias
         if self.alternate_spin:
+            
+            # Turns on ITI-LED light (helpful prep for PDT trial flow)
+            self.pig.write(self.house_light_pin, 1)
+            time.sleep(2.0)
+            self.pig.write(self.house_light_pin, 0)
+            
             if np.mod(self.trial_number, 2) == 0:
                 self.clipped_position = self.wheel_max
             else:
@@ -2069,7 +2075,7 @@ class WheelHabituationTask(WheelTask):
         ## Reward conditions
         # Rewards for alternating spin direction
         if self.alternate_spin:
-            if (np.abs(self.clipped_position) < self.reward_range) and not self.reward_delivered:
+            if (np.abs(self.clipped_position) == 0) and not self.reward_delivered:
                 # Within target range
                 # Reward and end trial
                 self.reward(self.max_reward)
