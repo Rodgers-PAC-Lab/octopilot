@@ -2005,7 +2005,7 @@ class WheelHabituationTask(WheelTask):
         # Uses raw position for shaping and omits the 'reward at zero' rule
         else:
             self.clipped_position = 0
-            self.last_rewarded_position = wheel_position
+            self.last_rewarded_position = self.last_raw_position
             
             
     def report_wheel(self, force_report=False):
