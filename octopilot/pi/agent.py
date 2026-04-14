@@ -1992,14 +1992,8 @@ class WheelHabituationTask(WheelTask):
         ## Call parent's method
         super().set_trial_parameters(**msg_params)
         
-        # Starting positions used for deterring spin direction bias
+        # Starting positions alternate 
         if self.alternate_spin:
-            
-            # Turns on ITI-LED light (helpful prep for PDT trial flow)
-            self.pig.write(self.house_light_pin, 1)
-            time.sleep(2.0)
-            self.pig.write(self.house_light_pin, 0)
-            
             if np.mod(self.trial_number, 2) == 0:
                 self.clipped_position = self.wheel_max
             else:
@@ -2007,6 +2001,11 @@ class WheelHabituationTask(WheelTask):
             
             # In alternating mode, shaping uses clipped position
             self.last_rewarded_position = self.clipped_position
+            
+            # Turns on ITI-LED light (helpful prep for PDT trial flow)
+            self.pig.write(self.house_light_pin, 1)
+            time.sleep(3.0)
+            self.pig.write(self.house_light_pin, 0)
             
         # Uses raw position for shaping and omits the 'reward at zero' rule
         else:
