@@ -41,7 +41,8 @@ class Agent(object):
     It should not be concerned with session-level task logic like what
     port to reward next.
     
-    The generation of audio is handled by self.SoundQueuer, and the playing
+    The generation of audio is hand
+    by self.SoundQueuer, and the playing
     of sound by self.SoundPlayer. The role of HardwareController in audio
     is to instantiate these objects, provide acoustic parameters to 
     SoundQueuer at the beginning of each trial, and to tell SoundQueuer
@@ -2106,6 +2107,7 @@ class SoundDetectionTask(WheelTask):
         # Empty and refill the queue with new sounds
         self.sound_queuer.empty_queue()
         self.sound_queuer.append_sound_to_queue_as_needed()   
+
     
     def report_wheel(self, force_report=False):
         """Called by self.wheel_listener every time the wheel moves
@@ -2175,6 +2177,9 @@ class SoundDetectionTask(WheelTask):
                 self.choice = 'incorrect'
                 self.direction = 'right'
                 self.reward(0)
+                
+            
+
 
 class WheelHabituationTask(WheelTask):
     """Agent that runs the wheel-based habituation task"""
