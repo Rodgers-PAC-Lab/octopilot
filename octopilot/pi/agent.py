@@ -1966,8 +1966,8 @@ class WheelHabituationTask(WheelTask):
         # This defines the range in which turning the wheel changes the sound
         # Every trial starts at either max or min
         # 1000 clicks is about 60 deg
-        self.wheel_max = 500
-        self.wheel_min = -500
+        self.wheel_max = 300
+        self.wheel_min = -300
         
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right 
@@ -1992,25 +1992,26 @@ class WheelHabituationTask(WheelTask):
         ## Call parent's method
         super().set_trial_parameters(**msg_params)
         
+        # Used to prevent immediate reward at start of each trial
+        self.reward_delivered = True
+        self.clipped_position = 0
+        
         # Starting positions alternate 
         if self.alternate_spin:
+            
+            # Turns on ITI-LED light (helpful prep for PDT trial flow)
+            self.pig.write(self.house_light_pin, 1)
+            time.sleep(2.5)
+            self.pig.write(self.house_light_pin, 0)
+            
             if np.mod(self.trial_number, 2) == 0:
                 self.clipped_position = self.wheel_max
             else:
                 self.clipped_position = self.wheel_min
             
-            # In alternating mode, shaping uses clipped position
-            self.last_rewarded_position = self.clipped_position
-            
-            # Turns on ITI-LED light (helpful prep for PDT trial flow)
-            self.pig.write(self.house_light_pin, 1)
-            time.sleep(3.0)
-            self.pig.write(self.house_light_pin, 0)
-            
-        # Uses raw position for shaping and omits the 'reward at zero' rule
-        else:
-            self.clipped_position = 0
-            self.last_rewarded_position = self.last_raw_position
+        # Shaping uses clipped position
+        self.last_rewarded_position = self.clipped_position
+        self.reward_delivered = False
             
             
     def report_wheel(self, force_report=False):
