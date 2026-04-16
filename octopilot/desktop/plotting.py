@@ -648,7 +648,7 @@ class PokePlotWidget(QWidget):
             # Update plot with the new xvals and yvals
             plot_to.setData(x=xvals, y=yvals)
 
-## Widget to plot pokes
+## Widget to plot wheel position 
 class WheelPositionWidget(QWidget):
     """Widget that plots the wheel position in real time
     
@@ -897,8 +897,12 @@ class WheelTrialWidget(QWidget):
         * Adds a grid
         * Sets y-limits to [1, 9]
         """
+        # Initial x-range values for plot
+        self.xrange_min = 0
+        self.xrange_max = 80
+        
         # Set x-axis in trials
-        self.plot_widget.setXRange(0, 80)  
+        self.plot_widget.setXRange(self.xrange_min, self.xrange_max)  
         
         # Setting the background of the plot to be black. Use 'w' for white
         self.plot_widget.setBackground("k") 
@@ -914,7 +918,7 @@ class WheelTrialWidget(QWidget):
         
         # Set the ticks
         # Hard-code in for now that there are just two trial types
-        ticks = [(0, 'absent'), (1, 'present')]
+        ticks = [(0, 'catch'), (0.5, 'absent'), (1, 'present')]
         
         # Plots ticks at indicated positions on y-axis
         self.plot_widget.getPlotItem().getAxis('left').setTicks([ticks])
@@ -928,13 +932,14 @@ class WheelTrialWidget(QWidget):
             self.plot_handle_correct_trials : a raster plot of 
                 rewarded trials in green
         """
+        
         # Incorrect trials in red
         self.plot_handle_incorrect_trials = self.plot_widget.plot(
             x=[],
             y=[],
             pen=None, # no connecting line
             symbol="o",  
-            symbolSize=3,
+            symbolSize=5,
             symbolBrush='r',
             symbolPen=None,
         )
@@ -945,12 +950,12 @@ class WheelTrialWidget(QWidget):
             y=[],
             pen=None, # no connecting line
             symbol="o",  
-            symbolSize=3,
+            symbolSize=5,
             symbolBrush='g',
             symbolPen=None,
         )
 
-        # Forced trials as black arrows
+        # Anti-bias trials as white arrows
         self.plot_handle_forced_trials = self.plot_widget.plot(
             x=[],
             y=[],
@@ -958,6 +963,17 @@ class WheelTrialWidget(QWidget):
             symbol="arrow_down",  
             symbolSize=10,
             symbolBrush='white',
+            symbolPen=None,
+        )
+        
+        # Anti-bias trials as white arrows
+        self.plot_handle_catch_trials = self.plot_widget.plot(
+            x=[],
+            y=[],
+            pen=None, # no connecting line
+            symbol="o",  
+            symbolSize=5,
+            symbolBrush='y',
             symbolPen=None,
         )
 
@@ -980,34 +996,44 @@ class WheelTrialWidget(QWidget):
           and plots as 
           self.plot_handle_..._trials
         """
-        # This is a list of 'present', 'absent', ...
+        # This is a list of 'present', 'absent', 'catch', ...
         htt = np.array(self.dispatcher.history_of_trial_types)
 
         # This is a list of 'correct', 'incorrect', ...
         hc = np.array(self.dispatcher.history_of_trial_choices)
 
-        # This is a list of 'left', 'right', ...
+        # This is a list of 'left', 'right', 'none', ...
         htab = np.array(self.dispatcher.history_of_trial_anti_bias)
 
         # Plot the correct ones 
         mask = hc == 'correct'
         xdata = np.where(mask)[0]
-        ydata = (htt[mask] == 'present').astype(int)
+        ydata = np.where(htt[mask] == 'present', 1.0, np.where(htt[mask] == 'absent', 0.5, 0.0))
         self.plot_handle_correct_trials.setData(xdata, ydata)
         
         # Plot the incorrect ones
         mask = hc == 'incorrect'
         xdata = np.where(mask)[0]
-        ydata = (htt[mask] == 'present').astype(int)
+        ydata = np.where(htt[mask] == 'present', 1.0, np.where(htt[mask] == 'absent', 0.5, 0.0))
         self.plot_handle_incorrect_trials.setData(xdata, ydata)
         
         # Plot the forced trials
         mask = htab != 'none'
         xdata = np.where(mask)[0]
-        ydata = (htt[mask] == 'present').astype(int)
+        ydata = np.where(htt[mask] == 'present', 1.0, np.where(htt[mask] == 'absent', 0.5, 0.0))
         self.plot_handle_forced_trials.setData(xdata, ydata)
         
-        # TODO: Update XRange here as trials go on
+        # Plot the catch trials
+        mask = htt == 'catch'
+        xdata = np.where(mask)[0]
+        ydata = np.where(htt[mask] == 'present', 1.0, np.where(htt[mask] == 'absent', 0.5, 0.0))
+        self.plot_handle_catch_trials.setData(xdata, ydata)
+        
+        # Updates x-range as trial count goes up
+        if htt.size >= 80 and np.mod(htt.size, 10) == 0:
+            self.xrange_min += 10
+            self.xrange_max += 10
+            self.plot_widget.setXRange(self.xrange_min, self.xrange_max) 
         
 ## Widget to plot WheelHabituationTask rewards
 class PerformanceMetricDisplay_WHT(QWidget):
