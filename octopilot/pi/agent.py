@@ -1701,9 +1701,12 @@ class PoleDetectionTask(WheelTask):
         self.surface_turner = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin, dir_pin=self.stepper_dir_pin)
         self.surface_turner2 = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin2, dir_pin=self.stepper_dir_pin2)
 
-        # Start acquistion in a separate Process
+        # Start acquistions in a separate Process
         self.proc = multiprocessing.Process(target=self.surface_turner.start)
+        self.proc2 = multiprocessing.Process(target=self.surface_turner2.start)
+
         self.proc.start()
+        self.proc2.start()
 
         # Set up timer to report out the surface movements
         self.timer_report_surface = hardware.RepeatedTimer(
@@ -1771,6 +1774,7 @@ class PoleDetectionTask(WheelTask):
         """
         # Tell SurfaceTurner to stop
         self.surface_turner.stop_event.set()
+        self.surface_turner2.stop_event.set()
         time.sleep(1)
 
         # End timers
@@ -1781,14 +1785,19 @@ class PoleDetectionTask(WheelTask):
         # Join on the surface_turners
         self.logger.debug('joining surface turner')
         self.proc.join(timeout=1)
+        self.proc2.join(timeout=1)
 
         # If it didn't finish (most likely because data is left in the queues
         # for some reason) then kill it
         if self.proc.is_alive():
             self.logger.debug('warning: could not join surface_turner process; killing')
             self.proc.terminate()
+            
+        if self.proc2.is_alive():
+        self.logger.debug('warning: could not join surface_turner2 process; killing')
+        self.proc2.terminate()
 
-        self.logger.debug('done with ending surface_turner process')
+        self.logger.debug('done with ending both surface_turner processes')
 
         # super
         super().stop_session()
@@ -1826,23 +1835,6 @@ class PoleDetectionTask(WheelTask):
             
         # This time.sleep gives the motor time to move to its new position
         time.sleep(2.5)
-        
-        # Enacts catch trial motor movement and ends trial (no reward)
-        if self.trial_type == 'catch':
-            
-            # Moves to post, ant, mid, and ITI positions
-            self.surface_turner2.target.value = self.catch_min
-            time.sleep(2.5)
-            self.surface_turner2.target.value = self.catch_max
-            time.sleep(2.5)
-            self.surface_turner2.target.value = 0
-            time.sleep(2.5)
-            
-            # Logs arbitrary trial outcomes to avoid errors
-            self.choice = 'na'
-            self.direction = 'na'
-            self.previous_trial_outcome = 'correct'
-            self.reward(0)
 
         # Reset the start trial position to current
         self.position_at_trial_start = self.wheel_listener.position
