@@ -1985,6 +1985,7 @@ class SoundDetectionTask(WheelTask):
         self.trial_type = None
         self.choice = None
         self.direction = None
+        self.prev_trial_outcome = 'correct'
         self.anti_bias = 'none'
 
     def report_reward(self, reward_time):
@@ -2061,6 +2062,15 @@ class SoundDetectionTask(WheelTask):
         ## Call parent
         super().set_trial_parameters(**msg_params)
 
+        if self.prev_trial_outcome == 'correct' or self.trial_number == 0:
+            self.pig.write(self.house_light_pin, 1)
+            time.sleep(2.5)
+            self.pig.write(self.house_light_pin, 0)
+        
+        elif self.prev_trial_outcome == 'incorrect':
+            self.pig.write(self.house_light_pin, 1)
+            time.sleep(2.5)
+            self.pig.write(self.house_light_pin, 0)
         
         ## Set trial type
         # TODO: get this from params
@@ -2152,20 +2162,23 @@ class SoundDetectionTask(WheelTask):
                 # They turned it positively on a present trial
                 # Reward and end trial
                 self.choice = 'correct'
+                self.prev_trial_outcome = 'correct'
                 self.direction = 'right'
                 self.reward(self.max_reward)
 
             elif self.trial_type == 'absent' and self.clipped_position < -150:
                 # They turned it negatively on an absent trial
-                # No reward, but end trial
+                # Reward, but end trial
                 self.choice = 'correct'
+                self.prev_trial_outcome = 'correct'
                 self.direction = 'left'
-                self.reward(0)
+                self.reward(self.max_reward)
 
             elif self.trial_type == 'present' and self.clipped_position < -150:
                 # They turned it negatively on a present trial
                 # Punish and end trial
                 self.choice = 'incorrect'
+                self.prev_trial_outcome = 'incorrect'
                 self.direction = 'left'
                 self.reward(0)
 
@@ -2173,6 +2186,7 @@ class SoundDetectionTask(WheelTask):
                 # They turned it positively on an absent trial
                 # Punish and end trial
                 self.choice = 'incorrect'
+                self.prev_trial_outcome = 'incorrect'
                 self.direction = 'right'
                 self.reward(0)
 
