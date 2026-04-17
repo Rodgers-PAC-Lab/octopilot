@@ -1669,8 +1669,8 @@ class PoleDetectionTask(WheelTask):
         self.wheel_min = -6400
         
         # Catch trial positions with second stepper motor
-        self.catch_max = 500
-        self.catch_min = -500
+        self.catch_max = 1000
+        self.catch_min = 1000
 
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right
@@ -1758,8 +1758,8 @@ class PoleDetectionTask(WheelTask):
             f'reward;'
             f'trial_number={self.trial_number}=int;'
             f'trial_type={self.trial_type}=str;' # present/absent/catch
-            f'choice={self.choice}=str;' # correct/incorrect
-            f'direction={self.direction}=str;' # left/right
+            f'choice={self.choice}=str;' # correct/incorrect/na
+            f'direction={self.direction}=str;' # left/right/na
             f'anti_bias={self.anti_bias}=str;' # left/right/none
             f'reward_time={reward_time}=str'
             )
@@ -1819,9 +1819,9 @@ class PoleDetectionTask(WheelTask):
             1/0
 
         # Move to a position
-        if self.trial_type == 'present':
+        if self.trial_type == 'present' or self.trial_type == 'catch':
             self.surface_turner.target.value = self.wheel_max
-        elif self.trial_type == 'absent' or self.trial_type == 'catch':
+        elif self.trial_type == 'absent':
             self.surface_turner.target.value = self.wheel_min
             
         # This time.sleep gives the motor time to move to its new position
@@ -1836,12 +1836,19 @@ class PoleDetectionTask(WheelTask):
         
         # Enacts catch trial motor movement and ends trial (no reward)
         if self.trial_type == 'catch':
+            
+            # Moves to post, ant, mid, and ITI positions
             self.surface_turner2.target.value = self.catch_min
             time.sleep(2.5)
             self.surface_turner2.target.value = self.catch_max
             time.sleep(2.5)
             self.surface_turner2.target.value = 0
             time.sleep(2.5)
+            
+            # Logs arbitrary trial outcomes to avoid errors
+            self.choice = 'na'
+            self.direction = 'na'
+            self.previous_trial_outcome = 'correct'
             self.reward(0)
 
     def report_surface(self):
