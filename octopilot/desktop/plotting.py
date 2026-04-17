@@ -742,6 +742,12 @@ class WheelPositionWidget(QWidget):
             y=[],
             pen='red',
         )
+        
+        self.plot_handle_surface_position2 = self.plot_widget.plot(
+            x=[],
+            y=[],
+            pen='y',
+        )
 
         # Rewards in green
         self.plot_handle_rewards = self.plot_widget.plot(
@@ -833,6 +839,22 @@ class WheelPositionWidget(QWidget):
             surface_pos_x = np.concatenate([surface_pos_x, [0]])
             surface_pos_y = np.concatenate([surface_pos_y, [surface_pos_y[-1]]])
         
+        ## Second motor data
+        # Extract data about wheel
+        surface_pos_x2 = np.array(self.dispatcher.history_of_surface_time2)
+        surface_pos_y2 = np.array(self.dispatcher.history_of_surface_position2)
+        
+        # Relative to time now
+        # Note that slight clock differences might mean that the rpi's current
+        # time is ahead of our current time
+        surface_pos_x2 = np.array(
+            [(val - time_now).total_seconds() for val in surface_pos_x2])
+        
+        # Add a final data point for the present, which is presumably the same
+        # as the last measurement
+        if len(surface_pos_y2) > 0:
+            surface_pos_x2 = np.concatenate([surface_pos_x2, [0]])
+            surface_pos_y2 = np.concatenate([surface_pos_y2, [surface_pos_y2[-1]]])
 
         ## Rewards
         #~ # Extract data about rewards
@@ -849,7 +871,11 @@ class WheelPositionWidget(QWidget):
         # Surface
         self.plot_handle_surface_position.setData(
             x=surface_pos_x, y=surface_pos_y)
-
+        
+        # Second motor
+        self.plot_handle_surface_position.setData(
+            x=surface_pos_x2, y=surface_pos_y2)
+            
 
 ## Widget to plot wheel choices
 class WheelTrialWidget(QWidget):

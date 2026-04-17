@@ -973,6 +973,12 @@ class WheelDispatcher(Dispatcher):
         self.history_of_surface_time = []
         self.history_of_surface_trial = []
         
+        # Surface2 history
+        self.history_of_surface_position2 = []
+        self.history_of_surface_movement2 = []
+        self.history_of_surface_time2 = []
+        self.history_of_surface_trial2 = []
+        
         # Reward history
         self.history_of_rewards = []
         self.history_of_trial_choices = []
@@ -1052,13 +1058,22 @@ class WheelDispatcher(Dispatcher):
     def handle_surface(self,
         identity, trial_number, surface_time, steps_moved, surface_pos,
         ):
-        """Handle an update about the surface position"""
-        # Append to history
-        self.history_of_surface_position.append(surface_pos)
-        self.history_of_surface_movement.append(steps_moved)
-        self.history_of_surface_time.append(
-            datetime.datetime.fromisoformat(surface_time))
-        self.history_of_surface_trial.append(trial_number)        
+        """Handle an update about the surface positions"""
+        
+        # Append to history (either first or second motor)
+        if identity = 'surface':
+            self.history_of_surface_position.append(surface_pos)
+            self.history_of_surface_movement.append(steps_moved)
+            self.history_of_surface_time.append(
+                datetime.datetime.fromisoformat(surface_time))
+            self.history_of_surface_trial.append(trial_number) 
+            
+        else:
+            self.history_of_surface_position2.append(surface_pos)
+            self.history_of_surface_movement2.append(steps_moved)
+            self.history_of_surface_time2.append(
+                datetime.datetime.fromisoformat(surface_time))
+            self.history_of_surface_trial2.append(trial_number) 
 
     def handle_flash(self, trial_number, identity, flash_time):
         """Store the flash time"""
