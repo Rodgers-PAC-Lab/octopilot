@@ -1689,7 +1689,7 @@ class PoleDetectionTask(WheelTask):
         self.current_surface_position = 0
         self.trial_type = None
         self.trial_number = 0
-        self.prev_trial_outcome = None
+        self.prev_trial_outcome = 'correct'
         self.choice = None
         self.direction = None
         self.catch_trials = True
