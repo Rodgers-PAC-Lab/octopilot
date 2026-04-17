@@ -1061,7 +1061,7 @@ class WheelDispatcher(Dispatcher):
         """Handle an update about the surface positions"""
         
         # Append to history (either first or second motor)
-        if identity = 'surface':
+        if identity == 'surface':
             self.history_of_surface_position.append(surface_pos)
             self.history_of_surface_movement.append(steps_moved)
             self.history_of_surface_time.append(
