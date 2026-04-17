@@ -1794,8 +1794,8 @@ class PoleDetectionTask(WheelTask):
             self.proc.terminate()
             
         if self.proc2.is_alive():
-        self.logger.debug('warning: could not join surface_turner2 process; killing')
-        self.proc2.terminate()
+            self.logger.debug('warning: could not join surface_turner2 process; killing')
+            self.proc2.terminate()
 
         self.logger.debug('done with ending both surface_turner processes')
 
