@@ -1826,6 +1826,23 @@ class PoleDetectionTask(WheelTask):
             
         # This time.sleep gives the motor time to move to its new position
         time.sleep(2.5)
+        
+        # Enacts catch trial motor movement and ends trial (no reward)
+        if self.trial_type == 'catch':
+            
+            # Moves to post, ant, mid, and ITI positions
+            self.surface_turner2.target.value = self.catch_min
+            time.sleep(2.5)
+            self.surface_turner2.target.value = self.catch_max
+            time.sleep(2.5)
+            self.surface_turner2.target.value = 0
+            time.sleep(2.5)
+            
+            # Logs arbitrary trial outcomes to avoid errors
+            self.choice = 'na'
+            self.direction = 'na'
+            self.previous_trial_outcome = 'correct'
+            self.reward(0)
 
         # Reset the start trial position to current
         self.position_at_trial_start = self.wheel_listener.position
