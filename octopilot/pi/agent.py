@@ -1862,41 +1862,38 @@ class PoleDetectionTask(WheelTask):
 
     def report_surface(self):
         """Called by a RepeatedTimer to report surface movements"""
-        # Iterate over output queue
+
+        # Drain first motor queue
         while True:
-            # Get data if there is any
             try:
                 dt_move, steps_moved, surface_pos = (
                     self.surface_turner.output_q.get_nowait())
             except multiprocessing.queues.Empty:
                 break
 
-            # Report
-            #~ self.logger.debug(f'{dt_move}: moving {steps_moved}')
             self.network_communicator.poke_socket.send_string(
                 f'surface;'
                 f'trial_number={self.trial_number}=int;'
                 f'surface_time={dt_move.isoformat()}=str;'
                 f'steps_moved={steps_moved}=int;'
                 f'surface_pos={surface_pos}=int'
-                )
-            
-            # Same logging but for second motor
+            )
+
+        # Drain second motor queue
+        while True:
             try:
                 dt_move2, steps_moved2, surface_pos2 = (
                     self.surface_turner2.output_q.get_nowait())
             except multiprocessing.queues.Empty:
                 break
 
-            # Report
-            #~ self.logger.debug(f'{dt_move}: moving {steps_moved}')
             self.network_communicator.poke_socket.send_string(
                 f'surface2;'
                 f'trial_number={self.trial_number}=int;'
                 f'surface_time={dt_move2.isoformat()}=str;'
                 f'steps_moved={steps_moved2}=int;'
                 f'surface_pos={surface_pos2}=int'
-                )
+            )
 
     def report_wheel(self, force_report=False):
         """Called by self.wheel_listener every time the wheel moves
