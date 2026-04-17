@@ -1634,8 +1634,8 @@ class PoleDetectionTask(WheelTask):
         self.stepper_dir_pin = 16
         
         # Catch trial motor control
-        self.stepper_step_pin2 = 0
-        self.stepper_dir_pin2 = 0
+        self.stepper_step_pin2 = 5
+        self.stepper_dir_pin2 = 25
 
         # The default is INPUT, so only outputs have to be set
         self.pig.set_mode(self.stepper_step_pin, pigpio.OUTPUT)
@@ -1692,7 +1692,7 @@ class PoleDetectionTask(WheelTask):
         self.prev_trial_outcome = None
         self.choice = None
         self.direction = None
-        self.catch_trials = False
+        self.catch_trials = True
         self.anti_bias = 'none'
         self.response_window = False
 
