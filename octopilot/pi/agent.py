@@ -1075,7 +1075,7 @@ class WheelTask(Agent):
         # Sets random trial type (includes anti-bias for PDT)
         self.rand = np.random.random()
         
-        if self.catch_trials == True and self.anti_bias == 'none' and self.rand > 0:
+        if self.catch_trials == True and self.anti_bias == 'none' and self.rand <= 0.1:
             self.trial_type = 'catch'
         
         elif self.right_bias == False and self.left_bias == False:
@@ -1692,7 +1692,7 @@ class PoleDetectionTask(WheelTask):
         self.prev_trial_outcome = 'correct'
         self.choice = None
         self.direction = None
-        self.catch_trials = True
+        self.catch_trials = False
         self.anti_bias = 'none'
         self.response_window = False
 
