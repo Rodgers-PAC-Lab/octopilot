@@ -929,6 +929,7 @@ class WheelDispatcher(Dispatcher):
             'sound': self.handle_sound,
             'wheel': self.handle_wheel,
             'surface': self.handle_surface,
+            'surface2': self.handle_surface2,
             'sound_plan': self.handle_sound_plan,
             'goodbye': self.handle_goodbye,
             'alive': self.recv_alive,
@@ -1060,20 +1061,22 @@ class WheelDispatcher(Dispatcher):
         ):
         """Handle an update about the surface positions"""
         
-        # Append to history (either first or second motor)
-        if identity == 'surface':
-            self.history_of_surface_position.append(surface_pos)
-            self.history_of_surface_movement.append(steps_moved)
-            self.history_of_surface_time.append(
-                datetime.datetime.fromisoformat(surface_time))
-            self.history_of_surface_trial.append(trial_number) 
-            
-        else:
-            self.history_of_surface_position2.append(surface_pos)
-            self.history_of_surface_movement2.append(steps_moved)
-            self.history_of_surface_time2.append(
-                datetime.datetime.fromisoformat(surface_time))
-            self.history_of_surface_trial2.append(trial_number) 
+        self.history_of_surface_position.append(surface_pos)
+        self.history_of_surface_movement.append(steps_moved)
+        self.history_of_surface_time.append(
+            datetime.datetime.fromisoformat(surface_time))
+        self.history_of_surface_trial.append(trial_number) 
+    
+    def handle_surface2(self,
+        identity, trial_number, surface_time, steps_moved, surface_pos,
+        ):
+        """Handle an update about the second surface position"""
+
+        self.history_of_surface_position2.append(surface_pos)
+        self.history_of_surface_movement2.append(steps_moved)
+        self.history_of_surface_time2.append(
+            datetime.datetime.fromisoformat(surface_time))
+        self.history_of_surface_trial2.append(trial_number)
 
     def handle_flash(self, trial_number, identity, flash_time):
         """Store the flash time"""
