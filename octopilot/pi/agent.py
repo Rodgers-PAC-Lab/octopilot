@@ -1669,8 +1669,8 @@ class PoleDetectionTask(WheelTask):
         self.wheel_min = -6400
         
         # Catch trial positions with second stepper motor
-        self.catch_max = 100
-        self.catch_min = -100
+        self.catch_max = 1000
+        self.catch_min = -1000
 
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right
