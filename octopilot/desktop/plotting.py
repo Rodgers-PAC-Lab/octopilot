@@ -840,7 +840,7 @@ class WheelPositionWidget(QWidget):
             surface_pos_y = np.concatenate([surface_pos_y, [surface_pos_y[-1]]])
         
         ## Second motor data
-        # Extract data about wheel
+        # Extract data about motor two
         surface_pos_x2 = np.array(self.dispatcher.history_of_surface_time2)
         surface_pos_y2 = np.array(self.dispatcher.history_of_surface_position2)
         
@@ -873,7 +873,7 @@ class WheelPositionWidget(QWidget):
             x=surface_pos_x, y=surface_pos_y)
         
         # Second motor
-        self.plot_handle_surface_position.setData(
+        self.plot_handle_surface_position2.setData(
             x=surface_pos_x2, y=surface_pos_y2)
             
 
@@ -913,6 +913,8 @@ class WheelTrialWidget(QWidget):
        
         # Plots line_of_current_time and line
         self.initalize_plot_handles()
+
+        self.prev_xmax = 80
 
     def setup_plot_graphics(self):
         """Sets colors and labels of plot_widget
@@ -1055,10 +1057,11 @@ class WheelTrialWidget(QWidget):
         self.plot_handle_catch_trials.setData(xdata, ydata)
         
         # Updates x-range as trial count goes up
-        if htt.size >= 80 and np.mod(htt.size, 10) == 0:
-            self.xrange_min += 10
-            self.xrange_max += 10
+        if htt.size >= 80 and htt.size > self.prev_xmax:
+            self.xrange_min += 1
+            self.xrange_max += 1
             self.plot_widget.setXRange(self.xrange_min, self.xrange_max) 
+            self.prev_xmax = htt.size()
         
 ## Widget to plot WheelHabituationTask rewards
 class PerformanceMetricDisplay_WHT(QWidget):
