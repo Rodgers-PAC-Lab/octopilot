@@ -1076,7 +1076,7 @@ class WheelTask(Agent):
         self.rand = np.random.random()
         
         if self.catch_trials == True and self.anti_bias == 'none' and self.rand <= 1:
-            if self.rand <= 0.5 
+            if self.rand <= 0.5:
                 self.trial_type = 'catch_ant'
             else:
                 self.trial_type = 'catch_post'
