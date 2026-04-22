@@ -1751,10 +1751,6 @@ class PoleDetectionTask(WheelTask):
 
         ## Move it to ITI position
         self.surface_turner.target.value = 0
-        time.sleep(2.5)
-        
-        if self.trial_type in ('catch_ant', 'catch_post'):
-            self.surface_turner2.target.value = 0
 
     def report_reward(self, reward_time):
         """Called by WheelController upon reward. Reports to Dispatcher by ZMQ.
@@ -1833,6 +1829,10 @@ class PoleDetectionTask(WheelTask):
         
         else:
             1/0
+        
+        # Returns catch motor to original position
+        self.surface_turner2.target.value = 0
+        time.sleep(1.0)
 
         # Move to a position
         if self.trial_type == 'present':
