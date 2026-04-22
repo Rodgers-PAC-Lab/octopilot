@@ -1751,6 +1751,7 @@ class PoleDetectionTask(WheelTask):
 
         ## Move it to ITI position
         self.surface_turner.target.value = 0
+        time.sleep(2.5)
         
         if self.trial_type in ('catch_ant', 'catch_post'):
             self.surface_turner2.target.value = 0
