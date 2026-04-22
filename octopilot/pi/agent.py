@@ -1695,7 +1695,7 @@ class PoleDetectionTask(WheelTask):
         self.prev_trial_outcome = 'correct'
         self.choice = None
         self.direction = None
-        self.catch_trials = True
+        self.catch_trials = False
         self.anti_bias = 'none'
         self.response_window = False
 
