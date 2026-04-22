@@ -1695,7 +1695,7 @@ class PoleDetectionTask(WheelTask):
         self.prev_trial_outcome = 'correct'
         self.choice = None
         self.direction = None
-        self.catch_trials = False
+        self.catch_trials = True
         self.anti_bias = 'none'
         self.response_window = False
 
@@ -1932,39 +1932,42 @@ class PoleDetectionTask(WheelTask):
 
         ## Reward conditions
         if not self.reward_delivered:
-            if self.trial_type == 'present' or self.trial_type == 'catch_ant' or self.trial_type == 'catch_post' and clipped_position > 150:
-                # They turned it positively on a present trial
-                # Reward and end trial
-                self.choice = 'correct'
-                self.direction = 'right'
-                self.prev_trial_outcome = 'correct'
-                self.reward(self.max_reward)
+            if self.trial_type in ('present', 'catch_ant', 'catch_post'):
+                if clipped_position > 150:
+                    # They turned it positively on a present trial
+                    # Reward and end trial
+                    self.choice = 'correct'
+                    self.direction = 'right'
+                    self.prev_trial_outcome = 'correct'
+                    self.reward(self.max_reward)
+                
+                elif clipped_position < -150:
+                    # They turned it negatively on a present trial
+                    # Punish and end trial
+                    self.choice = 'incorrect'
+                    self.direction = 'left'
+                    self.prev_trial_outcome = 'incorrect'
+                    self.incorrect_left += 1
+                    self.reward(0)
+                
 
-            elif self.trial_type == 'absent' and clipped_position < -150:
-                # They turned it negatively on an absent trial
-                # Reward and end trial
-                self.choice = 'correct'
-                self.direction = 'left'
-                self.prev_trial_outcome = 'correct'
-                self.reward(self.max_reward)
+            elif self.trial_type == 'absent': 
+                if clipped_position < -150:
+                    # They turned it negatively on an absent trial
+                    # Reward and end trial
+                    self.choice = 'correct'
+                    self.direction = 'left'
+                    self.prev_trial_outcome = 'correct'
+                    self.reward(self.max_reward)
 
-            elif self.trial_type == 'present' or self.trial_type == 'catch_ant' or self.trial_type == 'catch_post'and clipped_position < -150:
-                # They turned it negatively on a present trial
-                # Punish and end trial
-                self.choice = 'incorrect'
-                self.direction = 'left'
-                self.prev_trial_outcome = 'incorrect'
-                self.incorrect_left += 1
-                self.reward(0)
-
-            elif self.trial_type == 'absent' and clipped_position > 150:
-                # They turned it positively on an absent trial
-                # Punish and end trial
-                self.choice = 'incorrect'
-                self.direction = 'right'
-                self.prev_trial_outcome = 'incorrect'
-                self.incorrect_right += 1
-                self.reward(0)
+                elif clipped_position > 150:
+                    # They turned it positively on an absent trial
+                    # Punish and end trial
+                    self.choice = 'incorrect'
+                    self.direction = 'right'
+                    self.prev_trial_outcome = 'incorrect'
+                    self.incorrect_right += 1
+                    self.reward(0)
 
 class WheelHabituationTask(WheelTask):
     """Agent that runs the wheel-based habituation task"""
