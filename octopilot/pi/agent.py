@@ -1076,7 +1076,10 @@ class WheelTask(Agent):
         self.rand = np.random.random()
         
         if self.catch_trials == True and self.anti_bias == 'none' and self.rand <= 1:
-            self.trial_type = 'catch'
+            if self.rand <= 0.5 
+                self.trial_type = 'catch_ant'
+            else:
+                self.trial_type = 'catch_post'
         
         elif self.right_bias == False and self.left_bias == False:
             if self.rand < 0.5:
@@ -1669,8 +1672,8 @@ class PoleDetectionTask(WheelTask):
         self.wheel_min = -6400
         
         # Catch trial positions with second stepper motor
-        self.catch_max = 200
-        self.catch_min = -200
+        self.catch_max = 500
+        self.catch_min = -500
 
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right
@@ -1760,9 +1763,9 @@ class PoleDetectionTask(WheelTask):
         self.network_communicator.poke_socket.send_string(
             f'reward;'
             f'trial_number={self.trial_number}=int;'
-            f'trial_type={self.trial_type}=str;' # present/absent/catch
-            f'choice={self.choice}=str;' # correct/incorrect/na
-            f'direction={self.direction}=str;' # left/right/na
+            f'trial_type={self.trial_type}=str;' # present/absent/catch_ant/catch_post
+            f'choice={self.choice}=str;' # correct/incorrect
+            f'direction={self.direction}=str;' # left/right
             f'anti_bias={self.anti_bias}=str;' # left/right/none
             f'reward_time={reward_time}=str'
             )
@@ -1828,10 +1831,18 @@ class PoleDetectionTask(WheelTask):
             1/0
 
         # Move to a position
-        if self.trial_type == 'present' or self.trial_type == 'catch':
+        if self.trial_type == 'present':
             self.surface_turner.target.value = self.wheel_max
         elif self.trial_type == 'absent':
             self.surface_turner.target.value = self.wheel_min
+        elif self.trial_type == 'catch_ant':
+            self.surface_turner2.target.value = self.catch_max
+            time.sleep(1.0)
+            self.surface_turner.target.value = self.wheel_max
+        elif self.trial_type == 'catch_post':
+            self.surface_turner2.target.value = self.catch_min
+            time.sleep(1.0)
+            self.surface_turner.target.value = self.wheel_max
             
         # This time.sleep gives the motor time to move to its new position
         time.sleep(2.5)
@@ -1842,23 +1853,6 @@ class PoleDetectionTask(WheelTask):
 
         # Restart callbacks
         self.wheel_listener.report_callback = self.report_wheel
-        
-        # Enacts catch trial motor movement and ends trial (no reward)
-        if self.trial_type == 'catch':
-            
-            # Moves to post, ant, mid, and ITI positions
-            self.surface_turner2.target.value = self.catch_min
-            time.sleep(2.5)
-            self.surface_turner2.target.value = self.catch_max
-            time.sleep(2.5)
-            self.surface_turner2.target.value = 0
-            time.sleep(2.5)
-            
-            # Logs arbitrary trial outcomes to avoid errors
-            self.choice = 'na'
-            self.direction = 'na'
-            self.previous_trial_outcome = 'correct'
-            self.reward(0)
 
     def report_surface(self):
         """Called by a RepeatedTimer to report surface movements"""
@@ -1937,8 +1931,9 @@ class PoleDetectionTask(WheelTask):
 
 
         ## Reward conditions
-        if not self.reward_delivered and self.trial_type != 'catch':
-            if self.trial_type == 'present' and clipped_position > 150:
+        if not self.reward_delivered:
+            if self.trial_type == 'present' or self.trial_type == 'catch_ant' 
+                or self.trial_type == 'catch_post' and clipped_position > 150:
                 # They turned it positively on a present trial
                 # Reward and end trial
                 self.choice = 'correct'
@@ -1954,7 +1949,8 @@ class PoleDetectionTask(WheelTask):
                 self.prev_trial_outcome = 'correct'
                 self.reward(self.max_reward)
 
-            elif self.trial_type == 'present' and clipped_position < -150:
+            elif self.trial_type == 'present' or self.trial_type == 'catch_ant' 
+                or self.trial_type == 'catch_post'and clipped_position < -150:
                 # They turned it negatively on a present trial
                 # Punish and end trial
                 self.choice = 'incorrect'
