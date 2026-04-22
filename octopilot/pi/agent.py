@@ -1751,6 +1751,9 @@ class PoleDetectionTask(WheelTask):
 
         ## Move it to ITI position
         self.surface_turner.target.value = 0
+        
+        if self.trial_type in ('catch_ant', 'catch_post'):
+            self.surface_turner2.target.value = 0
 
     def report_reward(self, reward_time):
         """Called by WheelController upon reward. Reports to Dispatcher by ZMQ.
