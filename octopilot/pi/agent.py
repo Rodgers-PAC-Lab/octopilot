@@ -1816,47 +1816,43 @@ class PoleDetectionTask(WheelTask):
 
         # This time.sleep gives the motor time to move back to the
         # ITI position and can do timeout if incorrect choice is made
-        
-        if self.prev_trial_outcome == 'correct' or self.trial_number == 0:
-            self.pig.write(self.house_light_pin, 1)
+        try:
+            if self.prev_trial_outcome == 'correct' or self.trial_number == 0:
+                self.pig.write(self.house_light_pin, 1)
+                time.sleep(2.5)
+                self.pig.write(self.house_light_pin, 0)
+
+            elif self.prev_trial_outcome == 'incorrect':
+                self.pig.write(self.house_light_pin, 1)
+                time.sleep(7.5)
+                self.pig.write(self.house_light_pin, 0)
+
+            else:
+                1/0
+
+            self.surface_turner2.target.value = 0
+            time.sleep(1.0)
+
+            if self.trial_type == 'present':
+                self.surface_turner.target.value = self.wheel_max
+            elif self.trial_type == 'absent':
+                self.surface_turner.target.value = self.wheel_min
+            elif self.trial_type == 'catch_ant':
+                self.surface_turner2.target.value = self.catch_max
+                time.sleep(1.0)
+                self.surface_turner.target.value = self.wheel_max
+            elif self.trial_type == 'catch_post':
+                self.surface_turner2.target.value = self.catch_min
+                time.sleep(1.0)
+                self.surface_turner.target.value = self.wheel_max
+
             time.sleep(2.5)
-            self.pig.write(self.house_light_pin, 0)
-        
-        elif self.prev_trial_outcome == 'incorrect':
-            self.pig.write(self.house_light_pin, 1)
-            time.sleep(7.5)
-            self.pig.write(self.house_light_pin, 0)
-        
-        else:
-            1/0
-        
-        # Returns catch motor to original position
-        self.surface_turner2.target.value = 0
-        time.sleep(1.0)
 
-        # Move to a position
-        if self.trial_type == 'present':
-            self.surface_turner.target.value = self.wheel_max
-        elif self.trial_type == 'absent':
-            self.surface_turner.target.value = self.wheel_min
-        elif self.trial_type == 'catch_ant':
-            self.surface_turner2.target.value = self.catch_max
-            time.sleep(1.0)
-            self.surface_turner.target.value = self.wheel_max
-        elif self.trial_type == 'catch_post':
-            self.surface_turner2.target.value = self.catch_min
-            time.sleep(1.0)
-            self.surface_turner.target.value = self.wheel_max
-            
-        # This time.sleep gives the motor time to move to its new position
-        time.sleep(2.5)
+            self.position_at_trial_start = self.wheel_listener.position
+            self.last_raw_position = self.wheel_listener.position
 
-        # Reset the start trial position to current
-        self.position_at_trial_start = self.wheel_listener.position
-        self.last_raw_position = self.wheel_listener.position
-
-        # Restart callbacks
-        self.wheel_listener.report_callback = self.report_wheel
+        finally:
+            self.wheel_listener.report_callback = self.report_wheel
 
     def report_surface(self):
         """Called by a RepeatedTimer to report surface movements"""
