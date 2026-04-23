@@ -1686,18 +1686,27 @@ class PoleDetectionTask(WheelTask):
         self.last_rewarded_position = None
         self.last_reported_time = None
         self.last_reward_time = None
+        self.reward_delivered = False
         self.clipped_position = 0
         self.last_raw_position = 0
-        self.reward_delivered = False
         self.current_surface_position = 0
-        self.trial_type = None
-        self.trial_number = 0
         self.prev_trial_outcome = 'correct'
+        
+        ## Logging
+        self.trial_number = 0
+        self.trial_type = None
         self.choice = None
         self.direction = None
-        self.catch_trials = True
         self.anti_bias = 'none'
-        self.response_window = False
+        
+        ## Response window
+        self.response_window = True
+        self.response_window_dur = 10.0
+        self.response_window_timer = None
+        
+        ## Catch trials
+        self.catch_trials = True
+        self.prev_trial_type = None
 
 
         ## Create the serial_reader object (for PDT, sets up present/absent motor and catch trial motor)
@@ -1727,6 +1736,12 @@ class PoleDetectionTask(WheelTask):
             If True, call self.report_reward
             This likely triggers the trial to end, which we may not want
         """
+        
+        # Cancels response window timer if choice is made
+        if hasattr(self, 'response_window_timer') and self.response_window_timer is not None:
+            self.response_window_timer.cancel()
+            self.response_window_timer = None
+        
         # Get current time
         reward_time = datetime.datetime.now()
 
@@ -1855,6 +1870,21 @@ class PoleDetectionTask(WheelTask):
 
         finally:
             self.wheel_listener.report_callback = self.report_wheel
+            
+        if self.response_window:
+            self.response_window_timer = threading.Timer(
+                self.response_window_duration,
+                self.handle_response_window_timeout
+            )       
+            self.response_window_timer.start()
+            
+    def handle_response_window_timeout(self):
+        """Ends trial if no choice made within response window"""
+        if not self.reward_delivered:
+            self.choice = 'none'
+            self.direction = 'none'
+            self.prev_trial_outcome = 'incorrect'
+            self.reward(0)
 
     def report_surface(self):
         """Called by a RepeatedTimer to report surface movements"""
