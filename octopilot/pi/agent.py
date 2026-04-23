@@ -1830,7 +1830,10 @@ class PoleDetectionTask(WheelTask):
         ## Call parent
         super().set_trial_parameters(**msg_params)
 
-
+        if self.response_window_timer is not None:
+            self.response_window_timer.cancel()
+            self.response_window_timer = None
+            
         ## Disable wheel updates until the surface has moved back
         self.wheel_listener.report_callback = None
 
@@ -1852,22 +1855,29 @@ class PoleDetectionTask(WheelTask):
             
             if self.prev_trial_type in ('catch_ant', 'catch_post'):
                 self.surface_turner2.target.value = 0
-                time.sleep(1.0)
+                while self.surface_turner2.state != 0:
+                    time.sleep(0.01)
 
             if self.trial_type == 'present':
                 self.surface_turner.target.value = self.wheel_max
+                
             elif self.trial_type == 'absent':
                 self.surface_turner.target.value = self.wheel_min
+                
             elif self.trial_type == 'catch_ant':
                 self.surface_turner2.target.value = self.catch_max
-                time.sleep(1.0)
+                while self.surface_turner2.state != 0:
+                    time.sleep(0.01)
                 self.surface_turner.target.value = self.wheel_max
+                
             elif self.trial_type == 'catch_post':
                 self.surface_turner2.target.value = self.catch_min
-                time.sleep(1.0)
+                while self.surface_turner2.state != 0:
+                    time.sleep(0.01)
                 self.surface_turner.target.value = self.wheel_max
 
-            time.sleep(2.5)
+            while self.surface_turner.state != 0:
+                time.sleep(0.01)
 
             self.position_at_trial_start = self.wheel_listener.position
             self.last_raw_position = self.wheel_listener.position
