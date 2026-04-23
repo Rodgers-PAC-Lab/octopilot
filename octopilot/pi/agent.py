@@ -1751,6 +1751,7 @@ class PoleDetectionTask(WheelTask):
 
         ## Move it to ITI position
         self.surface_turner.target.value = 0
+        self.prev_trial_type = self.trial_type
 
     def report_reward(self, reward_time):
         """Called by WheelController upon reward. Reports to Dispatcher by ZMQ.
@@ -1829,9 +1830,10 @@ class PoleDetectionTask(WheelTask):
 
             else:
                 1/0
-
-            self.surface_turner2.target.value = 0
-            time.sleep(1.0)
+            
+            if self.prev_trial_type in ('catch_ant', 'catch_post'):
+                self.surface_turner2.target.value = 0
+                time.sleep(1.0)
 
             if self.trial_type == 'present':
                 self.surface_turner.target.value = self.wheel_max
@@ -1993,8 +1995,8 @@ class WheelHabituationTask(WheelTask):
         # This defines the range in which turning the wheel changes the sound
         # Every trial starts at either max or min
         # 1000 clicks is about 60 deg
-        self.wheel_max = 300
-        self.wheel_min = -300
+        self.wheel_max = 500
+        self.wheel_min = -500
         
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right 
@@ -2019,12 +2021,10 @@ class WheelHabituationTask(WheelTask):
         ## Call parent's method
         super().set_trial_parameters(**msg_params)
         
-        # Used to prevent immediate reward at start of each trial
-        self.reward_delivered = True
-        self.clipped_position = 0
-        
         # Starting positions alternate 
         if self.alternate_spin:
+            
+            self.wheel_listener.report_callback = None
             
             # Turns on ITI-LED light (helpful prep for PDT trial flow)
             self.pig.write(self.house_light_pin, 1)
@@ -2036,9 +2036,7 @@ class WheelHabituationTask(WheelTask):
             else:
                 self.clipped_position = self.wheel_min
             
-        # Shaping uses clipped position
-        self.last_rewarded_position = self.clipped_position
-        self.reward_delivered = False
+            self.wheel_listener.report_callback = self.report_wheel
             
             
     def report_wheel(self, force_report=False):
