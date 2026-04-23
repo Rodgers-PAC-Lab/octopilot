@@ -1830,6 +1830,7 @@ class PoleDetectionTask(WheelTask):
         ## Call parent
         super().set_trial_parameters(**msg_params)
 
+        # Failsafe for cancelling any leftover trial timers 
         if self.response_window_timer is not None:
             self.response_window_timer.cancel()
             self.response_window_timer = None
@@ -1855,8 +1856,7 @@ class PoleDetectionTask(WheelTask):
             
             if self.prev_trial_type in ('catch_ant', 'catch_post'):
                 self.surface_turner2.target.value = 0
-                while self.surface_turner2.state != 0:
-                    time.sleep(0.01)
+                self.wait_for_turner(self.surface_turner2)
 
             if self.trial_type == 'present':
                 self.surface_turner.target.value = self.wheel_max
@@ -1866,18 +1866,15 @@ class PoleDetectionTask(WheelTask):
                 
             elif self.trial_type == 'catch_ant':
                 self.surface_turner2.target.value = self.catch_max
-                while self.surface_turner2.state != 0:
-                    time.sleep(0.01)
+                self.wait_for_turner(self.surface_turner2)
                 self.surface_turner.target.value = self.wheel_max
                 
             elif self.trial_type == 'catch_post':
                 self.surface_turner2.target.value = self.catch_min
-                while self.surface_turner2.state != 0:
-                    time.sleep(0.01)
+                self.wait_for_turner(self.surface_turner2)
                 self.surface_turner.target.value = self.wheel_max
 
-            while self.surface_turner.state != 0:
-                time.sleep(0.01)
+            self.wait_for_turner(self.surface_turner)
 
             self.position_at_trial_start = self.wheel_listener.position
             self.last_raw_position = self.wheel_listener.position
@@ -1899,6 +1896,20 @@ class PoleDetectionTask(WheelTask):
             self.direction = 'none'
             self.prev_trial_outcome = 'incorrect'
             self.reward(0)
+        
+    def wait_for_turner(self, turner, tol=1, timeout=8.0):
+        """Wait until a SurfaceTurner reaches its current target (removes time.sleep)"""
+        start = time.time()
+
+        while abs(turner.state - turner.target.value) > tol:
+            if time.time() - start > timeout:
+                self.logger.warning(
+                    f"wait_for_turner timeout: "
+                    f"state={turner.state}, target={turner.target.value}"
+                )
+                break
+
+            time.sleep(0.01)
 
     def report_surface(self):
         """Called by a RepeatedTimer to report surface movements"""
@@ -1995,7 +2006,6 @@ class PoleDetectionTask(WheelTask):
                     self.prev_trial_outcome = 'incorrect'
                     self.incorrect_left += 1
                     self.reward(0)
-                
 
             elif self.trial_type == 'absent': 
                 if clipped_position < -150:
