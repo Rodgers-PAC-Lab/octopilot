@@ -955,6 +955,7 @@ class WheelTask(Agent):
         self.pig.set_mode(self.solenoid_pin, pigpio.OUTPUT)
         self.pig.set_mode(self.house_light_pin, pigpio.OUTPUT)
         
+        # PDT variables
         self.catch_trials = False
         self.incorrect_left = 0
         self.incorrect_right = 0
@@ -1054,6 +1055,7 @@ class WheelTask(Agent):
             
         ## START OF PDT ADDITIONS ========================
         
+        # Anti-bias variables
         self.left_bias = False
         self.right_bias = False
         self.anti_bias = 'none'
@@ -1071,20 +1073,23 @@ class WheelTask(Agent):
             elif ((self.incorrect_left / (self.trial_number % 40)) < 0.2) and ((self.incorrect_right / (self.trial_number % 40)) >= 0.2):
                 self.right_bias = True
                 self.anti_bias = 'right'
+                
         
         # Sets random trial type (includes anti-bias for PDT)
         self.rand = np.random.random()
         
-        if self.catch_trials == True and self.anti_bias == 'none' and self.rand <= 1:
-            if self.rand <= 0.5:
+        if self.catch_trials == True and self.anti_bias == 'none' and self.rand < 0.2:
+            if self.rand < 0.1:
                 self.trial_type = 'catch_ant'
             else:
                 self.trial_type = 'catch_post'
+            
+            self.anti_bias_count = 0
         
         elif self.right_bias == False and self.left_bias == False:
             if self.rand < 0.5:
                 self.trial_type = 'present'
-            elif self.rand >= 0.5:
+            else:
                 self.trial_type = 'absent'
                 
             self.anti_bias_count = 0
@@ -1112,7 +1117,6 @@ class WheelTask(Agent):
 
         # Everything should be locked to raw position at the start of the trial
         self.last_raw_position = self.wheel_listener.position
-        
         self.position_at_trial_start = self.wheel_listener.position
         
         # Prevents multiple rewards
@@ -1705,7 +1709,7 @@ class PoleDetectionTask(WheelTask):
         self.response_window_timer = None
         
         ## Catch trials
-        self.catch_trials = True
+        self.catch_trials = False
         self.prev_trial_type = None
 
 
