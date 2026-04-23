@@ -2032,7 +2032,7 @@ class WheelHabituationTask(WheelTask):
         # This can be small, just not so small that the mouse spins right 
         # through it before it checks, which is probably pretty hard to do
         # 100 clicks is about 6 deg
-        self.reward_range = 100
+        self.reward_range = 50
 
         ## These are initialized later
         self.last_rewarded_position = None
@@ -2051,22 +2051,32 @@ class WheelHabituationTask(WheelTask):
         ## Call parent's method
         super().set_trial_parameters(**msg_params)
         
-        # Starting positions alternate 
+        # Starting positions alternate
         if self.alternate_spin:
-            
             self.wheel_listener.report_callback = None
-            
-            # Turns on ITI-LED light (helpful prep for PDT trial flow)
-            self.pig.write(self.house_light_pin, 1)
-            time.sleep(2.5)
-            self.pig.write(self.house_light_pin, 0)
-            
-            if np.mod(self.trial_number, 2) == 0:
-                self.clipped_position = self.wheel_max
-            else:
-                self.clipped_position = self.wheel_min
-            
-            self.wheel_listener.report_callback = self.report_wheel
+            try:
+                # Turns on ITI-LED light
+                self.pig.write(self.house_light_pin, 1)
+                time.sleep(2.5)
+                self.pig.write(self.house_light_pin, 0)
+
+                # Set the new clipped starting position
+                if np.mod(self.trial_number, 2) == 0:
+                    self.clipped_position = self.wheel_max
+                else:
+                    self.clipped_position = self.wheel_min
+
+                # Reset raw reference
+                self.last_raw_position = self.wheel_listener.position
+
+                # Reset last rewarded position for shaping logic
+                self.last_rewarded_position = self.clipped_position
+
+            finally:
+                self.wheel_listener.report_callback = self.report_wheel
+
+        # Update log with the new trial start position
+        self.report_wheel(force_report=True)
             
             
     def report_wheel(self, force_report=False):
@@ -2130,7 +2140,7 @@ class WheelHabituationTask(WheelTask):
         ## Reward conditions
         # Rewards for alternating spin direction
         if self.alternate_spin:
-            if (np.abs(self.clipped_position) == 0) and not self.reward_delivered:
+            if (np.abs(self.clipped_position) <= self.reward_range) and not self.reward_delivered:
                 # Within target range
                 # Reward and end trial
                 self.reward(self.max_reward)
