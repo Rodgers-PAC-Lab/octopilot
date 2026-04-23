@@ -1672,8 +1672,8 @@ class PoleDetectionTask(WheelTask):
         self.wheel_min = -6400
         
         # Catch trial positions with second stepper motor
-        self.catch_max = 500
-        self.catch_min = -500
+        self.catch_max = 200
+        self.catch_min = -200
 
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right
@@ -1781,7 +1781,7 @@ class PoleDetectionTask(WheelTask):
             f'trial_number={self.trial_number}=int;'
             f'trial_type={self.trial_type}=str;' # present/absent/catch_ant/catch_post
             f'choice={self.choice}=str;' # correct/incorrect
-            f'direction={self.direction}=str;' # left/right
+            f'direction={self.direction}=str;' # left/right/none
             f'anti_bias={self.anti_bias}=str;' # left/right/none
             f'reward_time={reward_time}=str'
             )
@@ -1881,7 +1881,7 @@ class PoleDetectionTask(WheelTask):
     def handle_response_window_timeout(self):
         """Ends trial if no choice made within response window"""
         if not self.reward_delivered:
-            self.choice = 'none'
+            self.choice = 'incorrect'
             self.direction = 'none'
             self.prev_trial_outcome = 'incorrect'
             self.reward(0)
