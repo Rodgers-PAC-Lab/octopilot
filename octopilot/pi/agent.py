@@ -1873,7 +1873,7 @@ class PoleDetectionTask(WheelTask):
             
         if self.response_window:
             self.response_window_timer = threading.Timer(
-                self.response_window_duration,
+                self.response_window_dur,
                 self.handle_response_window_timeout
             )       
             self.response_window_timer.start()
