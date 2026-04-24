@@ -1897,7 +1897,7 @@ class PoleDetectionTask(WheelTask):
             self.prev_trial_outcome = 'incorrect'
             self.reward(0)
         
-    def wait_for_turner(self, turner, tol=1, timeout=8.0):
+    def wait_for_turner(self, turner, tol=1, timeout=2.5):
         """Wait until a SurfaceTurner reaches its current target (removes time.sleep)"""
         start = time.time()
 
