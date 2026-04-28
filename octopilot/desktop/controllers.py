@@ -152,7 +152,7 @@ class Dispatcher(object):
             self.trial_duration_stdev = task_params.pop('trial_duration_stdev')
         else:
             # Set default
-            # This jitter helps identify trials post-hoc
+            # This jitter helps identify fixed-duration trials post-hoc
             self.trial_duration_stdev = 0.5
             
         # Same with ITI
@@ -171,8 +171,7 @@ class Dispatcher(object):
                 'inter_trial_interval_stdev')
         else:
             # Set default
-            # This jitter helps identify trials post-hoc
-            self.inter_trial_interval_stdev = 0.05
+            self.inter_trial_interval_stdev = 0
 
     def start_session(self, verbose=True):
         """Start a session"""
