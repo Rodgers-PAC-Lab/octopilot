@@ -290,7 +290,7 @@ class Dispatcher(object):
             # Create a timer that will call self.start_trial() after
             # self.inter_trial_interval seconds
             self.timer_inter_trial_interval = threading.Timer(
-                self.inter_trial_interval, self.start_trial)
+                this_ITI, self.start_trial)
             
             # Start the timer
             self.timer_inter_trial_interval.start()
@@ -644,7 +644,7 @@ class SoundSeekingDispatcher(Dispatcher):
 
             # Set the timer
             self.timer_advance_trial = threading.Timer(
-                self.trial_duration, self.timed_advance_trial)
+                this_duration, self.timed_advance_trial)
             
             # Start the timer
             self.timer_advance_trial.start()
