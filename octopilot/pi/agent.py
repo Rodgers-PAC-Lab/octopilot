@@ -1705,7 +1705,7 @@ class PoleDetectionTask(WheelTask):
         
         ## Response window
         self.response_window = True
-        self.response_window_dur = 10.0
+        self.response_window_dur = 20.0
         self.response_window_timer = None
         
         ## Catch trials
