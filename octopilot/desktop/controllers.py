@@ -146,7 +146,15 @@ class Dispatcher(object):
             self.trial_duration = task_params.pop('trial_duration')
         else:
             self.trial_duration = None
-        
+
+        # Same with trial_duration_stdev
+        if 'trial_duration_stdev' in task_params:
+            self.trial_duration_stdev = task_params.pop('trial_duration_stdev')
+        else:
+            # Set default
+            # This jitter helps identify trials post-hoc
+            self.trial_duration_stdev = 0.5
+            
         # Same with ITI
         if 'inter_trial_interval' in task_params:
             self.inter_trial_interval = task_params.pop('inter_trial_interval')
@@ -156,8 +164,15 @@ class Dispatcher(object):
             # and there's no leftover sounds from the previous trial
             self.inter_trial_interval = 0.5
         
-        # Add a little jitter to the inter-trial interval
-        self.inter_trial_interval_stdev = 0.05
+        # Same with ITI stdev
+        if 'inter_trial_interval_stdev' in task_params:
+            # Get from task params
+            self.inter_trial_interval_stdev = task_params.pop(
+                'inter_trial_interval_stdev')
+        else:
+            # Set default
+            # This jitter helps identify trials post-hoc
+            self.inter_trial_interval_stdev = 0.05
 
     def start_session(self, verbose=True):
         """Start a session"""
@@ -611,10 +626,31 @@ class SoundSeekingDispatcher(Dispatcher):
         
         # Optionally start a timer to advance the trial
         if self.trial_duration is not None:
+            
+            # Optionally add randomness to trial duration
+            if self.trial_duration_stdev is not None:
+                this_duration = (
+                    self.trial_duration + 
+                    np.random.standard_normal() * 
+                    self.trial_duration_stdev)
+                
+                # Avoid too-short duration
+                if this_duration < 1:
+                    this_duration = 1
+            
+            else:
+                # trial_duration_stdev unspecified; use fixed
+                this_duration = self.trial_duration
+
+            # Set the timer
             self.timer_advance_trial = threading.Timer(
                 self.trial_duration, self.timed_advance_trial)
+            
+            # Start the timer
             self.timer_advance_trial.start()
+            
         else:
+            # No timer - trial continues till choice made or session ends
             self.timer_advance_trial = None
 
     def handle_volume(self, trial_number, identity, volume, volume_time):
