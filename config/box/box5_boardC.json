@@ -8,7 +8,7 @@
     "connected_pis" : [
         {
         "name": "rpi33",
-        "ip": "192.168.0.209",
+        "ip": "192.168.11.233",
         "left_port_position": 90,
         "right_port_position": 270
         }
