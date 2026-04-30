@@ -1672,8 +1672,8 @@ class PoleDetectionTask(WheelTask):
         # This defines the range in which turning the wheel changes the sound
         # Every trial starts at either max or min
         # 1000 clicks is about 90 deg
-        self.wheel_max = 6400
-        self.wheel_min = -6400
+        self.wheel_max = 1600
+        self.wheel_min = -1600
         
         # Catch trial positions with second stepper motor
         self.catch_max = 200
