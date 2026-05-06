@@ -1,5 +1,6 @@
 {
-    "reward_value": 1.0,
+    "display": true,
+    "reward_value": 0.5,
     "box": "box2",
     "task": "poketrain"
 }
