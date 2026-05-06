@@ -1061,7 +1061,7 @@ class WheelTrialWidget(QWidget):
             self.xrange_min += 1
             self.xrange_max += 1
             self.plot_widget.setXRange(self.xrange_min, self.xrange_max) 
-            self.prev_xmax = htt.size()
+            self.prev_xmax = htt.size
         
 ## Widget to plot WheelHabituationTask rewards
 class PerformanceMetricDisplay_WHT(QWidget):
