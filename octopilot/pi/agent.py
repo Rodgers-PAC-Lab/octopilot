@@ -1165,7 +1165,34 @@ class WheelTask(Agent):
             )
         
         # Empty the queue of sound
-        self.sound_queuer.empty_queue()       
+        self.sound_queuer.empty_queue() 
+    
+    def load_mouse_task_settings(self):
+        """Load optional task settings from self.params"""
+
+        self.alternate_spin = bool(
+            self.params.get("alternate_spin", self.alternate_spin)
+        )
+
+        self.reward_for_spinning = bool(
+            self.params.get("reward_for_spinning", self.reward_for_spinning)
+        )
+
+        self.response_window = bool(
+            self.params.get("response_window", self.response_window)
+        )
+
+        self.catch_trials = bool(
+            self.params.get("catch", self.catch_trials)
+        )
+
+        self.logger.info(
+            f"Loaded task settings: "
+            f"alternate_spin={self.alternate_spin}, "
+            f"reward_for_spinning={self.reward_for_spinning}, "
+            f"response_window={self.response_window}, "
+            f"catch_trials={self.catch_trials}"
+        )
 
 class SoundCenteringTask(WheelTask):
     """Agent that runs the wheel-based sound centering task"""
@@ -1711,7 +1738,9 @@ class PoleDetectionTask(WheelTask):
         ## Catch trials
         self.catch_trials = False
         self.prev_trial_type = None
-
+        
+        # Adds mouse JSON file info
+        self.load_mouse_task_settings()
 
         ## Create the serial_reader object (for PDT, sets up present/absent motor and catch trial motor)
         self.surface_turner = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin, dir_pin=self.stepper_dir_pin)
@@ -2065,6 +2094,9 @@ class WheelHabituationTask(WheelTask):
         self.clipped_position = 0
         self.last_raw_position = 0
         self.reward_delivered = False
+        
+        # Uses mouse JSON file info
+        self.load_mouse_task_settings()
 
     def stop_session(self):
         """Stop the session"""
