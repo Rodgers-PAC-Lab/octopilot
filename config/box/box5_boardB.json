@@ -1,13 +1,14 @@
 {
+    "agent_name": "HeadfixWheelAgent",    
     "zmq_port": 5551,
-    "desktop_ip": "192.168.0.199",
+    "desktop_ip": "192.168.11.198",
     "bonsai_port": 5559,
     "bonsai_ip": "192.168.11.138",
     "ypos_of_gui": 0,
     "connected_pis" : [
         {
         "name": "rpi29",
-        "ip": "192.168.0.104",
+        "ip": "192.168.11.229",
         "left_port_position": 90,
         "right_port_position": 270
         }

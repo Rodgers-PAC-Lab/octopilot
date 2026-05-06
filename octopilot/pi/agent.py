@@ -1672,8 +1672,8 @@ class PoleDetectionTask(WheelTask):
         # This defines the range in which turning the wheel changes the sound
         # Every trial starts at either max or min
         # 1000 clicks is about 90 deg
-        self.wheel_max = 6400
-        self.wheel_min = -6400
+        self.wheel_max = 1600
+        self.wheel_min = -1600
         
         # Catch trial positions with second stepper motor
         self.catch_max = 200
@@ -1705,7 +1705,7 @@ class PoleDetectionTask(WheelTask):
         
         ## Response window
         self.response_window = True
-        self.response_window_dur = 10.0
+        self.response_window_dur = 20.0
         self.response_window_timer = None
         
         ## Catch trials
@@ -1897,7 +1897,7 @@ class PoleDetectionTask(WheelTask):
             self.prev_trial_outcome = 'incorrect'
             self.reward(0)
         
-    def wait_for_turner(self, turner, tol=1, timeout=8.0):
+    def wait_for_turner(self, turner, tol=1, timeout=2.5):
         """Wait until a SurfaceTurner reaches its current target (removes time.sleep)"""
         start = time.time()
 
