@@ -1183,7 +1183,7 @@ class WheelTask(Agent):
         )
 
         self.catch_trials = bool(
-            self.params.get("catch", self.catch_trials)
+            self.params.get("catch_trials", self.catch_trials)
         )
 
         self.logger.info(

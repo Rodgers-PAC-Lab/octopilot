@@ -2,5 +2,8 @@
     "display": true,
     "box": "room_d_darkbox",
     "task": "PDT",
-    "catch_trials": false
+    "reward_for_spinning": true,
+    "alternate": true,
+    "catch_trials": false,
+    "response_window": true
 }

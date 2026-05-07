@@ -2,5 +2,8 @@
     "display": true,
     "box": "box5_boardB",
     "task": "wheel_habituate",
-    "alternate": true
+    "reward_for_spinning": true,
+    "alternate": false,
+    "catch_trials": false,
+    "response_window": true
 }
