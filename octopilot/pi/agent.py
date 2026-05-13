@@ -959,6 +959,9 @@ class WheelTask(Agent):
         self.catch_trials = False
         self.incorrect_left = 0
         self.incorrect_right = 0
+        
+        self.alternate_spin = False
+        self.reward_for_spinning = False
     
     def start_session(self):
         # Call Agent.start_session
@@ -1723,6 +1726,7 @@ class PoleDetectionTask(WheelTask):
         self.last_raw_position = 0
         self.current_surface_position = 0
         self.prev_trial_outcome = 'correct'
+        self.alternate_spin
         
         ## Logging
         self.trial_number = 0
