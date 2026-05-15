@@ -1199,7 +1199,7 @@ class WheelTask(Agent):
         )
         
         self.alternate_stim = bool(
-            self.params.get("alternate_stim", self.altnerate_stim)
+            self.params.get("alternate_stim", self.alternate_stim)
         )
 
         self.logger.info(
