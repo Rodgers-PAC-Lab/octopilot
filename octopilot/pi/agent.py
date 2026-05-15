@@ -1756,7 +1756,7 @@ class PoleDetectionTask(WheelTask):
         
         ## Mouse params
         self.alternate_stim = False
-        self.response_window = False
+        self.response_window = True
         self.catch_trials = False
         
         # Adds mouse JSON file info
