@@ -1941,7 +1941,7 @@ class PoleDetectionTask(WheelTask):
     def handle_response_window_timeout(self):
         """Ends trial if no choice made within response window"""
         if not self.reward_delivered:
-            self.choice = 'incorrect'
+            self.choice = 'none'
             self.direction = 'none'
             self.prev_trial_outcome = 'incorrect'
             self.reward(0)

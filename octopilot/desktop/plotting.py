@@ -940,7 +940,7 @@ class WheelTrialWidget(QWidget):
         self.plot_widget.showGrid(x=True, y=True) 
         
         # Setting the range for the Y axis
-        self.plot_widget.setYRange(-0.5, 2.5)
+        self.plot_widget.setYRange(-0.2, 2.5)
         
         # Set the ticks
         # Hard-code in for now that there are just three trial types
@@ -964,7 +964,7 @@ class WheelTrialWidget(QWidget):
             y=[],
             pen=None, # no connecting line
             symbol="o",  
-            symbolSize=3,
+            symbolSize=4,
             symbolBrush='r',
             symbolPen=None,
         )
@@ -975,7 +975,7 @@ class WheelTrialWidget(QWidget):
             y=[],
             pen=None, # no connecting line
             symbol="o",  
-            symbolSize=3,
+            symbolSize=4,
             symbolBrush='g',
             symbolPen=None,
         )
@@ -997,7 +997,7 @@ class WheelTrialWidget(QWidget):
             y=[],
             pen=None, # no connecting line
             symbol="o",  
-            symbolSize=5,
+            symbolSize=4,
             symbolBrush='y',
             symbolPen=None,
         )
@@ -1055,7 +1055,7 @@ class WheelTrialWidget(QWidget):
         self.plot_handle_incorrect_trials.setData(xdata, ydata)
 
         # Plot the no responses
-        mask = (hc == 'none') | (hc == 'na')
+        mask = (hc == 'none')
         xdata = np.where(mask)[0]
         ydata = self.trial_type_to_y(htt[mask])
         self.plot_handle_no_response.setData(xdata, ydata)
