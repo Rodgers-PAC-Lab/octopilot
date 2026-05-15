@@ -960,8 +960,8 @@ class WheelTask(Agent):
         self.alternate_stim = False
         self.incorrect_left = 0
         self.incorrect_right = 0
-        
         self.alternate_spin = False
+        self.alternate_stim = False
         self.reward_for_spinning = False
     
     def start_session(self):
