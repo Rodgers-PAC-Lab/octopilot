@@ -960,6 +960,9 @@ class WheelTask(Agent):
         self.alternate_stim = False
         self.incorrect_left = 0
         self.incorrect_right = 0
+        
+        self.alternate_spin = False
+        self.reward_for_spinning = False
     
     def start_session(self):
         # Call Agent.start_session
@@ -1713,8 +1716,9 @@ class PoleDetectionTask(WheelTask):
         # This defines the range in which turning the wheel changes the sound
         # Every trial starts at either max or min
         # 1000 clicks is about 90 deg
-        self.wheel_max = 1600
-        self.wheel_min = -1600
+        # +- 6400 or +- 1600 depending on microstepping enabled or not
+        self.wheel_max = 6400
+        self.wheel_min = -6400
         
         # Catch trial positions with second stepper motor
         self.catch_max = 200
@@ -1737,6 +1741,7 @@ class PoleDetectionTask(WheelTask):
         self.current_surface_position = 0
         self.prev_trial_outcome = 'correct'
         self.prev_trial_type = None
+        self.alternate_spin = False
         
         ## Logging
         self.trial_number = 0
