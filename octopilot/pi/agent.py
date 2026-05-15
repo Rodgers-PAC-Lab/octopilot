@@ -957,6 +957,7 @@ class WheelTask(Agent):
         
         # PDT variables
         self.catch_trials = False
+        self.alternate_stim = False
         self.incorrect_left = 0
         self.incorrect_right = 0
     
@@ -1060,58 +1061,66 @@ class WheelTask(Agent):
         self.right_bias = False
         self.anti_bias = 'none'
         
-        # Keeps incorrect trial counts (for anti-bias) limited to 40 trials
-        if (self.trial_number != 0) and (self.trial_number % 40 == 0) and (self.trial_number != 40):
-            self.incorrect_left = 0
-            self.incorrect_right = 0
-        
-        # Sets anti-bias trials for PDT
-        if (self.trial_number != 0) and (self.trial_number > 40) and (self.trial_number % 40 != 0):
-            if ((self.incorrect_right / (self.trial_number % 40)) < 0.2) and ((self.incorrect_left / (self.trial_number % 40)) >= 0.2):
-                self.left_bias = True
-                self.anti_bias = 'left'
-            elif ((self.incorrect_left / (self.trial_number % 40)) < 0.2) and ((self.incorrect_right / (self.trial_number % 40)) >= 0.2):
-                self.right_bias = True
-                self.anti_bias = 'right'
-                
-        
-        # Sets random trial type (includes anti-bias for PDT)
-        self.rand = np.random.random()
-        
-        if self.catch_trials == True and self.anti_bias == 'none' and self.rand < 0.2:
-            if self.rand < 0.1:
-                self.trial_type = 'catch_ant'
-            else:
-                self.trial_type = 'catch_post'
-            
-            self.anti_bias_count = 0
-        
-        elif self.right_bias == False and self.left_bias == False:
-            if self.rand < 0.5:
+        # Alternates between present and absent for first 40 trials
+        if self.alternate_stim:
+            if np.mod(self.trial_number, 2) == 0:
                 self.trial_type = 'present'
             else:
                 self.trial_type = 'absent'
-                
-            self.anti_bias_count = 0
         
-        elif self.left_bias == True and self.right_bias == False:
-            if (self.anti_bias_count % 7 == 0):
-                self.trial_type = 'absent'
-            else:
-                self.trial_type = 'present'
-                
-            self.anti_bias_count += 1    
-            
-        elif self.right_bias == True and self.left_bias == False:
-            if (self.anti_bias_count % 7 == 0):
-                self.trial_type = 'present'
-            else:
-                self.trial_type = 'absent'
-                
-            self.anti_bias_count += 1
-            
         else:
-            1/0
+            # Keeps incorrect trial counts (for anti-bias) limited to 40 trials
+            if (self.trial_number != 0) and (self.trial_number % 40 == 0) and (self.trial_number != 40):
+                self.incorrect_left = 0
+                self.incorrect_right = 0
+        
+            # Sets anti-bias trials for PDT
+            if (self.trial_number != 0) and (self.trial_number > 40) and (self.trial_number % 40 != 0):
+                if ((self.incorrect_right / (self.trial_number % 40)) < 0.2) and ((self.incorrect_left / (self.trial_number % 40)) >= 0.2):
+                    self.left_bias = True
+                    self.anti_bias = 'left'
+                elif ((self.incorrect_left / (self.trial_number % 40)) < 0.2) and ((self.incorrect_right / (self.trial_number % 40)) >= 0.2):
+                    self.right_bias = True
+                    self.anti_bias = 'right'
+                
+        
+            # Sets random trial type (includes anti-bias for PDT)
+            self.rand = np.random.random()
+        
+            if self.catch_trials == True and self.anti_bias == 'none' and self.rand < 0.2:
+                if self.rand < 0.1:
+                    self.trial_type = 'catch_ant'
+                else:
+                    self.trial_type = 'catch_post'
+            
+                self.anti_bias_count = 0
+        
+            elif self.right_bias == False and self.left_bias == False:
+                if self.rand < 0.5:
+                    self.trial_type = 'present'
+                else:
+                    self.trial_type = 'absent'
+                
+                self.anti_bias_count = 0
+        
+            elif self.left_bias == True and self.right_bias == False:
+                if (self.anti_bias_count % 7 == 0):
+                    self.trial_type = 'absent'
+                else:
+                    self.trial_type = 'present'
+                
+                self.anti_bias_count += 1    
+            
+            elif self.right_bias == True and self.left_bias == False:
+                if (self.anti_bias_count % 7 == 0):
+                    self.trial_type = 'present'
+                else:
+                    self.trial_type = 'absent'
+                
+                self.anti_bias_count += 1
+            
+            else:
+                1/0
 
         ## END OF PDT ADDITIONS =========================
 
@@ -1185,13 +1194,18 @@ class WheelTask(Agent):
         self.catch_trials = bool(
             self.params.get("catch_trials", self.catch_trials)
         )
+        
+        self.alternate_stim = bool(
+            self.params.get("alternate_stim", self.altnerate_stim)
+        )
 
         self.logger.info(
             f"Loaded task settings: "
             f"alternate_spin={self.alternate_spin}, "
             f"reward_for_spinning={self.reward_for_spinning}, "
             f"response_window={self.response_window}, "
-            f"catch_trials={self.catch_trials}"
+            f"catch_trials={self.catch_trials},"
+            f"alternate_stim={self.alternate_stim}"
         )
 
 class SoundCenteringTask(WheelTask):
@@ -1722,6 +1736,7 @@ class PoleDetectionTask(WheelTask):
         self.last_raw_position = 0
         self.current_surface_position = 0
         self.prev_trial_outcome = 'correct'
+        self.prev_trial_type = None
         
         ## Logging
         self.trial_number = 0
@@ -1731,13 +1746,13 @@ class PoleDetectionTask(WheelTask):
         self.anti_bias = 'none'
         
         ## Response window
-        self.response_window = True
         self.response_window_dur = 20.0
         self.response_window_timer = None
         
-        ## Catch trials
+        ## Mouse params
+        self.alternate_stim = False
+        self.response_window = False
         self.catch_trials = False
-        self.prev_trial_type = None
         
         # Adds mouse JSON file info
         self.load_mouse_task_settings()

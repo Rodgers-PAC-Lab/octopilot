@@ -940,11 +940,11 @@ class WheelTrialWidget(QWidget):
         self.plot_widget.showGrid(x=True, y=True) 
         
         # Setting the range for the Y axis
-        self.plot_widget.setYRange(-0.5, 1.5)
+        self.plot_widget.setYRange(-0.5, 2.5)
         
         # Set the ticks
         # Hard-code in for now that there are just three trial types
-        ticks = [(0, 'catch'), (0.5, 'absent'), (1, 'present')]
+        ticks = [(0.5, 'catch_post'), (1.0, 'catch_ant'), (1.5, 'absent'), (2.0, 'present')]
         
         # Plots ticks at indicated positions on y-axis
         self.plot_widget.getPlotItem().getAxis('left').setTicks([ticks])
@@ -991,8 +991,8 @@ class WheelTrialWidget(QWidget):
             symbolPen=None,
         )
         
-        # Catch trials as yellow dots
-        self.plot_handle_catch_trials = self.plot_widget.plot(
+        # No response as yellow dots
+        self.plot_handle_no_response = self.plot_widget.plot(
             x=[],
             y=[],
             pen=None, # no connecting line
@@ -1000,6 +1000,18 @@ class WheelTrialWidget(QWidget):
             symbolSize=5,
             symbolBrush='y',
             symbolPen=None,
+        )
+    
+    def trial_type_to_y(self, trial_types):
+        return np.where(
+            trial_types == 'present', 2.0,
+            np.where(
+                trial_types == 'absent', 1.5,
+                np.where(
+                    trial_types == 'catch_ant', 1.0,
+                    0.5  # catch_post
+                )
+            )
         )
 
     def start(self):
@@ -1030,29 +1042,29 @@ class WheelTrialWidget(QWidget):
         # This is a list of 'left', 'right', ...
         htab = np.array(self.dispatcher.history_of_trial_anti_bias)
 
-        # Plot the correct ones 
+        # Plot the correct ones
         mask = hc == 'correct'
         xdata = np.where(mask)[0]
-        ydata = np.where(htt[mask] == 'present', 1.0, np.where(htt[mask] == 'absent', 0.5, 0.0))
+        ydata = self.trial_type_to_y(htt[mask])
         self.plot_handle_correct_trials.setData(xdata, ydata)
-        
+
         # Plot the incorrect ones
         mask = hc == 'incorrect'
         xdata = np.where(mask)[0]
-        ydata = np.where(htt[mask] == 'present', 1.0, np.where(htt[mask] == 'absent', 0.5, 0.0))
+        ydata = self.trial_type_to_y(htt[mask])
         self.plot_handle_incorrect_trials.setData(xdata, ydata)
-        
+
+        # Plot the no responses
+        mask = (hc == 'none') | (hc == 'na')
+        xdata = np.where(mask)[0]
+        ydata = self.trial_type_to_y(htt[mask])
+        self.plot_handle_no_response.setData(xdata, ydata)
+
         # Plot the forced trials
         mask = htab != 'none'
         xdata = np.where(mask)[0]
-        ydata = np.where(htt[mask] == 'present', 1.0, np.where(htt[mask] == 'absent', 0.5, 0.0))
+        ydata = self.trial_type_to_y(htt[mask])
         self.plot_handle_forced_trials.setData(xdata, ydata)
-        
-        # Plot the catch trials
-        mask = htt == 'catch'
-        xdata = np.where(mask)[0]
-        ydata = np.where(htt[mask] == 'present', 1.0, np.where(htt[mask] == 'absent', 0.5, 0.0))
-        self.plot_handle_catch_trials.setData(xdata, ydata)
         
         # Updates x-range as trial count goes up
         if htt.size > self.xrange_max:
