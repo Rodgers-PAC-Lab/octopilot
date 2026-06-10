@@ -2,6 +2,6 @@
     "display": true,
     "box": "room_d_darkbox",
     "task": "PDT",
-    "catch_trials": false,
+    "catch_trials": true,
     "alternate_stim": false
 }
