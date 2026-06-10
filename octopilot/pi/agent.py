@@ -1090,6 +1090,7 @@ class WheelTask(Agent):
             # Sets random trial type (includes anti-bias for PDT)
             self.rand = np.random.random()
         
+            # Trial type selection with catch 
             if self.catch_trials: 
                 if self.anti_bias == 'none' and self.rand < 0.2:
                     if self.rand < 0.1:
@@ -1123,8 +1124,9 @@ class WheelTask(Agent):
                 
                     self.anti_bias_count += 1
                     
+            # Trial type selection without catch
             elif self.catch_trials == False: 
-                elif self.right_bias == False and self.left_bias == False:
+                if self.right_bias == False and self.left_bias == False:
                     if self.rand < 0.5:
                         self.trial_type = 'present'
                     else:
