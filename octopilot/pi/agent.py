@@ -1064,7 +1064,7 @@ class WheelTask(Agent):
         self.right_bias = False
         self.anti_bias = 'none'
         
-        # Alternates between present and absent for first 40 trials
+        # Alternates between present and absent
         if self.alternate_stim:
             if np.mod(self.trial_number, 2) == 0:
                 self.trial_type = 'present'
@@ -1090,37 +1090,63 @@ class WheelTask(Agent):
             # Sets random trial type (includes anti-bias for PDT)
             self.rand = np.random.random()
         
-            if self.catch_trials == True and self.anti_bias == 'none' and self.rand < 0.2:
-                if self.rand < 0.1:
-                    self.trial_type = 'catch_ant'
-                else:
-                    self.trial_type = 'catch_post'
+            if self.catch_trials: 
+                if self.anti_bias == 'none' and self.rand < 0.2:
+                    if self.rand < 0.1:
+                        self.trial_type = 'catch_ant'
+                    else:
+                        self.trial_type = 'catch_post'
             
-                self.anti_bias_count = 0
-        
-            elif self.right_bias == False and self.left_bias == False:
-                if self.rand < 0.5:
-                    self.trial_type = 'present'
-                else:
-                    self.trial_type = 'absent'
+                    self.anti_bias_count = 0
                 
-                self.anti_bias_count = 0
-        
-            elif self.left_bias == True and self.right_bias == False:
-                if (self.anti_bias_count % 7 == 0):
-                    self.trial_type = 'absent'
-                else:
-                    self.trial_type = 'present'
+                elif self.right_bias == False and self.left_bias == False:
+                    if self.rand < 0.6:
+                        self.trial_type = 'present'
+                    else:
+                        self.trial_type = 'absent'
                 
-                self.anti_bias_count += 1    
+                    self.anti_bias_count = 0
+                
+                elif self.left_bias == True and self.right_bias == False:
+                    if (self.anti_bias_count % 7 == 0):
+                        self.trial_type = 'absent'
+                    else:
+                        self.trial_type = 'present'
+                
+                    self.anti_bias_count += 1    
             
-            elif self.right_bias == True and self.left_bias == False:
-                if (self.anti_bias_count % 7 == 0):
-                    self.trial_type = 'present'
-                else:
-                    self.trial_type = 'absent'
+                elif self.right_bias == True and self.left_bias == False:
+                    if (self.anti_bias_count % 7 == 0):
+                        self.trial_type = 'present'
+                    else:
+                        self.trial_type = 'absent'
                 
-                self.anti_bias_count += 1
+                    self.anti_bias_count += 1
+                    
+            elif self.catch_trials == False: 
+                elif self.right_bias == False and self.left_bias == False:
+                    if self.rand < 0.5:
+                        self.trial_type = 'present'
+                    else:
+                        self.trial_type = 'absent'
+                
+                    self.anti_bias_count = 0
+        
+                elif self.left_bias == True and self.right_bias == False:
+                    if (self.anti_bias_count % 7 == 0):
+                        self.trial_type = 'absent'
+                    else:
+                        self.trial_type = 'present'
+                
+                    self.anti_bias_count += 1    
+            
+                elif self.right_bias == True and self.left_bias == False:
+                    if (self.anti_bias_count % 7 == 0):
+                        self.trial_type = 'present'
+                    else:
+                        self.trial_type = 'absent'
+                
+                    self.anti_bias_count += 1
             
             else:
                 1/0
@@ -1757,7 +1783,7 @@ class PoleDetectionTask(WheelTask):
         ## Mouse params
         self.alternate_stim = False
         self.response_window = True
-        self.catch_trials = False
+        self.catch_trials = True
         
         # Adds mouse JSON file info
         self.load_mouse_task_settings()
