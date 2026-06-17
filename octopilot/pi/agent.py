@@ -1749,8 +1749,8 @@ class PoleDetectionTask(WheelTask):
         self.wheel_min = -6400
         
         # Catch trial positions with second stepper motor
-        self.catch_max = 200
-        self.catch_min = -200
+        self.catch_max = 300
+        self.catch_min = -300
 
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right
@@ -2119,7 +2119,7 @@ class WheelHabituationTask(WheelTask):
         # As reward_decay increases, mouse has to wait longer 
         # 300 clicks is about 20 deg (easy)
         self.reward_for_spinning = True
-        self.alternate_spin = True
+        self.alternate_spin = False
         self.reward_decay = 0.5
         self.wheel_reward_thresh = 150 
         
