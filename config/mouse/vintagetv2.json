@@ -1,6 +1,6 @@
 {
     "display": true,
-    "box": "room_d_darkbox",
+    "box": "room_b_darkbox",
     "task": "PDT",
     "reward_for_spinning": true,
     "alternate": true,
