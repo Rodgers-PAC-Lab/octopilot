@@ -319,11 +319,10 @@ class PerformanceMetricDisplay(QWidget):
     def format_time(seconds):
         hours, remainder = divmod(seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
-        match hours > 0:
-            case True:
-                return f"{hours:02}:{minutes:02}:{seconds:02}"
-            case False:
-                return f"{minutes:02}:{seconds:02}"
+        if hours > 0:
+            return f"{hours:02}:{minutes:02}:{seconds:02}"
+        else:
+            return f"{minutes:02}:{seconds:02}"
 
 ## Widget to display text performance metrics for SurfaceOrientationTask
 class PerformanceMetricDisplay_SOT(QWidget):
@@ -434,11 +433,10 @@ class PerformanceMetricDisplay_SOT(QWidget):
     def format_time(seconds):
         hours, remainder = divmod(seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
-        match hours > 0:
-            case True:
-                return f"{hours:02}:{minutes:02}:{seconds:02}"
-            case False:
-                return f"{minutes:02}:{seconds:02}"
+        if hours > 0:
+            return f"{hours:02}:{minutes:02}:{seconds:02}"
+        else:
+            return f"{minutes:02}:{seconds:02}"
 
 ## Widget to plot pokes
 class PokePlotWidget(QWidget):
@@ -1159,8 +1157,7 @@ class PerformanceMetricDisplay_WHT(QWidget):
     def format_time(seconds):
         hours, remainder = divmod(seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
-        match hours > 0:
-            case True:
-                return f"{hours:02}:{minutes:02}:{seconds:02}"
-            case False:
-                return f"{minutes:02}:{seconds:02}"
+        if hours > 0:
+            return f"{hours:02}:{minutes:02}:{seconds:02}"
+        else:
+            return f"{minutes:02}:{seconds:02}"
