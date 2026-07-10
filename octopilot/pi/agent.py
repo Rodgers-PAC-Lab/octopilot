@@ -1101,7 +1101,7 @@ class WheelTask(Agent):
                     self.anti_bias_count = 0
                 
                 elif self.right_bias == False and self.left_bias == False:
-                    if self.rand < 0.6:
+                    if self.rand < 0.5:
                         self.trial_type = 'present'
                     else:
                         self.trial_type = 'absent'
@@ -1785,7 +1785,7 @@ class PoleDetectionTask(WheelTask):
         ## Mouse params
         self.alternate_stim = False
         self.response_window = True
-        self.catch_trials = False
+        self.catch_trials = True
         
         # Adds mouse JSON file info
         self.load_mouse_task_settings()
