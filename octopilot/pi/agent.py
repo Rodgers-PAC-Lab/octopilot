@@ -1222,40 +1222,46 @@ class WheelTask(Agent):
         """Load optional task settings from self.params"""
         
         # Wheel Habituation params
-        self.alternate_spin = bool(
-            self.params.get("alternate_spin", self.alternate_spin)
+        self.alternate_spin = self.params.get(
+            "alternate_spin", 
+            self.alternate_spin
         )
 
-        self.reward_for_spinning = bool(
-            self.params.get("reward_for_spinning", self.reward_for_spinning)
+        self.reward_for_spinning = self.params.get(
+            "reward_for_spinning",
+            self.reward_for_spinning
         )
 
         # PDT params
-        self.response_window = bool(
-            self.params.get("response_window", self.response_window)
+        self.response_window = self.params.get(
+            "response_window",
+            self.response_window
         )
 
-        self.catch_trials = bool(
-            self.params.get("catch_trials", self.catch_trials)
+        self.catch_trials = self.params.get(
+            "catch_trials", 
+            self.catch_trials
         )
         
-        self.catch_trials_alt = bool(
-            self.params.get("catch_trials_alt", self.catch_trials_alt)
+        self.catch_trials_alt = self.params.get(
+            "catch_trials_alt",
+            self.catch_trials_alt
         )
         
-        self.base_trials_alt = bool(
-            self.params.get("base_trials_alt", self.base_trials_alt)
+        self.base_trials_alt = self.params.get(
+            "base_trials_alt", 
+            self.base_trials_alt
         )
-        
 
-        # Ouput logged params to terminal
+        # Ouput JSON params to terminal
         self.logger.info(
-            f"Loaded task settings: "
-            f"alternate_spin={self.alternate_spin}, "
-            f"reward_for_spinning={self.reward_for_spinning}, "
-            f"response_window={self.response_window}, "
-            f"catch_trials={self.catch_trials},"
-            f"alternate_stim={self.alternate_stim}"
+            f"Loaded task params: "
+            f"alternate_spin={self.alternate_spin!r}, "
+            f"reward_for_spinning={self.reward_for_spinning!r}, "
+            f"response_window={self.response_window!r}, "
+            f"catch_trials={self.catch_trials!r}, "
+            f"catch_trials_alt={self.catch_trials_alt!r}, "
+            f"base_trials_alt={self.base_trials_alt!r}"
         )
 
 class SoundCenteringTask(WheelTask):
@@ -1788,7 +1794,6 @@ class PoleDetectionTask(WheelTask):
         self.current_surface_position = 0
         self.prev_trial_outcome = 'correct'
         self.prev_trial_type = None
-        self.alternate_spin = False
         
         ## Logging
         self.trial_number = 0
@@ -1802,13 +1807,21 @@ class PoleDetectionTask(WheelTask):
         self.response_window_timer = None
         
         ## Mouse params
-        self.alternate_stim = False
-        self.response_window = False
+        self.base_trials_alt = False
         self.catch_trials = False
         self.catch_trials_alt = False
+        self.response_window = False
         
         # Adds mouse JSON file info
         self.load_mouse_task_settings()
+        
+        self.logger.info(   
+            "PDT settings immediately after loading: "
+            f"response_window={self.response_window!r}, "
+            f"catch_trials={self.catch_trials!r}, "
+            f"catch_trials_alt={self.catch_trials_alt!r}, "
+            f"base_trials_alt={self.base_trials_alt!r}"
+        )
 
         ## Create the serial_reader object (for PDT, sets up present/absent motor and catch trial motor)
         self.surface_turner = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin, dir_pin=self.stepper_dir_pin)
