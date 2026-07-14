@@ -1221,6 +1221,15 @@ class WheelTask(Agent):
     def load_mouse_task_settings(self):
         """Load optional task settings from self.params"""
         
+        # Debugging steps for fixing this function
+        self.logger.info(
+            f"DEBUG self.params type: {type(self.params).__name__}"
+        )
+        
+        self.logger.info(
+            f"DEBUG self.params contents: {self.params!r}"
+        )
+        
         # Wheel Habituation params
         self.alternate_spin = self.params.get(
             "alternate_spin", 
