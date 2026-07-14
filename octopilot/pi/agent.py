@@ -965,7 +965,7 @@ class WheelTask(Agent):
         self.base_trials_alt = False
         self.catch_trials = False
         self.catch_trials_alt = False
-        sel.response_window = False
+        self.response_window = False
     
     def start_session(self):
         # Call Agent.start_session
