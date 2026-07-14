@@ -955,14 +955,17 @@ class WheelTask(Agent):
         self.pig.set_mode(self.solenoid_pin, pigpio.OUTPUT)
         self.pig.set_mode(self.house_light_pin, pigpio.OUTPUT)
         
+        # Wheel Habituation variables
+        self.alternate_spin = False
+        self.reward_for_spinning = False
+        
         # PDT variables
-        self.catch_trials = False
-        self.alternate_stim = False
         self.incorrect_left = 0
         self.incorrect_right = 0
-        self.alternate_spin = False
-        self.alternate_stim = False
-        self.reward_for_spinning = False
+        self.base_trials_alt = False
+        self.catch_trials = False
+        self.catch_trials_alt = False
+        sel.response_window = False
     
     def start_session(self):
         # Call Agent.start_session
@@ -1065,12 +1068,20 @@ class WheelTask(Agent):
         self.anti_bias = 'none'
         
         # Alternates between present and absent
-        if self.alternate_stim:
+        if self.base_trials_alt:
             if np.mod(self.trial_number, 2) == 0:
                 self.trial_type = 'present'
             else:
                 self.trial_type = 'absent'
         
+        # Alternates between catch-anterior and catch-posterior
+        elif self.catch_trials_alt:
+            if np.mod(self.trial_number, 2) == 0:
+                self.trial_type = 'catch_ant'
+            else:
+                self.trial_type = 'catch_post'
+        
+        # Normal trial selection 
         else:
             # Keeps incorrect trial counts (for anti-bias) limited to 40 trials
             if (self.trial_number != 0) and (self.trial_number % 40 == 0) and (self.trial_number != 40):
@@ -1209,7 +1220,8 @@ class WheelTask(Agent):
     
     def load_mouse_task_settings(self):
         """Load optional task settings from self.params"""
-
+        
+        # Wheel Habituation params
         self.alternate_spin = bool(
             self.params.get("alternate_spin", self.alternate_spin)
         )
@@ -1218,6 +1230,7 @@ class WheelTask(Agent):
             self.params.get("reward_for_spinning", self.reward_for_spinning)
         )
 
+        # PDT params
         self.response_window = bool(
             self.params.get("response_window", self.response_window)
         )
@@ -1226,10 +1239,16 @@ class WheelTask(Agent):
             self.params.get("catch_trials", self.catch_trials)
         )
         
-        self.alternate_stim = bool(
-            self.params.get("alternate_stim", self.alternate_stim)
+        self.catch_trials_alt = bool(
+            self.params.get("catch_trials_alt", self.catch_trials_alt)
         )
+        
+        self.base_trials_alt = bool(
+            self.params.get("base_trials_alt", self.base_trials_alt)
+        )
+        
 
+        # Ouput logged params to terminal
         self.logger.info(
             f"Loaded task settings: "
             f"alternate_spin={self.alternate_spin}, "
@@ -1755,7 +1774,7 @@ class PoleDetectionTask(WheelTask):
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right
         # through it before it checks, which is probably pretty hard to do
-        # 100 clicks is about 9
+        # 100 clicks is about 9 degrees
         self.reward_range = 100
 
 
@@ -1784,8 +1803,9 @@ class PoleDetectionTask(WheelTask):
         
         ## Mouse params
         self.alternate_stim = False
-        self.response_window = True
-        self.catch_trials = True
+        self.response_window = False
+        self.catch_trials = False
+        self.catch_trials_alt = False
         
         # Adds mouse JSON file info
         self.load_mouse_task_settings()
