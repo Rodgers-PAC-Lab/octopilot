@@ -940,6 +940,7 @@ class WheelTask(Agent):
         ## Call Agent.__init___
         super().__init__(*args, **kwargs)
     
+        self.mouse_params = {}
         
         ## Set up Wheel
         self.wheel_listener = hardware.WheelListener(self.pig)
@@ -1242,6 +1243,8 @@ class WheelTask(Agent):
         self.logger.info(
             f"Received mouse params from Dispatcher: {self.mouse_params!r}"
         )
+        
+        self.load_mouse_task_params()
 
 class SoundCenteringTask(WheelTask):
     """Agent that runs the wheel-based sound centering task"""
@@ -1785,14 +1788,11 @@ class PoleDetectionTask(WheelTask):
         self.response_window_dur = 60.0
         self.response_window_timer = None
         
-        ## Mouse params
+        ## Mouse params (defaults)
         self.base_trials_alt = False
         self.catch_trials = False
         self.catch_trials_alt = False
         self.response_window = True
-        
-        # Adds mouse JSON file info
-        self.load_mouse_task_params()
 
         ## Create the serial_reader object (for PDT, sets up present/absent motor and catch trial motor)
         self.surface_turner = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin, dir_pin=self.stepper_dir_pin)
@@ -2153,8 +2153,6 @@ class WheelHabituationTask(WheelTask):
         # is 63.7% of full. 
         # As reward_decay increases, mouse has to wait longer 
         # 300 clicks is about 20 deg (easy)
-        self.reward_for_spinning = False
-        self.spin_alt = False
         self.reward_decay = 0.5
         self.wheel_reward_thresh = 150 
         
@@ -2178,11 +2176,12 @@ class WheelHabituationTask(WheelTask):
         self.last_raw_position = 0
         self.reward_delivered = False
         
-        # Uses mouse JSON file info
-        self.load_mouse_task_params()
+        ## Mouse params (defaults)
+        self.reward_for_spinning = False
+        self.spin_alt = False
 
     def load_mouse_task_params(self):
-        """Overwrite wheel habituation defaults using the received mouse params"""
+        """Overwrite wheel habituation defaults with received mouse params"""
 
         self.reward_for_spinning = self.mouse_params.get(
             "reward_for_spinning",
