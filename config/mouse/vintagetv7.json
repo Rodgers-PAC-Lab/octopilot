@@ -2,9 +2,8 @@
     "display": true,
     "box": "room_b_darkbox",
     "task": "PDT",
-    "reward_for_spinning": true,
-    "alternate": true,
+    "base_trials_alt": false,
     "catch_trials": false,
-    "response_window": true,
-    "alternate_stim": false
+    "catch_trials_alt": false,
+    "response_window": true
 }
