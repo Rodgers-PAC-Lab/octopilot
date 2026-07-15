@@ -964,7 +964,7 @@ class WheelTask(Agent):
         self.incorrect_right = 0
         self.base_trials_alt = False
         self.catch_trials = False
-        self.catch_trials_alt = False
+        self.catch_trials_alt = True
         self.response_window = False
     
     def start_session(self):
@@ -1818,19 +1818,11 @@ class PoleDetectionTask(WheelTask):
         ## Mouse params
         self.base_trials_alt = False
         self.catch_trials = False
-        self.catch_trials_alt = False
+        self.catch_trials_alt = True
         self.response_window = False
         
         # Adds mouse JSON file info
         self.load_mouse_task_settings()
-        
-        self.logger.info(   
-            "PDT settings immediately after loading: "
-            f"response_window={self.response_window!r}, "
-            f"catch_trials={self.catch_trials!r}, "
-            f"catch_trials_alt={self.catch_trials_alt!r}, "
-            f"base_trials_alt={self.base_trials_alt!r}"
-        )
 
         ## Create the serial_reader object (for PDT, sets up present/absent motor and catch trial motor)
         self.surface_turner = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin, dir_pin=self.stepper_dir_pin)
