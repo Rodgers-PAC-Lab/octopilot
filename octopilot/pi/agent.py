@@ -1792,7 +1792,7 @@ class PoleDetectionTask(WheelTask):
         self.base_trials_alt = False
         self.catch_trials = False
         self.catch_trials_alt = False
-        self.response_window = True
+        self.response_window = False
 
         ## Create the serial_reader object (for PDT, sets up present/absent motor and catch trial motor)
         self.surface_turner = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin, dir_pin=self.stepper_dir_pin)

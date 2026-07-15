@@ -983,7 +983,9 @@ class WheelDispatcher(Dispatcher):
         # the Pi can pull out the 'agent_name' and start the right Agent
         self.marshaller.start(task_name=self.task_params['task_filename'])
 
+    def start_session(self, verbose=True):
         self.send_mouse_params_to_pi()
+        super.start_session(verbose=verbose)
 
     def init_history(self):
         """Set all history variables to defaults
