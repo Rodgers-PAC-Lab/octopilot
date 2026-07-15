@@ -963,9 +963,9 @@ class WheelTask(Agent):
         self.incorrect_left = 0
         self.incorrect_right = 0
         self.base_trials_alt = False
-        self.catch_trials = False
-        self.catch_trials_alt = True
-        self.response_window = False
+        self.catch_trials = True
+        self.catch_trials_alt = False
+        self.response_window = True
     
     def start_session(self):
         # Call Agent.start_session
@@ -1817,9 +1817,9 @@ class PoleDetectionTask(WheelTask):
         
         ## Mouse params
         self.base_trials_alt = False
-        self.catch_trials = False
-        self.catch_trials_alt = True
-        self.response_window = False
+        self.catch_trials = True
+        self.catch_trials_alt = False
+        self.response_window = True
         
         # Adds mouse JSON file info
         self.load_mouse_task_settings()
