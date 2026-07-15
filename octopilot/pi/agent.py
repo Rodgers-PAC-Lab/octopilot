@@ -957,16 +957,16 @@ class WheelTask(Agent):
         self.pig.set_mode(self.house_light_pin, pigpio.OUTPUT)
         
         # Wheel Habituation variables
-        self.alternate_spin = False
+        self.spin_alt = False
         self.reward_for_spinning = False
         
         # PDT variables
         self.incorrect_left = 0
         self.incorrect_right = 0
         self.base_trials_alt = False
-        self.catch_trials = True
+        self.catch_trials = False
         self.catch_trials_alt = False
-        self.response_window = True
+        self.response_window = False
     
     def start_session(self):
         # Call Agent.start_session
@@ -1221,7 +1221,7 @@ class WheelTask(Agent):
         
     def set_mouse_params(
         self,
-        spin_alt,
+        spin_alt=False,
         reward_for_spinning=False,
         response_window=False,
         catch_trials=False,
@@ -1243,7 +1243,7 @@ class WheelTask(Agent):
             f"Received mouse params from Dispatcher: {self.mouse_params!r}"
         )
 
-        self.load_mouse_task_settings()
+        self.load_mouse_task_params()
 
 class SoundCenteringTask(WheelTask):
     """Agent that runs the wheel-based sound centering task"""
@@ -1789,7 +1789,7 @@ class PoleDetectionTask(WheelTask):
         
         ## Mouse params
         self.base_trials_alt = False
-        self.catch_trials = True
+        self.catch_trials = False
         self.catch_trials_alt = False
         self.response_window = True
         
@@ -2155,7 +2155,7 @@ class WheelHabituationTask(WheelTask):
         # is 63.7% of full. 
         # As reward_decay increases, mouse has to wait longer 
         # 300 clicks is about 20 deg (easy)
-        self.reward_for_spinning = True
+        self.reward_for_spinning = False
         self.alternate_spin = False
         self.reward_decay = 0.5
         self.wheel_reward_thresh = 150 
@@ -2179,12 +2179,13 @@ class WheelHabituationTask(WheelTask):
         self.clipped_position = 0
         self.last_raw_position = 0
         self.reward_delivered = False
-        self.response_window = False
+        
+        
         
         # Uses mouse JSON file info
-        self.load_mouse_task_settings()
+        self.load_mouse_task_params()
 
-    def load_mouse_task_settings(self):
+    def load_mouse_task_params(self):
     """Overwrite wheel habituation defaults using the received mouse parameters."""
 
         self.reward_for_spinning = self.mouse_params.get(
