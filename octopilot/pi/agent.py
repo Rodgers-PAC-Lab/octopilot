@@ -1243,8 +1243,6 @@ class WheelTask(Agent):
             f"Received mouse params from Dispatcher: {self.mouse_params!r}"
         )
 
-        self.load_mouse_task_params()
-
 class SoundCenteringTask(WheelTask):
     """Agent that runs the wheel-based sound centering task"""
     def __init__(self, *args, **kwargs):
@@ -2156,7 +2154,7 @@ class WheelHabituationTask(WheelTask):
         # As reward_decay increases, mouse has to wait longer 
         # 300 clicks is about 20 deg (easy)
         self.reward_for_spinning = False
-        self.alternate_spin = False
+        self.spin_alt = False
         self.reward_decay = 0.5
         self.wheel_reward_thresh = 150 
         
@@ -2198,7 +2196,7 @@ class WheelHabituationTask(WheelTask):
 
         self.logger.info(
             "Loaded wheel habituation mouse settings: "
-            f"response_window={self.response_window!r}, "
+            f"reward_for_spinning={self.reward_for_spinning!r}, "
             f"spin_alt={self.spin_alt!r}"
         )
 
