@@ -1022,6 +1022,10 @@ class WheelDispatcher(Dispatcher):
         self.history_of_trial_directions = []
         self.history_of_trial_anti_bias = []
     
+    def start_session(self, verbose=True)
+        self.send_mouse_params_to_pi()
+        super().start_session(verbose=verbose)
+    
     def start_trial(self):
         ## Choose and broadcast reward_port
         #~ # Choose trial parameters
@@ -1303,8 +1307,51 @@ class WheelDispatcher(Dispatcher):
         with open(os.path.join(self.sandbox_path, 'wheel.csv'), 'a') as fi:
             fi.write(
                 f'{trial_number},{wheel_position},{wheel_time},'
-                f'{clipped_position}\n')        
+                f'{clipped_position}\n')       
+                
+    def send_mouse_params_to_pi(self):
+        """Send relevant mouse JSON parameters to all connected Pis."""
+    
+        mouse_params = {
+        
+            # Wheel habituation params
+            "spin_alt": self.mouse_params.get(
+                "spin_alt",
+                False,
+            ),
+            "reward_for_spinning": self.mouse_params.get(
+                "reward_for_spinning",
+                False,
+            ),
+            
+            #PDT params
+            "response_window": self.mouse_params.get(
+                "response_window",
+                False,
+            ),
+            "catch_trials": self.mouse_params.get(
+                "catch_trials",
+                False,
+            ),
+            "catch_trials_alt": self.mouse_params.get(
+                "catch_trials_alt",
+                False,
+            ),
+            "base_trials_alt": self.mouse_params.get(
+                "base_trials_alt",
+                False,
+            ),
+        }
 
+        self.logger.info(
+            f"Sending mouse parameters to Pis: {mouse_params!r}"
+        )
+
+        for pi_name in self.pi_names:
+            self.network_communicator.send_mouse_params_to_pi(
+                pi_name,
+                **mouse_params,
+            )
 
 class SoundCenteringDispatcher(WheelDispatcher):
     """Dispatcher for the wheel-based sound centering task. 

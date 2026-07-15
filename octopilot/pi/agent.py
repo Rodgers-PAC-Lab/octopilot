@@ -173,6 +173,7 @@ class Agent(object):
             # These methods will be called when these commands are received
             self.network_communicator.command2method = {
                 'set_trial_parameters': self.set_trial_parameters,
+                'set_mouse_params': self.set_mouse_params,
                 'silence': self.stop_sounds,
                 'stop': self.stop_session,
                 'exit': self.exit,
@@ -1217,61 +1218,32 @@ class WheelTask(Agent):
         
         # Empty the queue of sound
         self.sound_queuer.empty_queue() 
-    
-    def load_mouse_task_settings(self):
-        """Load optional task settings from self.params"""
         
-        # Debugging steps for fixing this function
+    def set_mouse_params(
+        self,
+        spin_alt,
+        reward_for_spinning=False,
+        response_window=False,
+        catch_trials=False,
+        catch_trials_alt=False,
+        base_trials_alt=False,):
+            
+        """Receive mouse-specific parameters from the Dispatcher."""
+
+        self.mouse_params = {
+            "spin_alt": spin_alt,
+            "reward_for_spinning": reward_for_spinning,
+            "response_window": response_window,
+            "catch_trials": catch_trials,
+            "catch_trials_alt": catch_trials_alt,
+            "base_trials_alt": base_trials_alt,
+        }
+
         self.logger.info(
-            f"DEBUG self.params type: {type(self.params).__name__}"
-        )
-        
-        self.logger.info(
-            f"DEBUG self.params contents: {self.params!r}"
-        )
-        
-        # Wheel Habituation params
-        self.alternate_spin = self.params.get(
-            "alternate_spin", 
-            self.alternate_spin
+            f"Received mouse params from Dispatcher: {self.mouse_params!r}"
         )
 
-        self.reward_for_spinning = self.params.get(
-            "reward_for_spinning",
-            self.reward_for_spinning
-        )
-
-        # PDT params
-        self.response_window = self.params.get(
-            "response_window",
-            self.response_window
-        )
-
-        self.catch_trials = self.params.get(
-            "catch_trials", 
-            self.catch_trials
-        )
-        
-        self.catch_trials_alt = self.params.get(
-            "catch_trials_alt",
-            self.catch_trials_alt
-        )
-        
-        self.base_trials_alt = self.params.get(
-            "base_trials_alt", 
-            self.base_trials_alt
-        )
-
-        # Ouput JSON params to terminal
-        self.logger.info(
-            f"Loaded task params: "
-            f"alternate_spin={self.alternate_spin!r}, "
-            f"reward_for_spinning={self.reward_for_spinning!r}, "
-            f"response_window={self.response_window!r}, "
-            f"catch_trials={self.catch_trials!r}, "
-            f"catch_trials_alt={self.catch_trials_alt!r}, "
-            f"base_trials_alt={self.base_trials_alt!r}"
-        )
+        self.load_mouse_task_settings()
 
 class SoundCenteringTask(WheelTask):
     """Agent that runs the wheel-based sound centering task"""
@@ -1841,6 +1813,37 @@ class PoleDetectionTask(WheelTask):
             self.report_surface,
             )
 
+    def load_mouse_task_params(self):
+        """Overwrite PDT defaults using the received mouse parameters."""
+
+        self.response_window = self.mouse_params.get(
+            "response_window",
+            self.response_window,
+        )
+
+        self.catch_trials = self.mouse_params.get(
+            "catch_trials",
+            self.catch_trials,
+        )
+
+        self.catch_trials_alt = self.mouse_params.get(
+            "catch_trials_alt",
+            self.catch_trials_alt,
+        )
+
+        self.base_trials_alt = self.mouse_params.get(
+            "base_trials_alt",
+            self.base_trials_alt,
+        )
+
+        self.logger.info(
+            "Loaded PDT mouse settings: "
+            f"response_window={self.response_window!r}, "
+            f"catch_trials={self.catch_trials!r}, "
+            f"catch_trials_alt={self.catch_trials_alt!r}, "
+            f"base_trials_alt={self.base_trials_alt!r}"
+        )
+    
     def reward(self, reward_size, report=True):
         """Open the reward port and optionally report to Dispatcher
 
@@ -2180,6 +2183,25 @@ class WheelHabituationTask(WheelTask):
         
         # Uses mouse JSON file info
         self.load_mouse_task_settings()
+
+    def load_mouse_task_settings(self):
+    """Overwrite wheel habituation defaults using the received mouse parameters."""
+
+        self.reward_for_spinning = self.mouse_params.get(
+            "reward_for_spinning",
+            self.reward_for_spinning,
+        )
+
+        self.spin_alt = self.mouse_params.get(
+            "spin_alt",
+            self.spin_alt,
+        )
+
+        self.logger.info(
+            "Loaded wheel habituation mouse settings: "
+            f"response_window={self.response_window!r}, "
+            f"spin_alt={self.spin_alt!r}"
+        )
 
     def stop_session(self):
         """Stop the session"""
