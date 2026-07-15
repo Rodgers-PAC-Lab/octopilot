@@ -985,7 +985,7 @@ class WheelDispatcher(Dispatcher):
 
     def start_session(self, verbose=True):
         self.send_mouse_params_to_pi()
-        super.start_session(verbose=verbose)
+        super().start_session(verbose=verbose)
 
     def init_history(self):
         """Set all history variables to defaults
