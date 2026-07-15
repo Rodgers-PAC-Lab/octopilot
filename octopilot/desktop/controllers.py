@@ -1022,7 +1022,7 @@ class WheelDispatcher(Dispatcher):
         self.history_of_trial_directions = []
         self.history_of_trial_anti_bias = []
     
-    def start_session(self, verbose=True)
+    def start_session(self, verbose=True):
         self.send_mouse_params_to_pi()
         super().start_session(verbose=verbose)
     

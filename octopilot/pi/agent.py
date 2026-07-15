@@ -2186,7 +2186,7 @@ class WheelHabituationTask(WheelTask):
         self.load_mouse_task_params()
 
     def load_mouse_task_params(self):
-    """Overwrite wheel habituation defaults using the received mouse parameters."""
+        """Overwrite wheel habituation defaults using the received mouse params"""
 
         self.reward_for_spinning = self.mouse_params.get(
             "reward_for_spinning",
