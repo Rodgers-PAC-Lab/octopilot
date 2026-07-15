@@ -1794,7 +1794,7 @@ class PoleDetectionTask(WheelTask):
         self.response_window = True
         
         # Adds mouse JSON file info
-        self.load_mouse_task_settings()
+        self.load_mouse_task_params()
 
         ## Create the serial_reader object (for PDT, sets up present/absent motor and catch trial motor)
         self.surface_turner = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin, dir_pin=self.stepper_dir_pin)
@@ -2179,8 +2179,6 @@ class WheelHabituationTask(WheelTask):
         self.clipped_position = 0
         self.last_raw_position = 0
         self.reward_delivered = False
-        
-        
         
         # Uses mouse JSON file info
         self.load_mouse_task_params()
