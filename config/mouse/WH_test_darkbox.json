@@ -2,6 +2,7 @@
     "display": true,
     "box": "room_b_darkbox",
     "task": "wheel_habituate",
-    "alternate": false,
-    "reward_for_spinning": true
+    "reward_for_spinning": true,
+    "spin_alt": true
+    
 }

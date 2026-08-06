@@ -1,0 +1,11 @@
+{
+  "display": true,
+  "box": "room_b_darkbox",
+  "task": "wheel_habituate",
+  "reward_for_spinning": true,
+  "spin_alt": true,
+  "catch_trials": false,
+  "catch_trials_alt": false,
+  "base_trials_alt": false,
+  "response_window": false
+}
