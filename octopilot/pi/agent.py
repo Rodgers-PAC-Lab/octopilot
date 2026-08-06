@@ -2297,7 +2297,7 @@ class WheelHabituationTask(WheelTask):
         ## Reward conditions
         # Rewards for alternating spin direction
         if not force_report: 
-            if self.alternate_spin:
+            if self.spin_alt:
                 if (np.abs(self.clipped_position) <= self.reward_range) and not self.reward_delivered:
                     # Within target range
                     # Reward and end trial
