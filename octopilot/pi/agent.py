@@ -2209,7 +2209,7 @@ class WheelHabituationTask(WheelTask):
         super().set_trial_parameters(**msg_params)
         
         # Starting positions alternate
-        if self.alternate_spin:
+        if self.spin_alt:
             self.wheel_listener.report_callback = None
             try:
                 # Turns on ITI-LED light
