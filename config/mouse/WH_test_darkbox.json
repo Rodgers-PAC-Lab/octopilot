@@ -3,6 +3,6 @@
     "box": "room_b_darkbox",
     "task": "wheel_habituate",
     "reward_for_spinning": true,
-    "spin_alt": true
+    "spin_alt": false
     
 }
