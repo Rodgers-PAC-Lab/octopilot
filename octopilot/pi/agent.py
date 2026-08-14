@@ -2323,7 +2323,12 @@ class WheelHabituationTask(WheelTask):
             # Rewards continuously for spinning any direction (omitted 'reward at 0' rule)
             else:
                 if self.reward_for_spinning:
-                    if np.abs(wheel_position - self.last_rewarded_position) > self.wheel_reward_thresh:
+                    if (np.abs(self.clipped_position) <= self.reward_range) and not self.reward_delivered:
+                        # Within target range
+                        # Reward and end trial
+                        self.reward(self.max_reward)
+                        
+                    if np.abs(clipped_position - self.last_rewarded_position) > self.wheel_reward_thresh:
             
                         # Shaping stage: reward if it's moved far enough
                         # Set last rewarded position to current position
