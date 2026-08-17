@@ -2345,7 +2345,7 @@ class WheelHabituationTask(WheelTask):
                         self.last_reward_time = now
             
                         # Reward but do not end trial
-                        self.reward(reward_size, report=False)
+                        self.reward(reward_size)
 
 class SurfaceTurner(object):
     """Object that turns the stepper while running in its own process.
