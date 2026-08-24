@@ -1,11 +1,11 @@
 {
   "display": true,
   "box": "room_b_darkbox",
-  "task": "wheel_habituate",
+  "task": "PDT",
   "reward_for_spinning": true,
   "spin_alt": false,
   "catch_trials": false,
   "catch_trials_alt": false,
-  "base_trials_alt": false,
+  "base_trials_alt": true,
   "response_window": false
 }
