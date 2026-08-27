@@ -1855,7 +1855,7 @@ class PoleDetectionTask(WheelTask):
             self.base_trials_alt,
         )
         
-         self.all_trials_alt = self.mouse_params.get(
+        self.all_trials_alt = self.mouse_params.get(
             "all_trials_alt",
             self.all_trials_alt,
         )
