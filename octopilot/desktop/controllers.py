@@ -1341,6 +1341,10 @@ class WheelDispatcher(Dispatcher):
                 "base_trials_alt",
                 False,
             ),
+            "all_trials_alt": self.mouse_params.get(
+                "all_trials_alt",
+                False,
+            ),
         }
 
         self.logger.info(

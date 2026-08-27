@@ -967,6 +967,7 @@ class WheelTask(Agent):
         self.base_trials_alt = False
         self.catch_trials = False
         self.catch_trials_alt = False
+        self.all_trials_alt = False
         self.response_window = False
     
     def start_session(self):
@@ -1081,6 +1082,20 @@ class WheelTask(Agent):
             if np.mod(self.trial_number, 2) == 0:
                 self.trial_type = 'catch_ant'
             else:
+                self.trial_type = 'catch_post'
+                
+        # Alternates between all four trial types (used for naive recordings)
+        elif self.all_trials_alt:
+            if np.mod(self.trial_number, 4) == 0:
+                self.trial_type = 'absent'
+            
+            elif np.mod(self.trial_number, 4) == 1:
+                self.trial_type = 'present'
+            
+            elif np.mod(self.trial_number, 4) == 2:
+                self.trial_type = 'catch_ant'
+            
+            else np.mod(self.trial_number, 4) == 3:
                 self.trial_type = 'catch_post'
         
         # Normal trial selection 
@@ -1227,7 +1242,8 @@ class WheelTask(Agent):
         response_window=False,
         catch_trials=False,
         catch_trials_alt=False,
-        base_trials_alt=False,):
+        base_trials_alt=False,
+        all_trials_alt=False,):
             
         """Receive mouse-specific parameters from the Dispatcher."""
 
@@ -1238,6 +1254,7 @@ class WheelTask(Agent):
             "catch_trials": catch_trials,
             "catch_trials_alt": catch_trials_alt,
             "base_trials_alt": base_trials_alt,
+            "all_trials_alt": base_trials_alt,
         }
 
         self.logger.info(
@@ -1785,7 +1802,7 @@ class PoleDetectionTask(WheelTask):
         self.anti_bias = 'none'
         
         ## Response window
-        self.response_window_dur = 60.0
+        self.response_window_dur = 15.0
         self.response_window_timer = None
         
         ## Mouse params (defaults)
@@ -1839,7 +1856,8 @@ class PoleDetectionTask(WheelTask):
             f"response_window={self.response_window!r}, "
             f"catch_trials={self.catch_trials!r}, "
             f"catch_trials_alt={self.catch_trials_alt!r}, "
-            f"base_trials_alt={self.base_trials_alt!r}"
+            f"base_trials_alt={self.base_trials_alt!r}, "
+            f"all_trials_alt={self.all_trials_alt!r},"
         )
     
     def reward(self, reward_size, report=True):

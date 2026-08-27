@@ -7,5 +7,6 @@
   "catch_trials": true,
   "catch_trials_alt": false,
   "base_trials_alt": false,
+  "all_trials_alt": true,
   "response_window": true
 }
