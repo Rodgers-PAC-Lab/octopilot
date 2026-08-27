@@ -1257,7 +1257,7 @@ class WheelTask(Agent):
             "catch_trials": catch_trials,
             "catch_trials_alt": catch_trials_alt,
             "base_trials_alt": base_trials_alt,
-            "all_trials_alt": base_trials_alt,
+            "all_trials_alt": all_trials_alt,
         }
 
         self.logger.info(
@@ -1812,7 +1812,7 @@ class PoleDetectionTask(WheelTask):
         self.base_trials_alt = False
         self.catch_trials = False
         self.catch_trials_alt = False
-        self.all_trials_alt = True
+        self.all_trials_alt = False
         self.response_window = False
 
         ## Create the serial_reader object (for PDT, sets up present/absent motor and catch trial motor)
