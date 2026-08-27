@@ -1101,7 +1101,7 @@ class WheelTask(Agent):
             else:
                 1/0
         
-        # Normal trial selection 
+        # Normal trial selection (either base only or with catch trials)
         else:
             # Keeps incorrect trial counts (for anti-bias) limited to 40 trials
             if (self.trial_number != 0) and (self.trial_number % 40 == 0) and (self.trial_number != 40):
@@ -1812,6 +1812,7 @@ class PoleDetectionTask(WheelTask):
         self.base_trials_alt = False
         self.catch_trials = False
         self.catch_trials_alt = False
+        self.all_trials_alt
         self.response_window = False
 
         ## Create the serial_reader object (for PDT, sets up present/absent motor and catch trial motor)
@@ -1852,6 +1853,11 @@ class PoleDetectionTask(WheelTask):
         self.base_trials_alt = self.mouse_params.get(
             "base_trials_alt",
             self.base_trials_alt,
+        )
+        
+         self.all_trials_alt = self.mouse_params.get(
+            "all_trials_alt",
+            self.all_trials_alt,
         )
 
         self.logger.info(
