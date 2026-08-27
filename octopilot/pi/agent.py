@@ -1095,8 +1095,11 @@ class WheelTask(Agent):
             elif np.mod(self.trial_number, 4) == 2:
                 self.trial_type = 'catch_ant'
             
-            else np.mod(self.trial_number, 4) == 3:
+            elif np.mod(self.trial_number, 4) == 3:
                 self.trial_type = 'catch_post'
+            
+            else:
+                1/0
         
         # Normal trial selection 
         else:
