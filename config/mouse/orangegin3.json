@@ -6,7 +6,7 @@
   "spin_alt": false,
   "catch_trials": false,
   "catch_trials_alt": false,
-  "base_trials_alt": true,
+  "base_trials_alt": false,
   "response_window": false
 }
 
