@@ -1,0 +1,8 @@
+
+{
+    "display": true,
+    "box": "roomB_cubbyA",
+    "task": "wheel_habituate",
+    "reward_for_spinning": true,
+    "spin_alt": true
+}
