@@ -1,0 +1,20 @@
+{
+    "agent_name": "SoundSeekingAgent",    
+    "zmq_port": 5551,
+    "bonsai_port": 5557,
+    "desktop_ip": "192.168.11.125",
+    "bonsai_ip": "192.168.0.213",
+    "ypos_of_gui": 0,
+    "camera": "",
+    "connected_pis" : [
+        {
+            "name": "rpiRG",
+            "ip": "192.168.11.228",
+            "left_port_position": 180,
+            "right_port_position": 225
+        }
+
+    ]    
+}
+
+
