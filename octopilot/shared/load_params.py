@@ -115,6 +115,8 @@ def load_task_params(task):
     It should also specify "agent_name" for the Pi to initialize
     """
     # Constructing the full path to the config file
+    print('debugging, ' + config_path)
+    print(task)
     full_path = os.path.join(config_path, 'task', task + '.json')
 
     # Load the parameters from the specified JSON file
