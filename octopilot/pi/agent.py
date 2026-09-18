@@ -2036,19 +2036,21 @@ class PoleDetectionTask(WheelTask):
             self.prev_trial_outcome = 'incorrect'
             self.reward(0)
         
-    def wait_for_turner(self, turner, tol=1, timeout=2.5):
-        """Wait until a SurfaceTurner reaches its current target (removes time.sleep)"""
-        start = time.time()
+    def wait_for_turner(self, turner, timeout=2.5, tol=10):
+        t0 = time.time()
 
-        while abs(turner.state - turner.target.value) > tol:
-            if time.time() - start > timeout:
-                self.logger.warning(
-                    f"wait_for_turner timeout: "
-                    f"state={turner.state}, target={turner.target.value}"
+        while abs(turner.state.value - turner.target.value) > tol:
+            if time.time() - t0 > timeout:
+                self.logger.error(
+                    f'Surface turner timed out: '
+                    f'state={turner.state.value}, '
+                    f'target={turner.target.value}'
                 )
-                break
+                return False
 
             time.sleep(0.01)
+
+        return True
 
     def report_surface(self):
         """Called by a RepeatedTimer to report surface movements"""
@@ -2124,7 +2126,6 @@ class PoleDetectionTask(WheelTask):
                 f'clipped_position={clipped_position}=int;'
                 f'wheel_time={now.isoformat()}=str'
                 )
-
 
         ## Reward conditions
         if not self.reward_delivered:
@@ -2417,7 +2418,7 @@ class SurfaceTurner(object):
         
         ## Controls
         # Use this to keep track of state
-        self.state = 0
+        self.state = multiprocessing.Value('i', 0)
 
         # Use this to set the target
         self.target = multiprocessing.Value('i', 0)
@@ -2451,7 +2452,7 @@ class SurfaceTurner(object):
         then moves the stepper accordingly and updates the state.
         """
         # Compute difference between current and desired position
-        diff = self.target.value - self.state
+        diff = self.target.value - self.state.value
         
         # Decide which direction to move
         if diff > 0:
@@ -2494,11 +2495,11 @@ class SurfaceTurner(object):
         
         # Update
         if diff > 0:
-            self.state += n_steps
+            self.state.value += n_steps
             log_steps_moved = n_steps_gained
         
         else:
-            self.state -= n_steps
+            self.state.value -= n_steps
             log_steps_moved = -n_steps_gained
 
         # Store in queue

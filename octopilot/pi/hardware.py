@@ -12,6 +12,7 @@ from . import sound
 from ..shared import networking
 from ..shared.logtools import NonRepetitiveLogger
 from ..shared.misc import RepeatedTimer
+from collections import deque
 import logging
 import threading
 import numpy as np
@@ -213,18 +214,37 @@ class WheelListener(object):
         
         # Set up logs for position and state
         self.position = 0
-        self.event_log = []
-        self.state_log = []
+        self.event_log = deque(maxlen=100)
+        self.state_log = deque(maxlen=100)
         self.a_state = 0
         self.b_state = 0
         
-        # Set up callbacks
-        self.pi.callback(17, pigpio.RISING_EDGE, self.pulseA_detected)
-        self.pi.callback(27, pigpio.RISING_EDGE, self.pulseB_detected)
-        self.pi.callback(17, pigpio.FALLING_EDGE, self.pulseA_down)
-        self.pi.callback(27, pigpio.FALLING_EDGE, self.pulseB_down)
+        
+        # Wheel callback debugging
+        self.last_event_time = None
+        self.total_events = 0
+        
+        # Set encoder pins as inputs
+        self.pi.set_mode(17, pigpio.INPUT)
+        self.pi.set_mode(27, pigpio.INPUT)
+
+        # Set up callbacks and keep references to them
+        self.callback_A_rise = self.pi.callback(
+            17, pigpio.RISING_EDGE, self.pulseA_detected)
+
+        self.callback_B_rise = self.pi.callback(
+            27, pigpio.RISING_EDGE, self.pulseB_detected)
+
+        self.callback_A_fall = self.pi.callback(
+            17, pigpio.FALLING_EDGE, self.pulseA_down)
+
+        self.callback_B_fall = self.pi.callback(
+            27, pigpio.FALLING_EDGE, self.pulseB_down)
         
     def pulseA_detected(self, pin, level, tick):
+        self.last_event_time = datetime.datetime.now()
+        self.total_events += 1
+        
         self.event_log.append('A')
         self.a_state = 1
         if self.b_state == 0:
@@ -238,6 +258,9 @@ class WheelListener(object):
             self.report_callback()
 
     def pulseB_detected(self, pin, level, tick):
+        self.last_event_time = datetime.datetime.now()
+        self.total_events += 1
+        
         self.event_log.append('B')
         self.b_state = 1
         if self.a_state == 0:
@@ -251,6 +274,9 @@ class WheelListener(object):
             self.report_callback()
     
     def pulseA_down(self, pin, level, tick):
+        self.last_event_time = datetime.datetime.now()
+        self.total_events += 1
+        
         self.event_log.append('a')
         self.a_state = 0
         if self.b_state == 0:
@@ -264,6 +290,9 @@ class WheelListener(object):
             self.report_callback()
     
     def pulseB_down(self, pin, level, tick):
+        self.last_event_time = datetime.datetime.now()
+        self.total_events += 1
+        
         self.event_log.append('b')
         self.b_state = 0
         if self.a_state == 0:
