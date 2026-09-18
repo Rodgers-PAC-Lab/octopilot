@@ -2504,4 +2504,4 @@ class SurfaceTurner(object):
 
         # Store in queue
         self.output_q.put_nowait(
-            (datetime.datetime.now(), log_steps_moved, self.state))
+            (datetime.datetime.now(), log_steps_moved, self.state.value))
