@@ -1966,66 +1966,112 @@ class PoleDetectionTask(WheelTask):
 
     def set_trial_parameters(self, **msg_params):
 
-        ## Call parent
+        # Parent trial setup
         super().set_trial_parameters(**msg_params)
 
-        # Failsafe for cancelling any leftover trial timers 
+        # Cancel any leftover response timer
         if self.response_window_timer is not None:
             self.response_window_timer.cancel()
             self.response_window_timer = None
-            
-        ## Disable wheel updates until the surface has moved back
+
+        # Wheel movement cannot affect trial while pole is moving
         self.wheel_listener.report_callback = None
 
-        # This time.sleep gives the motor time to move back to the
-        # ITI position and can do timeout if incorrect choice is made
         try:
-            if self.prev_trial_outcome == 'correct' or self.trial_number == 0:
-                self.pig.write(self.house_light_pin, 1)
-                time.sleep(2.5)
-                self.pig.write(self.house_light_pin, 0)
 
-            elif self.prev_trial_outcome == 'incorrect':
-                self.pig.write(self.house_light_pin, 1)
-                time.sleep(7.5)
-                self.pig.write(self.house_light_pin, 0)
+            # LED turns on before trial starts
+            self.pig.write(self.house_light_pin, 1)
 
-            else:
-                1/0
-            
+            # Explicitly move main pole to ITI
+            self.surface_turner.target.value = 0
+
+            if not self.wait_for_turner(self.surface_turner):
+                self.logger.error(
+                    'Main motor failed to reach ITI position')
+                return
+
+            # If previous trial used catch motor, return it too
             if self.prev_trial_type in ('catch_ant', 'catch_post'):
                 self.surface_turner2.target.value = 0
-                self.wait_for_turner(self.surface_turner2)
 
+                if not self.wait_for_turner(self.surface_turner2):
+                    self.logger.error(
+                        'Catch motor failed to return to center')
+                    return
+
+            # ITI delay
+            if self.prev_trial_outcome == 'correct' or self.trial_number == 0:
+                time.sleep(2.5)
+
+            elif self.prev_trial_outcome == 'incorrect':
+                time.sleep(7.5)
+
+            else:
+                self.logger.error(
+                    f'Unknown previous trial outcome: '
+                    f'{self.prev_trial_outcome}')
+                return
+
+
+            # Command motor to move to next trial position
             if self.trial_type == 'present':
                 self.surface_turner.target.value = self.wheel_max
-                
+
             elif self.trial_type == 'absent':
                 self.surface_turner.target.value = self.wheel_min
-                
+
             elif self.trial_type == 'catch_ant':
                 self.surface_turner2.target.value = self.catch_max
-                self.wait_for_turner(self.surface_turner2)
+
+                if not self.wait_for_turner(self.surface_turner2):
+                    self.logger.error(
+                        'Catch motor failed to reach anterior position')
+                    return
+
                 self.surface_turner.target.value = self.wheel_max
-                
+
             elif self.trial_type == 'catch_post':
+
                 self.surface_turner2.target.value = self.catch_min
-                self.wait_for_turner(self.surface_turner2)
+
+                if not self.wait_for_turner(self.surface_turner2):
+                    self.logger.error(
+                        'Catch motor failed to reach posterior position')
+                    return
+
                 self.surface_turner.target.value = self.wheel_max
 
-            self.wait_for_turner(self.surface_turner)
+            else:
+                self.logger.error(
+                    f'Unknown trial type: {self.trial_type}')
+                return
 
+            # Wait until main motor reaches position to turn off LED
+            if not self.wait_for_turner(self.surface_turner):
+                self.logger.error(
+                    'Main motor failed to reach trial position')
+                return
+
+            self.pig.write(self.house_light_pin, 0)
+
+            # Reset wheel reference
             self.position_at_trial_start = self.wheel_listener.position
             self.last_raw_position = self.wheel_listener.position
 
         finally:
+
+            # Turn off LED
+            self.pig.write(self.house_light_pin, 0)
+
+            # Re-enable wheel
             self.wheel_listener.report_callback = self.report_wheel
-            
+
+        # Start response window only after checking timers/positions
         if self.response_window:
             self.response_window_timer = threading.Timer(
                 self.response_window_dur,
                 self.handle_response_window_timeout
-            )       
+            )
             self.response_window_timer.start()
             
     def handle_response_window_timeout(self):
