@@ -76,7 +76,7 @@ def start_pigpiod(sleep_time=1, verbose=False):
     took_too_long = False
     try:
         proc = subprocess.run(
-            ['sudo', 'pigpiod', '-t', '0', '-l', '-x', 
+            ['sudo', 'pigpiod', '-t', '0', '-l', '-x',
             '1111110000111111111111110000'], capture_output=True, timeout=0.5)
     except subprocess.TimeoutExpired:
         # When this happens, proc will be killed and waited for
