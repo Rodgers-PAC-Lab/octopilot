@@ -14,11 +14,8 @@ CUBBIES = {
     "cubbyD": {"hostname": "rpi34", "ip": "192.168.0.134", "port": 6034},
 }
 
-# Current one-camera test.
-ACTIVE_CUBBIES = ["cubbyB"]
-
-# For all four, use:
-# ACTIVE_CUBBIES = ["cubbyA", "cubbyB", "cubbyC", "cubbyD"]
+# Useful for testing individual board's cameras (otherwise add all boards)
+ACTIVE_CUBBIES = ["cubbyA", "cubbyC"]
 
 PI_USER = "pi"
 PI_SCRIPT = "/home/pi/dev/octopilot/octopilot/pi/camera_stream.py"
