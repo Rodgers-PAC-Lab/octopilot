@@ -1,6 +1,6 @@
 {
     "agent_name": "HeadfixWheelAgent",    
-    "zmq_port": 5551,
+    "zmq_port": 5552,
     "desktop_ip": "192.168.0.203",
     "bonsai_port": 5559,
     "bonsai_ip": "192.168.11.138",
