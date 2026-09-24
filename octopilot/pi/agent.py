@@ -965,10 +965,14 @@ class WheelTask(Agent):
         self.incorrect_left = 0
         self.incorrect_right = 0
         self.base_trials_alt = False
+        self.forced_alt = False
         self.catch_trials = False
         self.catch_trials_alt = False
         self.all_trials_alt = False
         self.response_window = False
+        
+        self.prev_trial_outcome = None
+        self.prev_trial_type = None
     
     def start_session(self):
         # Call Agent.start_session
@@ -1070,12 +1074,34 @@ class WheelTask(Agent):
         self.right_bias = False
         self.anti_bias = 'none'
         
-        # Alternates between present and absent
+        # Alternates between present and absent (open loop)
         if self.base_trials_alt:
             if np.mod(self.trial_number, 2) == 0:
                 self.trial_type = 'present'
             else:
                 self.trial_type = 'absent'
+        
+        # Forced alternation between present and absent (closed loop)
+        elif self.forced_alt:
+            
+            # Starts with present every time
+            if self.trial_number == 0:
+                self.trial_type = 'present'
+                
+            else:
+                # Stays with same trial type as was previously
+                if self.prev_trial_outcome == 'incorrect'
+                    if self.prev_trial_type == 'present'
+                        self.trial_type == 'present'
+                    else:
+                        self.trial_type == 'absent'
+            
+                # Switches to other trial type
+                if self.prev_trial_outcome == 'correct'
+                    if self.prev_trial_type == 'present'
+                        self.trial_type == 'absent'
+                    else:
+                        self.trial_type == 'present'
         
         # Alternates between catch-anterior and catch-posterior
         elif self.catch_trials_alt:
@@ -1246,6 +1272,7 @@ class WheelTask(Agent):
         catch_trials=False,
         catch_trials_alt=False,
         base_trials_alt=False,
+        forced_alt=False,
         all_trials_alt=False,):
             
         """Receive mouse-specific parameters from the Dispatcher."""
@@ -1257,6 +1284,7 @@ class WheelTask(Agent):
             "catch_trials": catch_trials,
             "catch_trials_alt": catch_trials_alt,
             "base_trials_alt": base_trials_alt,
+            "forced_alt": forced_alt,
             "all_trials_alt": all_trials_alt,
         }
 
@@ -1855,6 +1883,11 @@ class PoleDetectionTask(WheelTask):
             self.base_trials_alt,
         )
         
+        self.forced_alt = self.mouse_params.get(
+            "forced_alt",
+            self.forced_alt,
+        )
+        
         self.all_trials_alt = self.mouse_params.get(
             "all_trials_alt",
             self.all_trials_alt,
@@ -1866,6 +1899,7 @@ class PoleDetectionTask(WheelTask):
             f"catch_trials={self.catch_trials!r}, "
             f"catch_trials_alt={self.catch_trials_alt!r}, "
             f"base_trials_alt={self.base_trials_alt!r}, "
+            f"forced_alt={self.forced_alt!r}, "
             f"all_trials_alt={self.all_trials_alt!r},"
         )
     
