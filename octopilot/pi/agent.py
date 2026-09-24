@@ -1097,7 +1097,7 @@ class WheelTask(Agent):
                         self.trial_type == 'absent'
             
                 # Switches to other trial type
-                if self.prev_trial_outcome == 'correct':
+                elif self.prev_trial_outcome == 'correct':
                     if self.prev_trial_type == 'present':
                         self.trial_type == 'absent'
                     else:
