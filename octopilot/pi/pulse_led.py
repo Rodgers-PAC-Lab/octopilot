@@ -10,7 +10,7 @@ pig.set_mode(pin, pigpio.OUTPUT)
 pig.set_PWM_frequency(pin, 8000) # 8KHz is fastest with default pigpio
 print(pig.get_PWM_frequency(pin))
 
-flash_dur = 0.01
+flash_dur = 0.003
 try:
     while True:
         #pig.set_PWM_dutycycle(pin, 128)

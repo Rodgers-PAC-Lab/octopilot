@@ -964,6 +964,7 @@ class WheelDispatcher(Dispatcher):
             'sound': self.handle_sound,
             'wheel': self.handle_wheel,
             'surface': self.handle_surface,
+            'surface2': self.handle_surface2,
             'sound_plan': self.handle_sound_plan,
             'goodbye': self.handle_goodbye,
             'alive': self.recv_alive,
@@ -1008,8 +1009,18 @@ class WheelDispatcher(Dispatcher):
         self.history_of_surface_time = []
         self.history_of_surface_trial = []
         
+        # Surface2 history
+        self.history_of_surface_position2 = []
+        self.history_of_surface_movement2 = []
+        self.history_of_surface_time2 = []
+        self.history_of_surface_trial2 = []
+        
         # Reward history
         self.history_of_rewards = []
+        self.history_of_trial_choices = []
+        self.history_of_trial_types = []
+        self.history_of_trial_directions = []
+        self.history_of_trial_anti_bias = []
     
     def start_trial(self):
         ## Choose and broadcast reward_port
@@ -1083,20 +1094,53 @@ class WheelDispatcher(Dispatcher):
     def handle_surface(self,
         identity, trial_number, surface_time, steps_moved, surface_pos,
         ):
-        """Handle an update about the surface position"""
-        # Append to history
+        """Handle an update about the surface positions"""
+        
         self.history_of_surface_position.append(surface_pos)
         self.history_of_surface_movement.append(steps_moved)
         self.history_of_surface_time.append(
             datetime.datetime.fromisoformat(surface_time))
-        self.history_of_surface_trial.append(trial_number)        
+        self.history_of_surface_trial.append(trial_number) 
+    
+    def handle_surface2(self,
+        identity, trial_number, surface_time, steps_moved, surface_pos,
+        ):
+        """Handle an update about the second surface position"""
+
+        self.history_of_surface_position2.append(surface_pos)
+        self.history_of_surface_movement2.append(steps_moved)
+        self.history_of_surface_time2.append(
+            datetime.datetime.fromisoformat(surface_time))
+        self.history_of_surface_trial2.append(trial_number)
 
     def handle_flash(self, trial_number, identity, flash_time):
         """Store the flash time"""
         return
         self._log_flash(trial_number, identity, flash_time)
     
-    def handle_reward(self, identity, trial_number, reward_time):
+    def handle_reward(self, identity, trial_number, reward_time, 
+        trial_type=None, choice=None, direction=None, anti_bias=None):
+            
+        ## Start of PDT Additions ============
+        
+        # Adds trial type(s) and outcomes
+        if trial_type is not None:
+            self.trial_parameters['trial_type'] = trial_type
+        if choice is not None:
+            self.trial_parameters['choice'] = choice
+        if direction is not None:
+            self.trial_parameters['direction'] = direction
+        if anti_bias is not None:
+            self.trial_parameters['anti_bias'] = anti_bias
+        
+        # Add the outcomes of the trial to the history
+        self.history_of_trial_choices.append(choice)
+        self.history_of_trial_types.append(trial_type)
+        self.history_of_trial_directions.append(direction)
+        self.history_of_trial_anti_bias.append(anti_bias)
+        
+        ## End of PDT Additions =====
+        
         # Log the trial
         self._log_trial(reward_time)
         
@@ -1150,7 +1194,7 @@ class WheelDispatcher(Dispatcher):
         # dict, plus also 'trial_number'
         #~ param_names = list(
             #~ self.trial_parameter_chooser.param2possible_values.keys())
-        param_names = []
+        param_names = ['trial_type', 'choice', 'direction', 'anti_bias'] # FOR PDT
         
         # Order as follows: sort the param_names, prepend and postpend a few
         # that are not contained within param_names

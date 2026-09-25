@@ -387,9 +387,10 @@ class PerformanceMetricDisplay_SOT(QWidget):
         else:
             time_from_session_start_sec = None
 
-        # TODO: get actual data here
-        n_correct_trials = 0
-        n_incorrect_trials = 0
+        # Count correct and incorrect trials
+        history_choices = np.array(self.dispatcher.history_of_trial_choices)
+        n_correct_trials = np.sum(history_choices == 'correct')
+        n_incorrect_trials = np.sum(history_choices != 'correct')
 
         
         ## Calculate performance metrics
@@ -741,6 +742,12 @@ class WheelPositionWidget(QWidget):
             y=[],
             pen='red',
         )
+        
+        self.plot_handle_surface_position2 = self.plot_widget.plot(
+            x=[],
+            y=[],
+            pen='y',
+        )
 
         # Rewards in green
         self.plot_handle_rewards = self.plot_widget.plot(
@@ -832,6 +839,22 @@ class WheelPositionWidget(QWidget):
             surface_pos_x = np.concatenate([surface_pos_x, [0]])
             surface_pos_y = np.concatenate([surface_pos_y, [surface_pos_y[-1]]])
         
+        ## Second motor data
+        # Extract data about motor two
+        surface_pos_x2 = np.array(self.dispatcher.history_of_surface_time2)
+        surface_pos_y2 = np.array(self.dispatcher.history_of_surface_position2)
+        
+        # Relative to time now
+        # Note that slight clock differences might mean that the rpi's current
+        # time is ahead of our current time
+        surface_pos_x2 = np.array(
+            [(val - time_now).total_seconds() for val in surface_pos_x2])
+        
+        # Add a final data point for the present, which is presumably the same
+        # as the last measurement
+        if len(surface_pos_y2) > 0:
+            surface_pos_x2 = np.concatenate([surface_pos_x2, [0]])
+            surface_pos_y2 = np.concatenate([surface_pos_y2, [surface_pos_y2[-1]]])
 
         ## Rewards
         #~ # Extract data about rewards
@@ -848,3 +871,287 @@ class WheelPositionWidget(QWidget):
         # Surface
         self.plot_handle_surface_position.setData(
             x=surface_pos_x, y=surface_pos_y)
+        
+        # Second motor
+        self.plot_handle_surface_position2.setData(
+            x=surface_pos_x2, y=surface_pos_y2)
+            
+
+## Widget to plot wheel choices
+class WheelTrialWidget(QWidget):
+    """Widget to plot trial progress in wheel-based tasks
+    
+    """
+    def __init__(self, dispatcher, *args, **kwargs):
+        """Initialize a new WheelTrialWidget
+
+        """
+        ## Superclass QWidget init
+        super().__init__(*args, **kwargs)
+        
+        
+        ## Instance variables
+        # Dispatcher, where the data comes from
+        self.dispatcher = dispatcher
+        
+        # Timers for continuous updating
+        # Create a QTimer object to continuously update the plot         
+        self.timer_update_plot = QTimer(self) 
+        self.timer_update_plot.timeout.connect(self.update_plot)  
+
+        
+        ## Initialize the plot_widget which actually does the plotting
+        # Initializing the pyqtgraph widget
+        self.plot_widget = pg.PlotWidget() 
+        
+        # Setting the layout of the plotting widget 
+        self.layout = QVBoxLayout(self) 
+        self.layout.addWidget(self.plot_widget)
+        
+        # Set labels and colors of `plot_widget`
+        self.setup_plot_graphics()
+       
+        # Plots line_of_current_time and line
+        self.initalize_plot_handles()
+
+        self.prev_xmax = 80
+
+    def setup_plot_graphics(self):
+        """Sets colors and labels of plot_widget
+        
+        Flow
+        * Sets background to black and font to white
+        * Sets title and axis labels
+        * Adds a grid
+        * Sets y-limits to [1, 9]
+        """
+        # Initial x-range values for plot
+        self.xrange_min = 0
+        self.xrange_max = 80
+        
+        # Set x-axis in trials
+        self.plot_widget.setXRange(self.xrange_min, self.xrange_max)   
+        
+        # Setting the background of the plot to be black. Use 'w' for white
+        self.plot_widget.setBackground("k") 
+        
+        # Setting the font/style for the rest of the text used in the plot
+        styles = {"color": "white", "font-size": "11px"} 
+        
+        # Adding a grid background to make it easier to see where trials are
+        self.plot_widget.showGrid(x=True, y=True) 
+        
+        # Setting the range for the Y axis
+        self.plot_widget.setYRange(-0.5, 1.5)
+        
+        # Set the ticks
+        # Hard-code in for now that there are just three trial types
+        ticks = [(0, 'catch'), (0.5, 'absent'), (1, 'present')]
+        
+        # Plots ticks at indicated positions on y-axis
+        self.plot_widget.getPlotItem().getAxis('left').setTicks([ticks])
+
+    def initalize_plot_handles(self):
+        """Plots line_of_current_time and line
+        
+        Creates these handles:
+            self.plot_handle_incorrect_trials : a raster plot of unrewarded
+                trials in red
+            self.plot_handle_correct_trials : a raster plot of 
+                rewarded trials in green
+        """
+        # Incorrect trials in red
+        self.plot_handle_incorrect_trials = self.plot_widget.plot(
+            x=[],
+            y=[],
+            pen=None, # no connecting line
+            symbol="o",  
+            symbolSize=3,
+            symbolBrush='r',
+            symbolPen=None,
+        )
+    
+        # Correct trials in green
+        self.plot_handle_correct_trials = self.plot_widget.plot(
+            x=[],
+            y=[],
+            pen=None, # no connecting line
+            symbol="o",  
+            symbolSize=3,
+            symbolBrush='g',
+            symbolPen=None,
+        )
+
+        # Forced trials as white arrows
+        self.plot_handle_forced_trials = self.plot_widget.plot(
+            x=[],
+            y=[],
+            pen=None, # no connecting line
+            symbol="arrow_down",  
+            symbolSize=10,
+            symbolBrush='white',
+            symbolPen=None,
+        )
+        
+        # Catch trials as yellow dots
+        self.plot_handle_catch_trials = self.plot_widget.plot(
+            x=[],
+            y=[],
+            pen=None, # no connecting line
+            symbol="o",  
+            symbolSize=5,
+            symbolBrush='y',
+            symbolPen=None,
+        )
+
+    def start(self):
+        """Activates plot updates.
+        
+        """
+        # Plot updates every 200 ms
+        self.timer_update_plot.start(200)  
+
+    def stop(self):
+        """Deactivates plot updates"""
+        self.timer_update_plot.stop()
+
+    def update_plot(self):
+        """Update plot handles with trials from the dispatcher
+        
+        * Extracts trials from 
+          self.dispatcher.history_of_...
+          and plots as 
+          self.plot_handle_..._trials
+        """
+        # This is a list of 'present', 'absent', ...
+        htt = np.array(self.dispatcher.history_of_trial_types)
+
+        # This is a list of 'correct', 'incorrect', ...
+        hc = np.array(self.dispatcher.history_of_trial_choices)
+
+        # This is a list of 'left', 'right', ...
+        htab = np.array(self.dispatcher.history_of_trial_anti_bias)
+
+        # Plot the correct ones 
+        mask = hc == 'correct'
+        xdata = np.where(mask)[0]
+        ydata = np.where(htt[mask] == 'present', 1.0, np.where(htt[mask] == 'absent', 0.5, 0.0))
+        self.plot_handle_correct_trials.setData(xdata, ydata)
+        
+        # Plot the incorrect ones
+        mask = hc == 'incorrect'
+        xdata = np.where(mask)[0]
+        ydata = np.where(htt[mask] == 'present', 1.0, np.where(htt[mask] == 'absent', 0.5, 0.0))
+        self.plot_handle_incorrect_trials.setData(xdata, ydata)
+        
+        # Plot the forced trials
+        mask = htab != 'none'
+        xdata = np.where(mask)[0]
+        ydata = np.where(htt[mask] == 'present', 1.0, np.where(htt[mask] == 'absent', 0.5, 0.0))
+        self.plot_handle_forced_trials.setData(xdata, ydata)
+        
+        # Plot the catch trials
+        mask = htt == 'catch'
+        xdata = np.where(mask)[0]
+        ydata = np.where(htt[mask] == 'present', 1.0, np.where(htt[mask] == 'absent', 0.5, 0.0))
+        self.plot_handle_catch_trials.setData(xdata, ydata)
+        
+        # Updates x-range as trial count goes up
+        if htt.size >= 80 and htt.size > self.prev_xmax:
+            self.xrange_min += 1
+            self.xrange_max += 1
+            self.plot_widget.setXRange(self.xrange_min, self.xrange_max) 
+            self.prev_xmax = htt.size()
+        
+## Widget to plot WheelHabituationTask rewards
+class PerformanceMetricDisplay_WHT(QWidget):
+    ## Creates time elapsed/N rewards GUI for WHT (minimal version of SOT)
+    
+    def __init__(self, dispatcher):
+        """Create a PerformanceMetricDisplay_WHT
+        
+        dispatcher : controllers.Dispatcher
+            Get data from here
+        """
+        # Superclass init
+        super(PerformanceMetricDisplay_WHT, self).__init__()
+        
+        # Store the dispatcher
+        self.dispatcher = dispatcher
+        
+        # Create QVBoxLayout for session details 
+        self.details_layout = QVBoxLayout()
+
+        # Making labels that constantly update according to the session details
+        self.time_label = QLabel("", self)
+        self.reward_count = QLabel("Number of Rewards: 0", self)
+        
+        # Adding these labels to the layout used to contain the session information 
+        self.details_layout.addWidget(self.time_label)
+        self.details_layout.addWidget(self.reward_count)
+        
+        # Init these
+        self.update()
+        
+        # set layout
+        self.setLayout(self.details_layout)
+
+        # Create a timer and connect to self.update_time_elapsed
+        self.timer_update = QTimer(self)
+        self.timer_update.timeout.connect(self.update) 
+
+    def start(self):
+        # Start the timer
+        # The faster this is, the more responsive it will be, but when an 
+        # error occurs it will spam the terminal
+        self.timer_update.start(250)
+    
+    def stop(self):
+        """Stop updating the elapsed time
+        
+        Called by main_window.stop_button. 
+        """
+        self.timer_update.stop()
+    
+    def update(self):
+        ## Get data from dispatcher
+        # Time since session start
+        if self.dispatcher.session_start_time is not None:
+            time_from_session_start_sec = (
+                datetime.datetime.now() - 
+                self.dispatcher.session_start_time).total_seconds()        
+        else:
+            time_from_session_start_sec = None
+
+        # Working trial counter (used for N rewards in WHT)
+        history_choices = np.array(self.dispatcher.history_of_trial_choices)
+        n_correct_trials = np.sum(history_choices == 'correct')
+        n_incorrect_trials = np.sum(history_choices != 'correct')
+        n_trials = n_correct_trials + n_incorrect_trials
+        
+        # Get reward count
+        n_rewards = n_trials
+        
+        # Update trial count
+        self.reward_count.setText(f"N rewards: {n_rewards}")
+
+        # Update timing
+        if time_from_session_start_sec is not None:
+            self.time_label.setText(
+                "elapsed time: {}".format(
+                    self.format_time(int(time_from_session_start_sec))
+                )
+            )
+        else:
+            self.time_label.setText(
+                'elapsed time: NA')
+
+    @staticmethod
+    def format_time(seconds):
+        hours, remainder = divmod(seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        match hours > 0:
+            case True:
+                return f"{hours:02}:{minutes:02}:{seconds:02}"
+            case False:
+                return f"{minutes:02}:{seconds:02}"
