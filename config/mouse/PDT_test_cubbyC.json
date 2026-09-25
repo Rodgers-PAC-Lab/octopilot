@@ -1,0 +1,11 @@
+{
+  "display": true,
+  "box": "roomB_cubbyC",
+  "task": "PDT",
+  "catch_trials": false,
+  "catch_trials_alt": false,
+  "base_trials_alt": false,
+  "all_trials_alt": true,
+  "forced_alt": true,
+  "response_window": false
+}

@@ -1,0 +1,10 @@
+{
+  "display": false,
+  "box": "room_b_darkbox",
+  "task": "PDT",
+  "catch_trials": true,
+  "catch_trials_alt": true,
+  "base_trials_alt": false,
+  "response_window": true
+}
+

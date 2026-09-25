@@ -173,6 +173,7 @@ class Agent(object):
             # These methods will be called when these commands are received
             self.network_communicator.command2method = {
                 'set_trial_parameters': self.set_trial_parameters,
+                'set_mouse_params': self.set_mouse_params,
                 'silence': self.stop_sounds,
                 'stop': self.stop_session,
                 'exit': self.exit,
@@ -183,6 +184,17 @@ class Agent(object):
             # Send hello
             self.network_communicator.send_hello()
 
+    def set_mouse_params(self, **kwargs):
+        """This exists only because it is referenced in self.command2method
+        
+        The child WheelTask defines actual content here. Other children
+        do not. 
+        
+        Ultimately this should be removed and all logic using mouse_params
+        should move to the desktop, not the Pi.
+        """
+        pass
+    
     def recv_alive_request(self):
         """Respond to Dispatcher's request to know if we are alive
         
@@ -939,6 +951,7 @@ class WheelTask(Agent):
         ## Call Agent.__init___
         super().__init__(*args, **kwargs)
     
+        self.mouse_params = {}
         
         ## Set up Wheel
         self.wheel_listener = hardware.WheelListener(self.pig)
@@ -955,10 +968,22 @@ class WheelTask(Agent):
         self.pig.set_mode(self.solenoid_pin, pigpio.OUTPUT)
         self.pig.set_mode(self.house_light_pin, pigpio.OUTPUT)
         
+        # Wheel Habituation variables
+        self.spin_alt = False
+        self.reward_for_spinning = False
+        
         # PDT variables
-        self.catch_trials = False
         self.incorrect_left = 0
         self.incorrect_right = 0
+        self.base_trials_alt = False
+        self.forced_alt = False
+        self.catch_trials = False
+        self.catch_trials_alt = False
+        self.all_trials_alt = False
+        self.response_window = False
+        
+        self.prev_trial_outcome = None
+        self.prev_trial_type = None
     
     def start_session(self):
         # Call Agent.start_session
@@ -1060,58 +1085,141 @@ class WheelTask(Agent):
         self.right_bias = False
         self.anti_bias = 'none'
         
-        # Keeps incorrect trial counts (for anti-bias) limited to 40 trials
-        if (self.trial_number != 0) and (self.trial_number % 40 == 0) and (self.trial_number != 40):
-            self.incorrect_left = 0
-            self.incorrect_right = 0
+        # Alternates between present and absent (open loop)
+        if self.base_trials_alt:
+            if np.mod(self.trial_number, 2) == 0:
+                self.trial_type = 'present'
+            else:
+                self.trial_type = 'absent'
         
-        # Sets anti-bias trials for PDT
-        if (self.trial_number != 0) and (self.trial_number > 40) and (self.trial_number % 40 != 0):
-            if ((self.incorrect_right / (self.trial_number % 40)) < 0.2) and ((self.incorrect_left / (self.trial_number % 40)) >= 0.2):
-                self.left_bias = True
-                self.anti_bias = 'left'
-            elif ((self.incorrect_left / (self.trial_number % 40)) < 0.2) and ((self.incorrect_right / (self.trial_number % 40)) >= 0.2):
-                self.right_bias = True
-                self.anti_bias = 'right'
+        # Forced alternation between present and absent (closed loop)
+        elif self.forced_alt:
+            
+            # Starts with present every time
+            if self.trial_number == 0:
+                self.trial_type = 'present'
                 
+            else:
+                # Stays with same trial type as was previously
+                if self.prev_trial_outcome == 'incorrect':
+                    if self.prev_trial_type == 'present':
+                        self.trial_type == 'present'
+                    else:
+                        self.trial_type == 'absent'
+            
+                # Switches to other trial type
+                elif self.prev_trial_outcome == 'correct':
+                    if self.prev_trial_type == 'present':
+                        self.trial_type == 'absent'
+                    else:
+                        self.trial_type == 'present'
         
-        # Sets random trial type (includes anti-bias for PDT)
-        self.rand = np.random.random()
-        
-        if self.catch_trials == True and self.anti_bias == 'none' and self.rand < 0.2:
-            if self.rand < 0.1:
+        # Alternates between catch-anterior and catch-posterior
+        elif self.catch_trials_alt:
+            if np.mod(self.trial_number, 2) == 0:
                 self.trial_type = 'catch_ant'
             else:
                 self.trial_type = 'catch_post'
+                
+        # Alternates between all four trial types (used for naive recordings)
+        elif self.all_trials_alt:
+            if np.mod(self.trial_number, 4) == 0:
+                self.trial_type = 'absent'
             
-            self.anti_bias_count = 0
+            elif np.mod(self.trial_number, 4) == 1:
+                self.trial_type = 'present'
+            
+            elif np.mod(self.trial_number, 4) == 2:
+                self.trial_type = 'catch_ant'
+            
+            elif np.mod(self.trial_number, 4) == 3:
+                self.trial_type = 'catch_post'
+            
+            else:
+                1/0
         
-        elif self.right_bias == False and self.left_bias == False:
-            if self.rand < 0.5:
-                self.trial_type = 'present'
-            else:
-                self.trial_type = 'absent'
-                
-            self.anti_bias_count = 0
-        
-        elif self.left_bias == True and self.right_bias == False:
-            if (self.anti_bias_count % 7 == 0):
-                self.trial_type = 'absent'
-            else:
-                self.trial_type = 'present'
-                
-            self.anti_bias_count += 1    
-            
-        elif self.right_bias == True and self.left_bias == False:
-            if (self.anti_bias_count % 7 == 0):
-                self.trial_type = 'present'
-            else:
-                self.trial_type = 'absent'
-                
-            self.anti_bias_count += 1
-            
+        # Normal trial selection (either base only or with catch trials)
         else:
-            1/0
+            # Keeps incorrect trial counts (for anti-bias) limited to 40 trials
+            if (self.trial_number != 0) and (self.trial_number % 40 == 0) and (self.trial_number != 40):
+                self.incorrect_left = 0
+                self.incorrect_right = 0
+        
+            # Sets anti-bias trials for PDT
+            if (self.trial_number != 0) and (self.trial_number > 40) and (self.trial_number % 40 != 0):
+                if ((self.incorrect_right / (self.trial_number % 40)) < 0.2) and ((self.incorrect_left / (self.trial_number % 40)) >= 0.2):
+                    self.left_bias = True
+                    self.anti_bias = 'left'
+                elif ((self.incorrect_left / (self.trial_number % 40)) < 0.2) and ((self.incorrect_right / (self.trial_number % 40)) >= 0.2):
+                    self.right_bias = True
+                    self.anti_bias = 'right'
+                
+        
+            # Sets random trial type (includes anti-bias for PDT)
+            self.rand = np.random.random()
+        
+            # Trial type selection with catch 
+            if self.catch_trials: 
+                if self.anti_bias == 'none' and self.rand < 0.2:
+                    if self.rand < 0.1:
+                        self.trial_type = 'catch_ant'
+                    else:
+                        self.trial_type = 'catch_post'
+            
+                    self.anti_bias_count = 0
+                
+                elif self.right_bias == False and self.left_bias == False:
+                    if self.rand < 0.5:
+                        self.trial_type = 'present'
+                    else:
+                        self.trial_type = 'absent'
+                
+                    self.anti_bias_count = 0
+                
+                elif self.left_bias == True and self.right_bias == False:
+                    if (self.anti_bias_count % 7 == 0):
+                        self.trial_type = 'absent'
+                    else:
+                        self.trial_type = 'present'
+                
+                    self.anti_bias_count += 1    
+            
+                elif self.right_bias == True and self.left_bias == False:
+                    if (self.anti_bias_count % 7 == 0):
+                        self.trial_type = 'present'
+                    else:
+                        self.trial_type = 'absent'
+                
+                    self.anti_bias_count += 1
+                    
+            # Trial type selection without catch
+            elif self.catch_trials == False: 
+                if self.right_bias == False and self.left_bias == False:
+                    if self.rand < 0.5:
+                        self.trial_type = 'present'
+                    else:
+                        self.trial_type = 'absent'
+                
+                    self.anti_bias_count = 0
+        
+                elif self.left_bias == True and self.right_bias == False:
+                    if (self.anti_bias_count % 7 == 0):
+                        self.trial_type = 'absent'
+                    else:
+                        self.trial_type = 'present'
+                
+                    self.anti_bias_count += 1    
+            
+                elif self.right_bias == True and self.left_bias == False:
+                    if (self.anti_bias_count % 7 == 0):
+                        self.trial_type = 'present'
+                    else:
+                        self.trial_type = 'absent'
+                
+                    self.anti_bias_count += 1
+            
+            else:
+                1/0
 
         ## END OF PDT ADDITIONS =========================
 
@@ -1165,7 +1273,41 @@ class WheelTask(Agent):
             )
         
         # Empty the queue of sound
-        self.sound_queuer.empty_queue()       
+        self.sound_queuer.empty_queue() 
+        
+    def set_mouse_params(
+        self,
+        spin_alt=False,
+        reward_for_spinning=False,
+        response_window=False,
+        catch_trials=False,
+        catch_trials_alt=False,
+        base_trials_alt=False,
+        forced_alt=False,
+        all_trials_alt=False,):
+            
+        """Receive mouse-specific parameters from the Dispatcher."""
+
+        self.mouse_params = {
+            "spin_alt": spin_alt,
+            "reward_for_spinning": reward_for_spinning,
+            "response_window": response_window,
+            "catch_trials": catch_trials,
+            "catch_trials_alt": catch_trials_alt,
+            "base_trials_alt": base_trials_alt,
+            "forced_alt": forced_alt,
+            "all_trials_alt": all_trials_alt,
+        }
+
+        self.logger.info(
+            f"Received mouse params from Dispatcher: {self.mouse_params!r}"
+        )
+        
+        self.load_mouse_task_params()
+
+    def load_mouse_task_params(self):
+        """Stub to avoid AttributeError"""
+        pass
 
 class SoundCenteringTask(WheelTask):
     """Agent that runs the wheel-based sound centering task"""
@@ -1672,17 +1814,18 @@ class PoleDetectionTask(WheelTask):
         # This defines the range in which turning the wheel changes the sound
         # Every trial starts at either max or min
         # 1000 clicks is about 90 deg
-        self.wheel_max = 1600
-        self.wheel_min = -1600
+        # +- 6400 or +- 1600 depending on microstepping enabled or not
+        self.wheel_max = 6400
+        self.wheel_min = -6400
         
         # Catch trial positions with second stepper motor
-        self.catch_max = 200
-        self.catch_min = -200
+        self.catch_max = 100
+        self.catch_min = -100
 
         # This is how close the mouse has to get to the reward zone
         # This can be small, just not so small that the mouse spins right
         # through it before it checks, which is probably pretty hard to do
-        # 100 clicks is about 9
+        # 100 clicks is about 9 degrees
         self.reward_range = 100
 
 
@@ -1695,6 +1838,7 @@ class PoleDetectionTask(WheelTask):
         self.last_raw_position = 0
         self.current_surface_position = 0
         self.prev_trial_outcome = 'correct'
+        self.prev_trial_type = None
         
         ## Logging
         self.trial_number = 0
@@ -1704,14 +1848,15 @@ class PoleDetectionTask(WheelTask):
         self.anti_bias = 'none'
         
         ## Response window
-        self.response_window = True
-        self.response_window_dur = 20.0
+        self.response_window_dur = 15.0
         self.response_window_timer = None
         
-        ## Catch trials
+        ## Mouse params (defaults)
+        self.base_trials_alt = False
         self.catch_trials = False
-        self.prev_trial_type = None
-
+        self.catch_trials_alt = False
+        self.all_trials_alt = False
+        self.response_window = False
 
         ## Create the serial_reader object (for PDT, sets up present/absent motor and catch trial motor)
         self.surface_turner = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin, dir_pin=self.stepper_dir_pin)
@@ -1730,6 +1875,49 @@ class PoleDetectionTask(WheelTask):
             self.report_surface,
             )
 
+    def load_mouse_task_params(self):
+        """Overwrite PDT defaults using the received mouse parameters."""
+
+        self.response_window = self.mouse_params.get(
+            "response_window",
+            self.response_window,
+        )
+
+        self.catch_trials = self.mouse_params.get(
+            "catch_trials",
+            self.catch_trials,
+        )
+
+        self.catch_trials_alt = self.mouse_params.get(
+            "catch_trials_alt",
+            self.catch_trials_alt,
+        )
+
+        self.base_trials_alt = self.mouse_params.get(
+            "base_trials_alt",
+            self.base_trials_alt,
+        )
+        
+        self.forced_alt = self.mouse_params.get(
+            "forced_alt",
+            self.forced_alt,
+        )
+        
+        self.all_trials_alt = self.mouse_params.get(
+            "all_trials_alt",
+            self.all_trials_alt,
+        )
+
+        self.logger.info(
+            "Loaded PDT mouse settings: "
+            f"response_window={self.response_window!r}, "
+            f"catch_trials={self.catch_trials!r}, "
+            f"catch_trials_alt={self.catch_trials_alt!r}, "
+            f"base_trials_alt={self.base_trials_alt!r}, "
+            f"forced_alt={self.forced_alt!r}, "
+            f"all_trials_alt={self.all_trials_alt!r},"
+        )
+    
     def reward(self, reward_size, report=True):
         """Open the reward port and optionally report to Dispatcher
 
@@ -1827,89 +2015,137 @@ class PoleDetectionTask(WheelTask):
 
     def set_trial_parameters(self, **msg_params):
 
-        ## Call parent
+        # Parent trial setup
         super().set_trial_parameters(**msg_params)
 
-        # Failsafe for cancelling any leftover trial timers 
+        # Cancel any leftover response timer
         if self.response_window_timer is not None:
             self.response_window_timer.cancel()
             self.response_window_timer = None
-            
-        ## Disable wheel updates until the surface has moved back
+
+        # Wheel movement cannot affect trial while pole is moving
         self.wheel_listener.report_callback = None
 
-        # This time.sleep gives the motor time to move back to the
-        # ITI position and can do timeout if incorrect choice is made
         try:
-            if self.prev_trial_outcome == 'correct' or self.trial_number == 0:
-                self.pig.write(self.house_light_pin, 1)
-                time.sleep(2.5)
-                self.pig.write(self.house_light_pin, 0)
 
-            elif self.prev_trial_outcome == 'incorrect':
-                self.pig.write(self.house_light_pin, 1)
-                time.sleep(7.5)
-                self.pig.write(self.house_light_pin, 0)
+            # LED turns on before trial starts
+            self.pig.write(self.house_light_pin, 1)
 
-            else:
-                1/0
-            
+            # Explicitly move main pole to ITI
+            self.surface_turner.target.value = 0
+
+            if not self.wait_for_turner(self.surface_turner):
+                self.logger.error(
+                    'Main motor failed to reach ITI position')
+                return
+
+            # If previous trial used catch motor, return it too
             if self.prev_trial_type in ('catch_ant', 'catch_post'):
                 self.surface_turner2.target.value = 0
-                self.wait_for_turner(self.surface_turner2)
 
+                if not self.wait_for_turner(self.surface_turner2):
+                    self.logger.error(
+                        'Catch motor failed to return to center')
+                    return
+
+            # ITI delay
+            if self.prev_trial_outcome == 'correct' or self.trial_number == 0:
+                time.sleep(2.5)
+
+            elif self.prev_trial_outcome == 'incorrect':
+                time.sleep(7.5)
+
+            else:
+                self.logger.error(
+                    f'Unknown previous trial outcome: '
+                    f'{self.prev_trial_outcome}')
+                return
+
+
+            # Command motor to move to next trial position
             if self.trial_type == 'present':
                 self.surface_turner.target.value = self.wheel_max
-                
+
             elif self.trial_type == 'absent':
                 self.surface_turner.target.value = self.wheel_min
-                
+
             elif self.trial_type == 'catch_ant':
                 self.surface_turner2.target.value = self.catch_max
-                self.wait_for_turner(self.surface_turner2)
+
+                if not self.wait_for_turner(self.surface_turner2):
+                    self.logger.error(
+                        'Catch motor failed to reach anterior position')
+                    return
+
                 self.surface_turner.target.value = self.wheel_max
-                
+
             elif self.trial_type == 'catch_post':
+
                 self.surface_turner2.target.value = self.catch_min
-                self.wait_for_turner(self.surface_turner2)
+
+                if not self.wait_for_turner(self.surface_turner2):
+                    self.logger.error(
+                        'Catch motor failed to reach posterior position')
+                    return
+
                 self.surface_turner.target.value = self.wheel_max
 
-            self.wait_for_turner(self.surface_turner)
+            else:
+                self.logger.error(
+                    f'Unknown trial type: {self.trial_type}')
+                return
 
+            # Wait until main motor reaches position to turn off LED
+            if not self.wait_for_turner(self.surface_turner):
+                self.logger.error(
+                    'Main motor failed to reach trial position')
+                return
+
+            self.pig.write(self.house_light_pin, 0)
+
+            # Reset wheel reference
             self.position_at_trial_start = self.wheel_listener.position
             self.last_raw_position = self.wheel_listener.position
 
         finally:
+
+            # Turn off LED
+            self.pig.write(self.house_light_pin, 0)
+
+            # Re-enable wheel
             self.wheel_listener.report_callback = self.report_wheel
-            
+
+        # Start response window only after checking timers/positions
         if self.response_window:
             self.response_window_timer = threading.Timer(
                 self.response_window_dur,
                 self.handle_response_window_timeout
-            )       
+            )
             self.response_window_timer.start()
             
     def handle_response_window_timeout(self):
         """Ends trial if no choice made within response window"""
         if not self.reward_delivered:
-            self.choice = 'incorrect'
+            self.choice = 'none'
             self.direction = 'none'
             self.prev_trial_outcome = 'incorrect'
             self.reward(0)
         
-    def wait_for_turner(self, turner, tol=1, timeout=2.5):
-        """Wait until a SurfaceTurner reaches its current target (removes time.sleep)"""
-        start = time.time()
+    def wait_for_turner(self, turner, timeout=2.5, tol=10):
+        t0 = time.time()
 
-        while abs(turner.state - turner.target.value) > tol:
-            if time.time() - start > timeout:
-                self.logger.warning(
-                    f"wait_for_turner timeout: "
-                    f"state={turner.state}, target={turner.target.value}"
+        while abs(turner.state.value - turner.target.value) > tol:
+            if time.time() - t0 > timeout:
+                self.logger.error(
+                    f'Surface turner timed out: '
+                    f'state={turner.state.value}, '
+                    f'target={turner.target.value}'
                 )
-                break
+                return False
 
             time.sleep(0.01)
+
+        return True
 
     def report_surface(self):
         """Called by a RepeatedTimer to report surface movements"""
@@ -1986,7 +2222,6 @@ class PoleDetectionTask(WheelTask):
                 f'wheel_time={now.isoformat()}=str'
                 )
 
-
         ## Reward conditions
         if not self.reward_delivered:
             if self.trial_type in ('present', 'catch_ant', 'catch_post'):
@@ -2041,8 +2276,6 @@ class WheelHabituationTask(WheelTask):
         # is 63.7% of full. 
         # As reward_decay increases, mouse has to wait longer 
         # 300 clicks is about 20 deg (easy)
-        self.reward_for_spinning = False
-        self.alternate_spin = True
         self.reward_decay = 0.5
         self.wheel_reward_thresh = 150 
         
@@ -2065,6 +2298,29 @@ class WheelHabituationTask(WheelTask):
         self.clipped_position = 0
         self.last_raw_position = 0
         self.reward_delivered = False
+        
+        ## Mouse params (defaults)
+        self.reward_for_spinning = False
+        self.spin_alt = False
+
+    def load_mouse_task_params(self):
+        """Overwrite wheel habituation defaults with received mouse params"""
+
+        self.reward_for_spinning = self.mouse_params.get(
+            "reward_for_spinning",
+            self.reward_for_spinning,
+        )
+
+        self.spin_alt = self.mouse_params.get(
+            "spin_alt",
+            self.spin_alt,
+        )
+
+        self.logger.info(
+            "Loaded wheel habituation mouse settings: "
+            f"reward_for_spinning={self.reward_for_spinning!r}, "
+            f"spin_alt={self.spin_alt!r}"
+        )
 
     def stop_session(self):
         """Stop the session"""
@@ -2076,7 +2332,7 @@ class WheelHabituationTask(WheelTask):
         super().set_trial_parameters(**msg_params)
         
         # Starting positions alternate
-        if self.alternate_spin:
+        if self.spin_alt:
             self.wheel_listener.report_callback = None
             try:
                 # Turns on ITI-LED light
@@ -2164,7 +2420,7 @@ class WheelHabituationTask(WheelTask):
         ## Reward conditions
         # Rewards for alternating spin direction
         if not force_report: 
-            if self.alternate_spin:
+            if self.spin_alt:
                 if (np.abs(self.clipped_position) <= self.reward_range) and not self.reward_delivered:
                     # Within target range
                     # Reward and end trial
@@ -2190,6 +2446,14 @@ class WheelHabituationTask(WheelTask):
             # Rewards continuously for spinning any direction (omitted 'reward at 0' rule)
             else:
                 if self.reward_for_spinning:
+                    
+                    '''
+                    if (np.abs(self.clipped_position) <= self.reward_range) and not self.reward_delivered:
+                        # Within target range
+                        # Reward and end trial
+                        self.reward(self.max_reward)
+                    '''
+                    
                     if np.abs(wheel_position - self.last_rewarded_position) > self.wheel_reward_thresh:
             
                         # Shaping stage: reward if it's moved far enough
@@ -2204,7 +2468,7 @@ class WheelHabituationTask(WheelTask):
                         self.last_reward_time = now
             
                         # Reward but do not end trial
-                        self.reward(reward_size, report=False)
+                        self.reward(reward_size)
 
 class SurfaceTurner(object):
     """Object that turns the stepper while running in its own process.
@@ -2249,7 +2513,7 @@ class SurfaceTurner(object):
         
         ## Controls
         # Use this to keep track of state
-        self.state = 0
+        self.state = multiprocessing.Value('i', 0)
 
         # Use this to set the target
         self.target = multiprocessing.Value('i', 0)
@@ -2283,7 +2547,7 @@ class SurfaceTurner(object):
         then moves the stepper accordingly and updates the state.
         """
         # Compute difference between current and desired position
-        diff = self.target.value - self.state
+        diff = self.target.value - self.state.value
         
         # Decide which direction to move
         if diff > 0:
@@ -2326,13 +2590,13 @@ class SurfaceTurner(object):
         
         # Update
         if diff > 0:
-            self.state += n_steps
+            self.state.value += n_steps
             log_steps_moved = n_steps_gained
         
         else:
-            self.state -= n_steps
+            self.state.value -= n_steps
             log_steps_moved = -n_steps_gained
 
         # Store in queue
         self.output_q.put_nowait(
-            (datetime.datetime.now(), log_steps_moved, self.state))
+            (datetime.datetime.now(), log_steps_moved, self.state.value))

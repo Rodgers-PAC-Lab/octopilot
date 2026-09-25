@@ -319,11 +319,10 @@ class PerformanceMetricDisplay(QWidget):
     def format_time(seconds):
         hours, remainder = divmod(seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
-        match hours > 0:
-            case True:
-                return f"{hours:02}:{minutes:02}:{seconds:02}"
-            case False:
-                return f"{minutes:02}:{seconds:02}"
+        if hours > 0:
+            return f"{hours:02}:{minutes:02}:{seconds:02}"
+        else:
+            return f"{minutes:02}:{seconds:02}"
 
 ## Widget to display text performance metrics for SurfaceOrientationTask
 class PerformanceMetricDisplay_SOT(QWidget):
@@ -434,11 +433,10 @@ class PerformanceMetricDisplay_SOT(QWidget):
     def format_time(seconds):
         hours, remainder = divmod(seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
-        match hours > 0:
-            case True:
-                return f"{hours:02}:{minutes:02}:{seconds:02}"
-            case False:
-                return f"{minutes:02}:{seconds:02}"
+        if hours > 0:
+            return f"{hours:02}:{minutes:02}:{seconds:02}"
+        else:
+            return f"{minutes:02}:{seconds:02}"
 
 ## Widget to plot pokes
 class PokePlotWidget(QWidget):
@@ -914,8 +912,6 @@ class WheelTrialWidget(QWidget):
         # Plots line_of_current_time and line
         self.initalize_plot_handles()
 
-        self.prev_xmax = 80
-
     def setup_plot_graphics(self):
         """Sets colors and labels of plot_widget
         
@@ -942,11 +938,11 @@ class WheelTrialWidget(QWidget):
         self.plot_widget.showGrid(x=True, y=True) 
         
         # Setting the range for the Y axis
-        self.plot_widget.setYRange(-0.5, 1.5)
+        self.plot_widget.setYRange(-0.2, 2.5)
         
         # Set the ticks
         # Hard-code in for now that there are just three trial types
-        ticks = [(0, 'catch'), (0.5, 'absent'), (1, 'present')]
+        ticks = [(0.5, 'catch_post'), (1.0, 'catch_ant'), (1.5, 'absent'), (2.0, 'present')]
         
         # Plots ticks at indicated positions on y-axis
         self.plot_widget.getPlotItem().getAxis('left').setTicks([ticks])
@@ -966,7 +962,7 @@ class WheelTrialWidget(QWidget):
             y=[],
             pen=None, # no connecting line
             symbol="o",  
-            symbolSize=3,
+            symbolSize=4,
             symbolBrush='r',
             symbolPen=None,
         )
@@ -977,7 +973,7 @@ class WheelTrialWidget(QWidget):
             y=[],
             pen=None, # no connecting line
             symbol="o",  
-            symbolSize=3,
+            symbolSize=4,
             symbolBrush='g',
             symbolPen=None,
         )
@@ -993,15 +989,27 @@ class WheelTrialWidget(QWidget):
             symbolPen=None,
         )
         
-        # Catch trials as yellow dots
-        self.plot_handle_catch_trials = self.plot_widget.plot(
+        # No response as yellow dots
+        self.plot_handle_no_response = self.plot_widget.plot(
             x=[],
             y=[],
             pen=None, # no connecting line
             symbol="o",  
-            symbolSize=5,
+            symbolSize=4,
             symbolBrush='y',
             symbolPen=None,
+        )
+    
+    def trial_type_to_y(self, trial_types):
+        return np.where(
+            trial_types == 'present', 2.0,
+            np.where(
+                trial_types == 'absent', 1.5,
+                np.where(
+                    trial_types == 'catch_ant', 1.0,
+                    0.5  # catch_post
+                )
+            )
         )
 
     def start(self):
@@ -1032,36 +1040,35 @@ class WheelTrialWidget(QWidget):
         # This is a list of 'left', 'right', ...
         htab = np.array(self.dispatcher.history_of_trial_anti_bias)
 
-        # Plot the correct ones 
+        # Plot the correct ones
         mask = hc == 'correct'
         xdata = np.where(mask)[0]
-        ydata = np.where(htt[mask] == 'present', 1.0, np.where(htt[mask] == 'absent', 0.5, 0.0))
+        ydata = self.trial_type_to_y(htt[mask])
         self.plot_handle_correct_trials.setData(xdata, ydata)
-        
+
         # Plot the incorrect ones
         mask = hc == 'incorrect'
         xdata = np.where(mask)[0]
-        ydata = np.where(htt[mask] == 'present', 1.0, np.where(htt[mask] == 'absent', 0.5, 0.0))
+        ydata = self.trial_type_to_y(htt[mask])
         self.plot_handle_incorrect_trials.setData(xdata, ydata)
-        
+
+        # Plot the no responses
+        mask = (hc == 'none')
+        xdata = np.where(mask)[0]
+        ydata = self.trial_type_to_y(htt[mask])
+        self.plot_handle_no_response.setData(xdata, ydata)
+
         # Plot the forced trials
         mask = htab != 'none'
         xdata = np.where(mask)[0]
-        ydata = np.where(htt[mask] == 'present', 1.0, np.where(htt[mask] == 'absent', 0.5, 0.0))
+        ydata = self.trial_type_to_y(htt[mask])
         self.plot_handle_forced_trials.setData(xdata, ydata)
         
-        # Plot the catch trials
-        mask = htt == 'catch'
-        xdata = np.where(mask)[0]
-        ydata = np.where(htt[mask] == 'present', 1.0, np.where(htt[mask] == 'absent', 0.5, 0.0))
-        self.plot_handle_catch_trials.setData(xdata, ydata)
-        
         # Updates x-range as trial count goes up
-        if htt.size >= 80 and htt.size > self.prev_xmax:
-            self.xrange_min += 1
-            self.xrange_max += 1
+        if htt.size > self.xrange_max:
+            self.xrange_min += 10
+            self.xrange_max += 10
             self.plot_widget.setXRange(self.xrange_min, self.xrange_max) 
-            self.prev_xmax = htt.size()
         
 ## Widget to plot WheelHabituationTask rewards
 class PerformanceMetricDisplay_WHT(QWidget):
@@ -1150,8 +1157,7 @@ class PerformanceMetricDisplay_WHT(QWidget):
     def format_time(seconds):
         hours, remainder = divmod(seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
-        match hours > 0:
-            case True:
-                return f"{hours:02}:{minutes:02}:{seconds:02}"
-            case False:
-                return f"{minutes:02}:{seconds:02}"
+        if hours > 0:
+            return f"{hours:02}:{minutes:02}:{seconds:02}"
+        else:
+            return f"{minutes:02}:{seconds:02}"

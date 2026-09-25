@@ -270,6 +270,37 @@ class DispatcherNetworkCommunicator(object):
         
         self.send_message_to_pi(msg, identity)
     
+    def send_mouse_params_to_pi(self, identity, **kwargs):
+        """Encode mouse parameters and send them to one Pi.
+    
+        The message begins with:
+            set_mouse_params;
+
+        Each keyword argument is encoded as:
+            key=value=dtype;
+        """
+    
+        msg = "set_mouse_params;"
+    
+        for key, value in kwargs.items():
+
+            # Infer the param type
+            if isinstance(value, bool) or isinstance(value, np.bool_):
+                dtyp = "bool"
+
+            elif isinstance(value, int):
+                dtyp = "int"
+
+            elif isinstance(value, float):
+                dtyp = "float"
+
+            else:
+                dtyp = "str"
+
+            msg += f"{key}={value}={dtyp};"
+
+        self.send_message_to_pi(msg, identity)
+    
     def check_for_messages(self):
         """Check self.zmq_socket for messages.
         

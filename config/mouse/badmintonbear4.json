@@ -1,6 +1,9 @@
 {
     "display": true,
-    "box": "room_d_darkbox",
+    "box": "box5_boardA",
     "task": "wheel_habituate",
-    "alternate": true
+    "reward_for_spinning": false,
+    "alternate": true,
+    "catch_trials": false,
+    "response_window": true
 }
