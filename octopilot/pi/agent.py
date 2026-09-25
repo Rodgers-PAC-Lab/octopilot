@@ -184,6 +184,17 @@ class Agent(object):
             # Send hello
             self.network_communicator.send_hello()
 
+    def set_mouse_params(self, **kwargs):
+        """This exists only because it is referenced in self.command2method
+        
+        The child WheelTask defines actual content here. Other children
+        do not. 
+        
+        Ultimately this should be removed and all logic using mouse_params
+        should move to the desktop, not the Pi.
+        """
+        pass
+    
     def recv_alive_request(self):
         """Respond to Dispatcher's request to know if we are alive
         
