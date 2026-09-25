@@ -1305,6 +1305,10 @@ class WheelTask(Agent):
         
         self.load_mouse_task_params()
 
+    def load_mouse_task_params(self):
+        """Stub to avoid AttributeError"""
+        pass
+
 class SoundCenteringTask(WheelTask):
     """Agent that runs the wheel-based sound centering task"""
     def __init__(self, *args, **kwargs):
