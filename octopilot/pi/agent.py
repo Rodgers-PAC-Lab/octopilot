@@ -981,7 +981,6 @@ class WheelTask(Agent):
         self.catch_trials_alt = False
         self.all_trials_alt = False
         self.response_window = False
-        
         self.prev_trial_outcome = None
         self.prev_trial_type = None
     
@@ -1095,7 +1094,7 @@ class WheelTask(Agent):
         # Forced alternation between present and absent (closed loop)
         elif self.forced_alt:
             
-            # Starts with present every time
+            # Starts session with present always
             if self.trial_number == 0:
                 self.trial_type = 'present'
                 
@@ -1103,16 +1102,16 @@ class WheelTask(Agent):
                 # Stays with same trial type as was previously
                 if self.prev_trial_outcome == 'incorrect':
                     if self.prev_trial_type == 'present':
-                        self.trial_type == 'present'
+                        self.trial_type = 'present'
                     else:
-                        self.trial_type == 'absent'
+                        self.trial_type = 'absent'
             
                 # Switches to other trial type
                 elif self.prev_trial_outcome == 'correct':
                     if self.prev_trial_type == 'present':
-                        self.trial_type == 'absent'
+                        self.trial_type = 'absent'
                     else:
-                        self.trial_type == 'present'
+                        self.trial_type = 'present'
         
         # Alternates between catch-anterior and catch-posterior
         elif self.catch_trials_alt:
