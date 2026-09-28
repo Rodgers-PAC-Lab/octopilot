@@ -196,19 +196,31 @@ class Agent(object):
         pass
     
     def recv_alive_request(self):
-        """Respond to Dispatcher's request to know if we are alive
-        
-        Log when this happens. If it doesn't happen frequently enough
-        and a sessions is running, conclude that the Dispatcher has crashed
-        and initiate critical shutdown.
-        """
-        dt_now = datetime.datetime.now()
-        self.logger.debug(f'{dt_now}: received alive from dispatcher; will respond')
-        self.last_alive_request_received = datetime.datetime.now()
-        self.network_communicator.send_alive()
-        dt_now = datetime.datetime.now()
-        self.logger.debug(f'{dt_now}: responded to dispatcher alive request')
+        """PDT ALTERATION - Respond to the Dispatcher's heartbeat request."""
 
+        dt_now = datetime.datetime.now()
+
+        # Calculate how long it has been since the previous heartbeat
+        seconds_since_last = (
+            dt_now - self.last_alive_request_received
+        ).total_seconds()
+
+        self.logger.info(
+            f'HEARTBEAT RECEIVED: '
+            f'{seconds_since_last:.2f} s since previous heartbeat'
+        )
+
+        # Record this heartbeat
+        self.last_alive_request_received = dt_now
+
+        # Respond to Dispatcher
+        self.network_communicator.send_alive()
+
+        self.logger.debug(
+            f'{datetime.datetime.now()}: '
+            f'responded to dispatcher alive request'
+        )
+    
     def start_session(self):
         """Called whenever a new session is started by Dispatcher
         
@@ -262,10 +274,22 @@ class Agent(object):
         threshold = dt_now - datetime.timedelta(
             seconds=self.alive_timer_agent_crash_threshold)
         
-        # If the last received request was before that, then shut down
+        # PDT ALTERATION - doesn't crash dispatcher if heartbeat missed
         if self.last_alive_request_received < threshold:
-            self.logger.critical('dispatcher has crashed; shutting down')
-            self.critical_shutdown = True
+            seconds_since_alive = (
+                dt_now - self.last_alive_request_received
+            ).total_seconds()
+
+            self.logger.warning(
+                f'Dispatcher heartbeat missed: '
+                f'no are_you_alive received for '
+                f'{seconds_since_alive:.1f} seconds. '
+                f'Agent will continue running...'
+            )
+            
+            # Change to True if dispatcher should crash to avoid 
+            # running continuously without check (set correct threshold)
+            self.critical_shutdown = False
     
     def report_trial_start(self, dt):
         """Called by Agent when new trial. Reports to GUI by ZMQ.
@@ -2044,7 +2068,7 @@ class PoleDetectionTask(WheelTask):
 
                 if not self.wait_for_turner(self.surface_turner2):
                     self.logger.error(
-                        'Catch motor failed to return to center')
+                        'Catch motor failed to return to base position')
                     return
 
             # ITI delay
