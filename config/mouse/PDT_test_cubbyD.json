@@ -2,9 +2,10 @@
   "display": true,
   "box": "roomB_cubbyD",
   "task": "PDT",
-  "catch_trials": true,
+  "catch_trials": false,
   "catch_trials_alt": false,
   "base_trials_alt": false,
   "all_trials_alt": true,
+  "forced_alt": false,
   "response_window": true
 }

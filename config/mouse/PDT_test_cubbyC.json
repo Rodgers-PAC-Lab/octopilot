@@ -6,6 +6,6 @@
   "catch_trials_alt": false,
   "base_trials_alt": false,
   "all_trials_alt": true,
-  "forced_alt": true,
-  "response_window": false
+  "forced_alt": false,
+  "response_window": true
 }
