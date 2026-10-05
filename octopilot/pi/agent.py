@@ -111,6 +111,8 @@ class Agent(object):
         # Variable to save params for each trial
         self.prev_trial_params = None
         
+        # Create a master thread-safety gate for network interaction
+        self.network_lock = threading.Lock()
         
         ## Initialize sound_generator
         # This object generates frames of audio
@@ -1050,19 +1052,19 @@ class WheelTask(Agent):
 
             self.report_reward(reward_time)
     
-    def report_reward(self, reward_time):
-        """Called by WheelController upon reward. Reports to Dispatcher by ZMQ.
-        
-        """
-        # Log
-        self.logger.info(f'reporting reward at {reward_time}')
-        
-        # Report to Dispatcher
-        self.network_communicator.poke_socket.send_string(
-            f'reward;'
-            f'trial_number={self.trial_number}=int;'
-            f'reward_time={reward_time}=str'
-            )  
+    def report_reward(self, port_name, poke_time):
+        """Safely report rewards using a thread lock to prevent ZeroMQ crashes"""
+        self.logger.info(f'reporting reward on {port_name} at {poke_time}')
+    
+        # Force background threads to wait if the main loop is using the socket
+        with self.network_lock:
+            self.network_communicator.poke_socket.send_string(
+                f'reward;'
+                f'trial_number={self.trial_number}=int;'
+                f'port_name={port_name}=str;'
+                f'poke_time={poke_time}=str'
+            )
+
     
     def set_trial_parameters(self, **msg_params):
         ## Flash an LED
@@ -1938,6 +1940,7 @@ class PoleDetectionTask(WheelTask):
             f"forced_alt={self.forced_alt!r}, "
             f"all_trials_alt={self.all_trials_alt!r},"
         )
+    
     
     def reward(self, reward_size, report=True):
         """Open the reward port and optionally report to Dispatcher
