@@ -1283,21 +1283,6 @@ class WheelTask(Agent):
         # Mark as shutdown for next mainloop
         self.shutdown = True
     
-    def stop_sounds(self):
-        """Silence the sounds safely without crashing ZeroMQ"""
-        # 1. Stop generating new sounds first
-        self.sound_generator.set_audio_parameters(
-            left_params={},
-            right_params={},
-        )
-    
-        # 2. Add a tiny pause so real-time threads finish current packets
-        time.sleep(0.01) 
-    
-        # 3. Safe to empty the queue now
-        self.sound_queuer.empty_queue()  
-
-        
     def set_mouse_params(
         self,
         spin_alt=False,
