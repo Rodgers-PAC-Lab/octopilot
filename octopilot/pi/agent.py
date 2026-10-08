@@ -1544,7 +1544,193 @@ class SoundCenteringTask(WheelTask):
         
         # Empty and refill the queue with new sounds
         self.sound_queuer.empty_queue()
-        self.sound_queuer.append_sound_to_queue_as_needed()   
+        self.sound_queuer.append_sound_to_queue_as_needed()
+
+class SoundCenteringPassiveTask(SoundCenteringTask):
+    """Passive version of SoundCenteringTask that ignores the wheel.
+
+    On each trial the sound starts on the side given by the Dispatcher
+    (msg_params 'start_side'), at the same L/R difference as the wheel limit
+    in SoundCenteringTask, and moves to the center linearly in dB over
+    self.sweep_duration. The trial ends when the sound reaches the center,
+    with a reward only if msg_params 'reward_at_center' is True. The wheel
+    is still logged, but it does not affect the sound or the reward.
+    """
+    def __init__(self, *args, **kwargs):
+
+        ## Call parent __init___
+        super().__init__(*args, **kwargs)
+
+
+        ## Sweep parameters
+        # L/R difference (dB) at the start of the sweep
+        # This matches max_db in SoundCenteringTask.report_wheel
+        self.sweep_start_db = 40
+
+        # Time (s) to move from the start side to the center
+        self.sweep_duration = 3.0
+
+        # How often (s) to update the L/R balance during the sweep
+        self.sweep_update_interval = 0.01
+
+
+        ## These are set on each trial
+        self.sweep_thread = None
+        self.sweep_stop_event = threading.Event()
+        self.reward_at_center = False
+
+    def db_diff_to_weight(self, db_diff):
+        """Convert a right-minus-left difference in dB to lr_weight.
+
+        Same mapping as convert_position_to_weight in
+        SoundCenteringTask.report_wheel. lr_weight 0 is all left, 0.5 is
+        equal, 1 is all right.
+        """
+        # Map db_diff onto a R/L amplitude ratio
+        lr_ratio = 10 ** (db_diff / 20)
+
+        # Map R/L ratio onto weight of R
+        weight = lr_ratio / (lr_ratio + 1)
+
+        return weight
+
+    def set_trial_parameters(self, **msg_params):
+        """Set the start side, start the trial, and start the sweep."""
+        ## Stop any sweep left over from the previous trial
+        self.stop_sweep()
+
+
+        ## Set the starting balance before the parent queues any sound
+        # Otherwise the first sounds would play at the previous balance
+        start_side = msg_params['start_side']
+        if start_side == 'left':
+            start_db = -self.sweep_start_db
+        elif start_side == 'right':
+            start_db = self.sweep_start_db
+        else:
+            raise ValueError(f'unrecognized start_side: {start_side}')
+
+        self.sound_player.lr_weight = self.db_diff_to_weight(start_db)
+
+        # Whether to reward at the end of the sweep
+        self.reward_at_center = msg_params['reward_at_center']
+
+
+        ## Call parent
+        # This logs the trial start, resets the wheel, and queues the sound
+        super().set_trial_parameters(**msg_params)
+
+        # The parent returns early without starting a trial in this case
+        if not self.session_running:
+            return
+
+
+        ## Start the sweep in its own thread
+        self.sweep_stop_event.clear()
+        self.sweep_thread = threading.Thread(
+            target=self.sweep_to_center, args=(start_db,), daemon=True)
+        self.sweep_thread.start()
+
+    def sweep_to_center(self, start_db):
+        """Move the sound from start_db to the center, then end the trial.
+
+        Runs in self.sweep_thread. Returns without ending the trial if
+        self.sweep_stop_event is set.
+        """
+        ## Move the sound
+        sweep_start_time = time.time()
+        while True:
+            # Stop without ending the trial if cancelled
+            if self.sweep_stop_event.is_set():
+                return
+
+            # Break when the sweep is done
+            elapsed_time = time.time() - sweep_start_time
+            if elapsed_time >= self.sweep_duration:
+                break
+
+            # L/R difference moves linearly in dB from start_db to 0
+            db_diff = start_db * (1 - elapsed_time / self.sweep_duration)
+            self.sound_player.lr_weight = self.db_diff_to_weight(db_diff)
+
+            # Wait for the next update, or until cancelled
+            self.sweep_stop_event.wait(self.sweep_update_interval)
+
+        # Arrived at the center
+        self.sound_player.lr_weight = 0.5
+
+
+        ## End the trial
+        # The sound stays at the center until the Dispatcher silences it
+        # for the ITI, as in SoundCenteringTask
+        if self.reward_at_center:
+            self.reward(self.max_reward)
+        else:
+            # Report the end of the trial without opening the solenoid
+            # (reward(0) would still briefly open it)
+            self.reward_delivered = True
+            self.report_reward(datetime.datetime.now())
+
+    def stop_sweep(self):
+        """Tell the sweep thread to stop, and wait for it."""
+        # Signal the thread
+        self.sweep_stop_event.set()
+
+        # Wait for it to finish, so it can't change lr_weight later
+        if self.sweep_thread is not None:
+            self.sweep_thread.join(timeout=1)
+            self.sweep_thread = None
+
+    def stop_sounds(self):
+        """Stop the sweep, then silence the sounds.
+
+        This is triggered by 'silence' during the ITI, and also by
+        stop_session.
+        """
+        self.stop_sweep()
+        super().stop_sounds()
+
+    def report_wheel(self, force_report=False):
+        """Log the wheel position, without affecting the sound or reward.
+
+        Sends the same 'wheel' message as SoundCenteringTask.report_wheel,
+        with 'weight' set to the current balance from the sweep.
+        """
+        ## Get time
+        now = datetime.datetime.now()
+
+
+        ## Update wheel positions, the same way as SoundCenteringTask
+        # Get actual wheel position
+        wheel_position = self.wheel_listener.position
+
+        # Compute movement since last_raw_position and update it
+        diff = wheel_position - self.last_raw_position
+        self.last_raw_position = wheel_position
+
+        # Clip the new position
+        self.clipped_position += diff
+
+        if self.clipped_position > self.wheel_max:
+            self.clipped_position = self.wheel_max
+
+        if self.clipped_position < self.wheel_min:
+            self.clipped_position = self.wheel_min
+
+
+        ## Report to Dispatcher
+        # weight comes from the sweep, not the wheel
+        weight = self.sound_player.lr_weight
+
+        if force_report or np.mod(wheel_position, 10) == 0:
+            self.network_communicator.poke_socket.send_string(
+                f'wheel;'
+                f'trial_number={self.trial_number}=int;'
+                f'wheel_position={wheel_position}=int;'
+                f'clipped_position={self.clipped_position}=int;'
+                f'weight={weight}=float;'
+                f'wheel_time={now.isoformat()}=str'
+                )
 
 class SurfaceOrientationTask(WheelTask):
     """Agent that runs the wheel-based surface orientation task"""

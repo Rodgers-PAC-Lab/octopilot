@@ -1,0 +1,6 @@
+{
+    "main_window_name": "SoundCenteringPassiveSessionWindow",
+    "agent_name": "SoundCenteringPassiveTask",
+    "inter_trial_interval": 5,
+    "reward_at_center": false
+}

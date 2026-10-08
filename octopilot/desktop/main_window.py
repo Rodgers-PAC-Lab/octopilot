@@ -596,6 +596,13 @@ class SoundCenteringSessionWindow(WheelSessionWindow):
     # This class variable determines what Dispatcher class is instantiated
     dispatcher_class = controllers.SoundCenteringDispatcher
 
+class SoundCenteringPassiveSessionWindow(WheelSessionWindow):
+    """Main Window for the passive sound centering task.
+
+    """
+    # This class variable determines what Dispatcher class is instantiated
+    dispatcher_class = controllers.SoundCenteringPassiveDispatcher
+
 class SurfaceOrientationSessionWindow(WheelSessionWindow):
     """Main Window for the surface orientation task. 
 

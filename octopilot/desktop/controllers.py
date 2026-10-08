@@ -1025,14 +1025,22 @@ class WheelDispatcher(Dispatcher):
         self.history_of_trial_types = []
         self.history_of_trial_directions = []
         self.history_of_trial_anti_bias = []
-    
+
+    def choose_trial_parameters(self):
+        """Return a dict of parameters to send to the Pi for the next trial.
+
+        Empty by default. Subclasses override this to choose parameters on
+        the desktop. start_trial adds 'trial_number' afterward.
+        """
+        return {}
+
     def start_trial(self):
         ## Choose and broadcast reward_port
         #~ # Choose trial parameters
         #~ self.goal_port, self.trial_parameters, self.port_parameters = (
             #~ self.trial_parameter_chooser.choose(self.previously_rewarded_port)
             #~ )
-        self.trial_parameters = {}
+        self.trial_parameters = self.choose_trial_parameters()
 
         #~ # Choose whether the trial sound will be adjusted
         #~ self.trigger_trial = np.random.random() < 0.5
@@ -1370,6 +1378,60 @@ class SoundCenteringDispatcher(WheelDispatcher):
     # the Pi via the marshaller
     # task_name = 'SCT'
     pass
+
+class SoundCenteringPassiveDispatcher(WheelDispatcher):
+    """Dispatcher for the passive sound centering task.
+
+    On each trial, chooses the side the sound starts on and sends it to the
+    Pi, along with whether to reward when the sound reaches the center.
+    The Pi (SoundCenteringPassiveTask) ignores the wheel.
+    """
+    def __init__(self, box_params, task_params, mouse_params, sandbox_path):
+        """Initialize, and read reward_at_center from the task params."""
+        ## Super
+        super().__init__(box_params, task_params, mouse_params, sandbox_path)
+
+
+        ## Whether to reward when the sound reaches the center
+        # Required in the task json, so that it is never set by accident
+        self.reward_at_center = self.task_params['reward_at_center']
+
+    def choose_trial_parameters(self):
+        """Choose the start side at random, independently on each trial."""
+        # Choose the side the sound starts on
+        if np.random.random() < 0.5:
+            start_side = 'left'
+        else:
+            start_side = 'right'
+
+        # These are sent to the Pi and also logged in trials.csv
+        trial_parameters = {
+            'start_side': start_side,
+            'reward_at_center': self.reward_at_center,
+            }
+
+        return trial_parameters
+
+    def _log_trial_header_row(self):
+        """Write the header row of trials.csv for this task.
+
+        Overrides the WheelDispatcher version, whose columns are hardcoded
+        for PDT. The ordering must match that in self._log_trial, which
+        writes the keys of self.trial_parameters in sorted order.
+        """
+        # Keys of self.trial_parameters, excluding 'trial_number'
+        param_names = ['start_side', 'reward_at_center']
+
+        # Same ordering as WheelDispatcher._log_trial_header_row
+        param_names = (
+            ['trial_number', 'start_time', 'goal_port', 'trigger'] +
+            sorted(param_names) +
+            ['reward_time']
+            )
+
+        # Write these as the column names
+        with open(os.path.join(self.sandbox_path, 'trials.csv'), 'a') as fi:
+            fi.write(','.join(param_names) + '\n')
 
 class SurfaceOrientationDispatcher(WheelDispatcher):
     """Dispatcher for the wheel-based surface orientation task. 
