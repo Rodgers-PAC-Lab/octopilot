@@ -2070,6 +2070,8 @@ class PoleDetectionTask(WheelTask):
                     f'{self.prev_trial_outcome}')
                 return
 
+            # Turn off LED before pole moves
+            self.pig.write(self.house_light_pin, 0)
 
             # Command motor to move to next trial position
             if self.trial_type == 'present':
@@ -2110,17 +2112,11 @@ class PoleDetectionTask(WheelTask):
                     'Main motor failed to reach trial position')
                 return
 
-            self.pig.write(self.house_light_pin, 0)
-
             # Reset wheel reference
             self.position_at_trial_start = self.wheel_listener.position
             self.last_raw_position = self.wheel_listener.position
 
         finally:
-
-            # Turn off LED
-            self.pig.write(self.house_light_pin, 0)
-
             # Re-enable wheel
             self.wheel_listener.report_callback = self.report_wheel
 
