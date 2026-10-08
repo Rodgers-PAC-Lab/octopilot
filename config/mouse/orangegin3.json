@@ -7,7 +7,7 @@
   "catch_trials": false,
   "catch_trials_alt": false,
   "base_trials_alt": false,
-  "forced_alt": true,
+  "forced_alt": false,
   "response_window": false
 }
 

@@ -1,7 +1,7 @@
 {
     "zmq_port": 5551,
     "desktop_ip": "192.168.0.203",
-    "bonsai_port": 5559,
+    "bonsai_port": 5556,
     "bonsai_ip": "192.168.11.138",
     "ypos_of_gui": 0,
     "connected_pis" : [

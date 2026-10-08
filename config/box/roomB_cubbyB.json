@@ -2,7 +2,7 @@
     "agent_name": "HeadfixWheelAgent",    
     "zmq_port": 5553,
     "desktop_ip": "192.168.0.203",
-    "bonsai_port": 5559,
+    "bonsai_port": 5558,
     "bonsai_ip": "192.168.11.138",
     "ypos_of_gui": 270,
     "connected_pis" : [
