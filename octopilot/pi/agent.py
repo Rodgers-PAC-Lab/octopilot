@@ -365,9 +365,7 @@ class Agent(object):
                 
                 # start, reward, etc
                 if self.network_communicator is not None:
-                    self.network_communicator.flush_outgoing()
                     self.network_communicator.check_socket()
-                    self.network_communicator.flush_outgoing()
 
                 if self.critical_shutdown:
                     self.logger.critical('critical shutdown')
@@ -1082,7 +1080,7 @@ class WheelTask(Agent):
     
         # Force background threads to wait if the main loop is using the socket
         with self.network_lock:
-            self.network_communicator.send_message(
+            self.network_communicator.poke_socket.send_string(
                 f'wheel;'
                 f'trial_number={self.trial_number}=int;'
                 f'wheel_position={wheel_position}=int;'
@@ -1161,8 +1159,8 @@ class WheelTask(Agent):
         self.right_bias = False
         self.anti_bias = 'none'
         
-        # Prevents anti-bias from activating during catch trial sessions
-        if self.catch_trials:
+        # Prevents anti-bias from activating before trial 50
+        if self.trial_number < 50:
             self.choice_history.clear()
             
         # Anti-bias only applies to random trials without catch trials,
@@ -2027,7 +2025,7 @@ class PoleDetectionTask(WheelTask):
         self.logger.info(f'reporting reward at {reward_time}')
 
         # Report to Dispatcher
-        self.network_communicator.send_message(
+        self.network_communicator.poke_socket.send_string(
             f'reward;'
             f'trial_number={self.trial_number}=int;'
             f'trial_type={self.trial_type}=str;' # present/absent/catch_ant/catch_post
@@ -2191,7 +2189,7 @@ class PoleDetectionTask(WheelTask):
             self.prev_trial_outcome = 'incorrect'
             self.reward(0)
         
-    def wait_for_turner(self, turner, timeout=2.5, tol=10):
+    def wait_for_turner(self, turner, timeout=5.0, tol=10):
         t0 = time.time()
 
         while abs(turner.state.value - turner.target.value) > tol:
@@ -2218,7 +2216,7 @@ class PoleDetectionTask(WheelTask):
             except multiprocessing.queues.Empty:
                 break
 
-            self.network_communicator.send_message(
+            self.network_communicator.poke_socket.send_string(
                 f'surface;'
                 f'trial_number={self.trial_number}=int;'
                 f'surface_time={dt_move.isoformat()}=str;'
@@ -2234,7 +2232,7 @@ class PoleDetectionTask(WheelTask):
             except multiprocessing.queues.Empty:
                 break
 
-            self.network_communicator.send_message(
+            self.network_communicator.poke_socket.send_string(
                 f'surface2;'
                 f'trial_number={self.trial_number}=int;'
                 f'surface_time={dt_move2.isoformat()}=str;'
@@ -2274,7 +2272,7 @@ class PoleDetectionTask(WheelTask):
 
         ## Report to Dispatcher
         if force_report or np.mod(wheel_position, 10) == 0:
-            self.network_communicator.send_message(
+            self.network_communicator.poke_socket.send_string(
                 f'wheel;'
                 f'trial_number={self.trial_number}=int;'
                 f'wheel_position={wheel_position}=int;'
@@ -2291,14 +2289,7 @@ class PoleDetectionTask(WheelTask):
                     self.choice = 'correct'
                     self.direction = 'right'
                     self.prev_trial_outcome = 'correct'
-                    
-                    if (
-                        self.trial_number >= 50
-                        and not self.catch_trials
-                        and self.trial_type in ('present')
-                    ):
-                        self.choice_history.append(self.direction)
-                        
+                    self.choice_history.append(self.direction)
                     self.reward(self.max_reward)
                 
                 elif clipped_position < -150:
@@ -2308,14 +2299,7 @@ class PoleDetectionTask(WheelTask):
                     self.direction = 'left'
                     self.prev_trial_outcome = 'incorrect'
                     self.incorrect_left += 1
-                    
-                    if (
-                        self.trial_number >= 50
-                        and not self.catch_trials
-                        and self.trial_type in ('present')
-                    ):
-                        self.choice_history.append(self.direction)
-                        
+                    self.choice_history.append(self.direction)
                     self.reward(0)
 
             elif self.trial_type == 'absent': 
@@ -2325,13 +2309,7 @@ class PoleDetectionTask(WheelTask):
                     self.choice = 'correct'
                     self.direction = 'left'
                     self.prev_trial_outcome = 'correct'
-                    
-                    if (
-                        self.trial_number >= 50
-                        and not self.catch_trials
-                    ):
-                        self.choice_history.append(self.direction)
-                
+                    self.choice_history.append(self.direction)
                     self.reward(self.max_reward)
 
                 elif clipped_position > 150:
@@ -2341,13 +2319,7 @@ class PoleDetectionTask(WheelTask):
                     self.direction = 'right'
                     self.prev_trial_outcome = 'incorrect'
                     self.incorrect_right += 1
-                    
-                    if (
-                        self.trial_number >= 50
-                        and not self.catch_trials
-                    ):
-                        self.choice_history.append(self.direction)
-                        
+                    self.choice_history.append(self.direction)
                     self.reward(0)
                     
                     
@@ -2501,7 +2473,7 @@ class WheelHabituationTask(WheelTask):
         
         ## Report to Dispatcher
         if force_report or np.mod(wheel_position, 10) == 0:
-            self.network_communicator.send_message(
+            self.network_communicator.poke_socket.send_string(
                 f'wheel;'
                 f'trial_number={self.trial_number}=int;'
                 f'wheel_position={wheel_position}=int;'

@@ -813,10 +813,9 @@ class WheelPositionWidget(QWidget):
         wheel_pos_x = np.array(
             [(val - time_now).total_seconds() for val in wheel_pos_x])
         
-        # Add a final data point for the present, which is presumably the same
-        # as the last measurement
-        recent = (wheel_pos_x >= -10) & (wheel_pos_x <= 1)
-        wheel_pos_x, wheel_pos_y = wheel_pos_x[recent], wheel_pos_y[recent]
+        if len(wheel_pos_y) > 0:
+            wheel_pos_x = np.concatenate([wheel_pos_x, [0]])
+            wheel_pos_y = np.concatenate([wheel_pos_y, [wheel_pos_y[-1]]])
         
         
         ## Surface data

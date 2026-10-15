@@ -736,17 +736,3 @@ class PiNetworkCommunicator(object):
         
         # Gets stuck here if the GUI was closed and more messages were sent
         self.poke_context.term()
-    def send_message(self, msg):
-        """Queue a message without accessing the ZeroMQ socket."""
-        if self.socket_is_open:
-            self.outgoing_messages.put(msg)
-
-    def flush_outgoing(self):
-        """Send queued messages from the socket-owning thread."""
-        while True:
-            try:
-                msg = self.outgoing_messages.get_nowait()
-            except queue.Empty:
-                break
-
-            self.poke_socket.send_string(msg)
