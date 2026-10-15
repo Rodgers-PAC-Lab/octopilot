@@ -28,6 +28,7 @@ from . import sound
 from ..shared.networking import PiNetworkCommunicator
 from ..shared.logtools import NonRepetitiveLogger
 import RPi.GPIO as GPIO
+from collections import deque
 
 class Agent(object):
     """Parent object that runs behavioral sessions on the Pi.
@@ -364,7 +365,9 @@ class Agent(object):
                 
                 # start, reward, etc
                 if self.network_communicator is not None:
+                    self.network_communicator.flush_outgoing()
                     self.network_communicator.check_socket()
+                    self.network_communicator.flush_outgoing()
 
                 if self.critical_shutdown:
                     self.logger.critical('critical shutdown')
@@ -998,19 +1001,40 @@ class WheelTask(Agent):
         self.spin_alt = False
         self.reward_for_spinning = False
         
-        # PDT variables
-        self.incorrect_left = 0
-        self.incorrect_right = 0
+        # PDT trial-selection settings
         self.base_trials_alt = False
         self.forced_alt = False
         self.catch_trials = False
         self.catch_trials_alt = False
         self.all_trials_alt = False
         self.response_window = False
+
+        # Previous trial
         self.prev_trial_outcome = None
         self.prev_trial_type = None
+
+        # Anti-bias params
+        self.incorrect_left = 0
+        self.incorrect_right = 0
+        self.anti_bias_count = 0
+        self.left_bias = False
+        self.right_bias = False
+        self.anti_bias = 'none'
+        self.bias_min_responses = 15
+        self.bias_threshold = 0.75
+        self.bias_correction_probability = 0.70
+
+        # Current trial
+        self.trial_type = None
+        
+        # Rolling history of completed wheel choices
+        self.choice_history = deque(maxlen=20)
     
     def start_session(self):
+        # Ensures new sessions don't inherit previous response bias data
+        self.choice_history.clear()
+        self.anti_bias_count = 0
+        
         # Call Agent.start_session
         super().start_session()
         
@@ -1058,11 +1082,12 @@ class WheelTask(Agent):
     
         # Force background threads to wait if the main loop is using the socket
         with self.network_lock:
-            self.network_communicator.poke_socket.send_string(
-                f'reward;'
+            self.network_communicator.send_message(
+                f'wheel;'
                 f'trial_number={self.trial_number}=int;'
-                f'port_name={port_name}=str;'
-                f'poke_time={poke_time}=str'
+                f'wheel_position={wheel_position}=int;'
+                f'clipped_position={clipped_position}=int;'
+                f'wheel_time={now.isoformat()}=str'
             )
 
     
@@ -1102,151 +1127,9 @@ class WheelTask(Agent):
         self.report_trial_start(timestamp)
         
         ## Update other trial parameters
-            
-        ## START OF PDT ADDITIONS ========================
         
-        # Anti-bias variables
-        self.left_bias = False
-        self.right_bias = False
-        self.anti_bias = 'none'
-        
-        # Alternates between present and absent (open loop)
-        if self.base_trials_alt:
-            if np.mod(self.trial_number, 2) == 0:
-                self.trial_type = 'present'
-            else:
-                self.trial_type = 'absent'
-        
-        # Forced alternation between present and absent (closed loop)
-        elif self.forced_alt:
-            
-            # Starts session with present always
-            if self.trial_number == 0:
-                self.trial_type = 'present'
-                
-            else:
-                # Stays with same trial type as was previously
-                if self.prev_trial_outcome == 'incorrect':
-                    if self.prev_trial_type == 'present':
-                        self.trial_type = 'present'
-                    else:
-                        self.trial_type = 'absent'
-            
-                # Switches to other trial type
-                elif self.prev_trial_outcome == 'correct':
-                    if self.prev_trial_type == 'present':
-                        self.trial_type = 'absent'
-                    else:
-                        self.trial_type = 'present'
-        
-        # Alternates between catch-anterior and catch-posterior
-        elif self.catch_trials_alt:
-            if np.mod(self.trial_number, 2) == 0:
-                self.trial_type = 'catch_ant'
-            else:
-                self.trial_type = 'catch_post'
-                
-        # Alternates between all four trial types (used for naive recordings)
-        elif self.all_trials_alt:
-            if np.mod(self.trial_number, 4) == 0:
-                self.trial_type = 'absent'
-            
-            elif np.mod(self.trial_number, 4) == 1:
-                self.trial_type = 'present'
-            
-            elif np.mod(self.trial_number, 4) == 2:
-                self.trial_type = 'catch_ant'
-            
-            elif np.mod(self.trial_number, 4) == 3:
-                self.trial_type = 'catch_post'
-            
-            else:
-                1/0
-        
-        # Normal trial selection (either base only or with catch trials)
-        else:
-            # Keeps incorrect trial counts (for anti-bias) limited to 40 trials
-            if (self.trial_number != 0) and (self.trial_number % 40 == 0) and (self.trial_number != 40):
-                self.incorrect_left = 0
-                self.incorrect_right = 0
-        
-            # Sets anti-bias trials for PDT
-            if (self.trial_number != 0) and (self.trial_number > 40) and (self.trial_number % 40 != 0):
-                if ((self.incorrect_right / (self.trial_number % 40)) < 0.2) and ((self.incorrect_left / (self.trial_number % 40)) >= 0.2):
-                    self.left_bias = True
-                    self.anti_bias = 'left'
-                elif ((self.incorrect_left / (self.trial_number % 40)) < 0.2) and ((self.incorrect_right / (self.trial_number % 40)) >= 0.2):
-                    self.right_bias = True
-                    self.anti_bias = 'right'
-                
-        
-            # Sets random trial type (includes anti-bias for PDT)
-            self.rand = np.random.random()
-        
-            # Trial type selection with catch 
-            if self.catch_trials: 
-                if self.anti_bias == 'none' and self.rand < 0.2:
-                    if self.rand < 0.1:
-                        self.trial_type = 'catch_ant'
-                    else:
-                        self.trial_type = 'catch_post'
-            
-                    self.anti_bias_count = 0
-                
-                elif self.right_bias == False and self.left_bias == False:
-                    if self.rand < 0.5:
-                        self.trial_type = 'present'
-                    else:
-                        self.trial_type = 'absent'
-                
-                    self.anti_bias_count = 0
-                
-                elif self.left_bias == True and self.right_bias == False:
-                    if (self.anti_bias_count % 7 == 0):
-                        self.trial_type = 'absent'
-                    else:
-                        self.trial_type = 'present'
-                
-                    self.anti_bias_count += 1    
-            
-                elif self.right_bias == True and self.left_bias == False:
-                    if (self.anti_bias_count % 7 == 0):
-                        self.trial_type = 'present'
-                    else:
-                        self.trial_type = 'absent'
-                
-                    self.anti_bias_count += 1
-                    
-            # Trial type selection without catch
-            elif self.catch_trials == False: 
-                if self.right_bias == False and self.left_bias == False:
-                    if self.rand < 0.5:
-                        self.trial_type = 'present'
-                    else:
-                        self.trial_type = 'absent'
-                
-                    self.anti_bias_count = 0
-        
-                elif self.left_bias == True and self.right_bias == False:
-                    if (self.anti_bias_count % 7 == 0):
-                        self.trial_type = 'absent'
-                    else:
-                        self.trial_type = 'present'
-                
-                    self.anti_bias_count += 1    
-            
-                elif self.right_bias == True and self.left_bias == False:
-                    if (self.anti_bias_count % 7 == 0):
-                        self.trial_type = 'present'
-                    else:
-                        self.trial_type = 'absent'
-                
-                    self.anti_bias_count += 1
-            
-            else:
-                1/0
-
-        ## END OF PDT ADDITIONS =========================
+        # Calls function that selects trial type for PDT
+        self.select_trial_type()
 
         # Everything should be locked to raw position at the start of the trial
         self.last_raw_position = self.wheel_listener.position
@@ -1257,6 +1140,168 @@ class WheelTask(Agent):
         
         ## Do a report_wheel to indicate the new raw position has changed
         self.report_wheel(force_report=True)
+        
+    def select_trial_type(self):
+        """
+        Select the next trial type according to the active PDT mode.
+
+        Supported modes:
+            - base_trials_alt: alternate present/absent
+            - forced_alt: repeat incorrect, switch correct
+            - catch_trials_alt: alternate catch_ant/catch_post
+            - all_trials_alt: cycle through all four types
+            - catch_trials: random trials with 20% catch trials
+            - default: random present/absent trials
+
+        Anti-bias applies only to random selection modes.
+        """
+        
+        # Reset trial-specific bias labels.
+        self.left_bias = False
+        self.right_bias = False
+        self.anti_bias = 'none'
+        
+        # Prevents anti-bias from activating during catch trial sessions
+        if self.catch_trials:
+            self.choice_history.clear()
+            
+        # Anti-bias only applies to random trials without catch trials,
+        # beginning after the first 50 trials.
+        anti_bias_enabled = (
+            self.trial_number >= 50
+            and not self.catch_trials
+            and not self.base_trials_alt
+            and not self.forced_alt
+            and not self.catch_trials_alt
+            and not self.all_trials_alt
+        )
+
+        # Passive alternation: present / absent
+        if self.base_trials_alt:
+            self.trial_type = ('present', 'absent')[self.trial_number % 2]
+
+        # Forced alternation: repeat if incorrect, switch if correct
+        elif self.forced_alt:
+
+            if self.trial_number == 0:
+                self.trial_type = 'present'
+
+            elif self.prev_trial_type in ('present', 'absent'):
+
+                if self.prev_trial_outcome == 'incorrect':
+                    self.trial_type = self.prev_trial_type
+
+                elif self.prev_trial_outcome == 'correct':
+                    self.trial_type = (
+                        'absent' if self.prev_trial_type == 'present'
+                        else 'present'
+                    )
+
+                else:
+                    self.logger.warning(
+                        'Forced alternation: previous outcome unavailable; '
+                        'repeating previous trial type.'
+                    )
+                    self.trial_type = self.prev_trial_type
+
+            else:
+                self.logger.warning(
+                    'Forced alternation: previous trial type unavailable; '
+                    'defaulting to present.'
+                )
+                self.trial_type = 'present'
+
+
+        # Passive catch-trial alternation
+        elif self.catch_trials_alt:
+            self.trial_type = (
+                'catch_ant', 'catch_post'
+            )[self.trial_number % 2]
+
+
+        # Passive all trial type alternation
+        elif self.all_trials_alt:
+            self.trial_type = (
+                'absent',
+                'present',
+                'catch_ant',
+                'catch_post'
+            )[self.trial_number % 4]
+
+        # Random selection with optional anti-bias
+        else:
+    
+            # Evaluate directional bias using recent valid choices.
+            if (
+                anti_bias_enabled
+                and len(self.choice_history) >= self.bias_min_responses
+            ):
+                n_responses = len(self.choice_history)
+
+                left_fraction = self.choice_history.count('left') / n_responses
+                right_fraction = self.choice_history.count('right') / n_responses
+
+                if left_fraction >= self.bias_threshold:
+                    self.left_bias = True
+                    self.anti_bias = 'left'
+
+                elif right_fraction >= self.bias_threshold:
+                    self.right_bias = True
+                    self.anti_bias = 'right'
+
+            # Catch trials enabled: anti-bias is completely disabled.
+            if self.catch_trials:
+                self.trial_type = np.random.choice(
+                    ['present', 'absent', 'catch_ant', 'catch_post'],
+                    p=[0.4, 0.4, 0.1, 0.1]
+                )
+
+            else:
+                # Default: equal probability of present/absent.
+                p_present = 0.50
+
+                # Adjust probabilities only when anti-bias is active.
+                if anti_bias_enabled:
+                    if self.anti_bias == 'left':
+                        p_present = self.bias_correction_probability
+
+                    elif self.anti_bias == 'right':
+                        p_present = 1.0 - self.bias_correction_probability
+        
+                self.trial_type = (
+                    'present'
+                    if np.random.random() < p_present
+                    else 'absent'
+                )
+
+            # Track anti-bias activity.
+            if anti_bias_enabled and self.anti_bias != 'none':
+                self.anti_bias_count += 1
+            else:
+                self.anti_bias_count = 0
+                
+        # Record the trial type selection
+        if self.base_trials_alt:
+            mode = 'base_trials_alt'
+        elif self.forced_alt:
+            mode = 'forced_alt'
+        elif self.catch_trials_alt:
+            mode = 'catch_trials_alt'
+        elif self.all_trials_alt:
+            mode = 'all_trials_alt'
+        elif self.catch_trials:
+            mode = 'random_with_catch'
+        else:
+            mode = 'random'
+
+        self.logger.info(
+            f'Trial {self.trial_number}: '
+            f'type={self.trial_type}, '
+            f'mode={mode}, '
+            f'anti_bias={self.anti_bias}'
+        )
+
+        return self.trial_type
     
     def stop_session(self):
         """Runs when a session is stopped
@@ -1865,6 +1910,11 @@ class PoleDetectionTask(WheelTask):
         self.catch_trials_alt = False
         self.all_trials_alt = False
         self.response_window = False
+        
+        # Prevents wheel encoding if motor hasn't moved
+        self.choice_armed = False
+        self.choice_lock = threading.RLock()
+        self.trial_generation = 0
 
         ## Create the serial_reader object (for PDT, sets up present/absent motor and catch trial motor)
         self.surface_turner = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin, dir_pin=self.stepper_dir_pin)
@@ -1977,7 +2027,7 @@ class PoleDetectionTask(WheelTask):
         self.logger.info(f'reporting reward at {reward_time}')
 
         # Report to Dispatcher
-        self.network_communicator.poke_socket.send_string(
+        self.network_communicator.send_message(
             f'reward;'
             f'trial_number={self.trial_number}=int;'
             f'trial_type={self.trial_type}=str;' # present/absent/catch_ant/catch_post
@@ -2128,9 +2178,14 @@ class PoleDetectionTask(WheelTask):
             )
             self.response_window_timer.start()
             
-    def handle_response_window_timeout(self):
-        """Ends trial if no choice made within response window"""
-        if not self.reward_delivered:
+    def handle_response_window_timeout(self, generation):
+        with self.choice_lock:
+            if (generation != self.trial_generation or
+                    not self.choice_armed or self.reward_delivered):
+                return
+
+            self.choice_armed = False
+            self.wheel_listener.report_callback = None
             self.choice = 'none'
             self.direction = 'none'
             self.prev_trial_outcome = 'incorrect'
@@ -2163,7 +2218,7 @@ class PoleDetectionTask(WheelTask):
             except multiprocessing.queues.Empty:
                 break
 
-            self.network_communicator.poke_socket.send_string(
+            self.network_communicator.send_message(
                 f'surface;'
                 f'trial_number={self.trial_number}=int;'
                 f'surface_time={dt_move.isoformat()}=str;'
@@ -2179,7 +2234,7 @@ class PoleDetectionTask(WheelTask):
             except multiprocessing.queues.Empty:
                 break
 
-            self.network_communicator.poke_socket.send_string(
+            self.network_communicator.send_message(
                 f'surface2;'
                 f'trial_number={self.trial_number}=int;'
                 f'surface_time={dt_move2.isoformat()}=str;'
@@ -2219,7 +2274,7 @@ class PoleDetectionTask(WheelTask):
 
         ## Report to Dispatcher
         if force_report or np.mod(wheel_position, 10) == 0:
-            self.network_communicator.poke_socket.send_string(
+            self.network_communicator.send_message(
                 f'wheel;'
                 f'trial_number={self.trial_number}=int;'
                 f'wheel_position={wheel_position}=int;'
@@ -2236,6 +2291,14 @@ class PoleDetectionTask(WheelTask):
                     self.choice = 'correct'
                     self.direction = 'right'
                     self.prev_trial_outcome = 'correct'
+                    
+                    if (
+                        self.trial_number >= 50
+                        and not self.catch_trials
+                        and self.trial_type in ('present')
+                    ):
+                        self.choice_history.append(self.direction)
+                        
                     self.reward(self.max_reward)
                 
                 elif clipped_position < -150:
@@ -2245,6 +2308,14 @@ class PoleDetectionTask(WheelTask):
                     self.direction = 'left'
                     self.prev_trial_outcome = 'incorrect'
                     self.incorrect_left += 1
+                    
+                    if (
+                        self.trial_number >= 50
+                        and not self.catch_trials
+                        and self.trial_type in ('present')
+                    ):
+                        self.choice_history.append(self.direction)
+                        
                     self.reward(0)
 
             elif self.trial_type == 'absent': 
@@ -2254,6 +2325,13 @@ class PoleDetectionTask(WheelTask):
                     self.choice = 'correct'
                     self.direction = 'left'
                     self.prev_trial_outcome = 'correct'
+                    
+                    if (
+                        self.trial_number >= 50
+                        and not self.catch_trials
+                    ):
+                        self.choice_history.append(self.direction)
+                
                     self.reward(self.max_reward)
 
                 elif clipped_position > 150:
@@ -2263,7 +2341,16 @@ class PoleDetectionTask(WheelTask):
                     self.direction = 'right'
                     self.prev_trial_outcome = 'incorrect'
                     self.incorrect_right += 1
+                    
+                    if (
+                        self.trial_number >= 50
+                        and not self.catch_trials
+                    ):
+                        self.choice_history.append(self.direction)
+                        
                     self.reward(0)
+                    
+                    
 
 class WheelHabituationTask(WheelTask):
     """Agent that runs the wheel-based habituation task"""
@@ -2414,7 +2501,7 @@ class WheelHabituationTask(WheelTask):
         
         ## Report to Dispatcher
         if force_report or np.mod(wheel_position, 10) == 0:
-            self.network_communicator.poke_socket.send_string(
+            self.network_communicator.send_message(
                 f'wheel;'
                 f'trial_number={self.trial_number}=int;'
                 f'wheel_position={wheel_position}=int;'
