@@ -64,6 +64,7 @@ I'm not sure if messages can build up in the Dispatcher's queue when the
 Agent is not running.
 """
 
+import queue
 import logging
 import datetime
 import threading
@@ -546,6 +547,8 @@ class PiNetworkCommunicator(object):
         ## Set up sockets
         self.socket_is_open = False
         self.init_socket()
+        
+        self.outgoing_messages = queue.Queue()
     
     def init_socket(self):
         """Create `self.poke_socket` and connect to GUI
@@ -733,3 +736,17 @@ class PiNetworkCommunicator(object):
         
         # Gets stuck here if the GUI was closed and more messages were sent
         self.poke_context.term()
+    def send_message(self, msg):
+        """Queue a message without accessing the ZeroMQ socket."""
+        if self.socket_is_open:
+            self.outgoing_messages.put(msg)
+
+    def flush_outgoing(self):
+        """Send queued messages from the socket-owning thread."""
+        while True:
+            try:
+                msg = self.outgoing_messages.get_nowait()
+            except queue.Empty:
+                break
+
+            self.poke_socket.send_string(msg)

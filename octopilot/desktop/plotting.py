@@ -815,9 +815,8 @@ class WheelPositionWidget(QWidget):
         
         # Add a final data point for the present, which is presumably the same
         # as the last measurement
-        if len(wheel_pos_y) > 0:
-            wheel_pos_x = np.concatenate([wheel_pos_x, [0]])
-            wheel_pos_y = np.concatenate([wheel_pos_y, [wheel_pos_y[-1]]])
+        recent = (wheel_pos_x >= -10) & (wheel_pos_x <= 1)
+        wheel_pos_x, wheel_pos_y = wheel_pos_x[recent], wheel_pos_y[recent]
         
         
         ## Surface data
