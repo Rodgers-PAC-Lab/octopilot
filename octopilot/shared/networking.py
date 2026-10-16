@@ -316,12 +316,11 @@ class DispatcherNetworkCommunicator(object):
         while True:
             # Receive a message if possible
             try:
-                # Non-blocking recv
-                # If there is no message, this raises zmq.error.Again
-                identity, message = self.zmq_socket.recv_multipart(
-                    flags=zmq.NOBLOCK)
+                with self.zmq_socket_lock:
+                    identity, message = self.zmq_socket.recv_multipart(
+                        flags=zmq.NOBLOCK
+                    )           
             except zmq.error.Again:
-                # No message available, break out of the loop
                 break
 
             # Handle the received message
@@ -355,6 +354,31 @@ class DispatcherNetworkCommunicator(object):
         # TODO: in the future support bytes
         identity_str = identity.decode('utf-8')
         message_str = message.decode('utf-8')
+        
+        # Associate thread-specific reporting connections with
+        # their original Raspberry Pi identity.
+        if "__report__" in identity_str:
+            base_identity, _, thread_id = identity_str.partition(
+                "__report__"
+            )
+
+            # Accept only reporting identities belonging to
+            # an expected Pi.
+            if base_identity not in self.pi_names or not thread_id.isdigit():
+                self.logger.warning(
+                    f"Ignoring unknown reporting identity: {identity_str}"
+                )
+                return
+
+            # Reporting connections must not send lifecycle messages.
+            if message_str in ("hello", "goodbye"):
+                self.logger.warning(
+                    f"Ignoring lifecycle message from reporting socket: "
+                    f"{identity_str}"
+                )
+                return
+
+            identity_str = base_identity
 
         # Debug print identity and message
         # Squelch the sound methods which are too frequent
@@ -548,6 +572,11 @@ class PiNetworkCommunicator(object):
         self.socket_is_open = False
         self.init_socket()
         
+        # Independent reporting sockets, one per calling thread.
+        self._report_local = threading.local()
+        self._report_lock = threading.Lock()
+        self._report_sockets = []
+        
         self.outgoing_messages = queue.Queue()
     
     def init_socket(self):
@@ -727,12 +756,57 @@ class PiNetworkCommunicator(object):
             self.logger.error('alive requested but socket is closed')
     
     def close(self):
-        """Close all sockets and contexts"""
-        # Prevent sending
+        """Close networking without waiting on queued messages."""
+
         self.socket_is_open = False
+
+        # Close the main command socket.
+        self.poke_socket.close(linger=0)
+
+        # Release thread-local reporting sockets and their context.
+        # All reporting callbacks must have stopped before this point.
+        self.poke_context.destroy(linger=0)
+
+        # Close the separate Bonsai socket/context.
+        self.bonsai_socket.close(linger=0)
+        self.bonsai_context.term()
         
-        # Close
-        self.poke_socket.close()
-        
-        # Gets stuck here if the GUI was closed and more messages were sent
-        self.poke_context.term()
+    def get_report_socket(self):
+        """
+        Return a DEALER socket owned by the calling thread.
+
+        Each thread creates and reuses its own socket.
+        """
+        if not self.socket_is_open:
+            raise RuntimeError("Network communicator is closed")
+
+        sock = getattr(self._report_local, "socket", None)
+
+        if sock is None:
+            sock = self.poke_context.socket(zmq.DEALER)
+
+            # Unique identity for this thread's reporting connection.
+            report_identity = (
+                f"{self.identity}__report__{threading.get_ident()}"
+            )
+
+            sock.setsockopt(
+                zmq.IDENTITY,
+                report_identity.encode("utf-8"),
+            )
+            sock.setsockopt(zmq.LINGER, 0)
+            sock.connect(self.router_ip)
+
+            self._report_local.socket = sock
+
+            with self._report_lock:
+                self._report_sockets.append(sock)
+
+        return sock
+
+
+    def send_report(self, message):
+        """
+        Send immediately using the calling thread's own socket.
+        """
+        self.get_report_socket().send_string(message)

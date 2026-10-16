@@ -1,5 +1,6 @@
 import time
 import threading
+import logging
 
 class RepeatedTimer(object):
     """Helper object used to call an event at regular intervals
@@ -64,3 +65,58 @@ class RepeatedTimer(object):
         """Cancel _timer and stop"""
         self._timer.cancel()
         self.is_running = False
+        
+class PersistentRepeatedTimer(object):
+    """
+    Run a periodic callback on one persistent thread.
+
+    Unlike RepeatedTimer, this does not create a new
+    threading.Timer thread for every invocation.
+    """
+
+    def __init__(self, interval, function, *args, **kwargs):
+        self.interval = float(interval)
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
+
+        self._stop_event = threading.Event()
+        self._thread = threading.Thread(
+            target=self._run,
+            name="surface-report-timer",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def _run(self):
+        next_call = time.monotonic() + self.interval
+
+        while not self._stop_event.is_set():
+            remaining = next_call - time.monotonic()
+
+            if self._stop_event.wait(max(0.0, remaining)):
+                break
+
+            if self._stop_event.is_set():
+                break
+
+            try:
+                self.function(*self.args, **self.kwargs)
+            except Exception:
+                logging.exception(
+                    "PersistentRepeatedTimer callback failed"
+                )
+
+            next_call += self.interval
+
+            # Skip missed intervals rather than accumulating
+            # overlapping or back-to-back callbacks.
+            now = time.monotonic()
+            if next_call <= now:
+                next_call = now + self.interval
+
+    def stop(self):
+        self._stop_event.set()
+
+        if threading.current_thread() is not self._thread:
+            self._thread.join(timeout=2.0)

@@ -29,6 +29,7 @@ from ..shared.networking import PiNetworkCommunicator
 from ..shared.logtools import NonRepetitiveLogger
 import RPi.GPIO as GPIO
 from collections import deque
+from ..shared.misc import PersistentRepeatedTimer
 
 class Agent(object):
     """Parent object that runs behavioral sessions on the Pi.
@@ -1924,11 +1925,11 @@ class PoleDetectionTask(WheelTask):
         self.proc.start()
         self.proc2.start()
 
-        # Set up timer to report out the surface movements
-        self.timer_report_surface = hardware.RepeatedTimer(
+        # motor movement reporter
+        self.timer_report_surface = PersistentRepeatedTimer(
             0.1,
             self.report_surface,
-            )
+        )
 
     def load_mouse_task_params(self):
         """Overwrite PDT defaults using the received mouse parameters."""
@@ -2024,7 +2025,7 @@ class PoleDetectionTask(WheelTask):
         self.logger.info(f'reporting reward at {reward_time}')
 
         # Report to Dispatcher
-        self.network_communicator.poke_socket.send_string(
+        self.network_communicator.send_report(
             f'reward;'
             f'trial_number={self.trial_number}=int;'
             f'trial_type={self.trial_type}=str;' # present/absent/catch_ant/catch_post
@@ -2048,6 +2049,13 @@ class PoleDetectionTask(WheelTask):
         # If any timers aren't ended, there won't be a warning or anything,
         # the terminal window just won't close
         self.timer_report_surface.stop()
+        
+        # Ends wheel reporting and cancels pending wheel timers
+        self.wheel_listener.report_callback = None
+
+        if self.response_window_timer is not None:
+            self.response_window_timer.cancel()
+            self.response_window_timer = None
 
         # Join on the surface_turners
         self.logger.debug('joining surface turner')
@@ -2215,7 +2223,7 @@ class PoleDetectionTask(WheelTask):
             except multiprocessing.queues.Empty:
                 break
 
-            self.network_communicator.poke_socket.send_string(
+            self.network_communicator.send_report(
                 f'surface;'
                 f'trial_number={self.trial_number}=int;'
                 f'surface_time={dt_move.isoformat()}=str;'
@@ -2231,7 +2239,7 @@ class PoleDetectionTask(WheelTask):
             except multiprocessing.queues.Empty:
                 break
 
-            self.network_communicator.poke_socket.send_string(
+            self.network_communicator.send_report(
                 f'surface2;'
                 f'trial_number={self.trial_number}=int;'
                 f'surface_time={dt_move2.isoformat()}=str;'
@@ -2271,7 +2279,7 @@ class PoleDetectionTask(WheelTask):
 
         ## Report to Dispatcher
         if force_report or np.mod(wheel_position, 10) == 0:
-            self.network_communicator.poke_socket.send_string(
+            self.network_communicator.send_report(
                 f'wheel;'
                 f'trial_number={self.trial_number}=int;'
                 f'wheel_position={wheel_position}=int;'
