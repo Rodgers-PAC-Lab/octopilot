@@ -1185,7 +1185,6 @@ class WheelTask(Agent):
                 self.trial_type = 'present'
 
             elif self.prev_trial_type in ('present', 'absent'):
-
                 if self.prev_trial_outcome == 'incorrect':
                     self.trial_type = self.prev_trial_type
 
@@ -1251,7 +1250,7 @@ class WheelTask(Agent):
             if self.catch_trials:
                 self.trial_type = np.random.choice(
                     ['present', 'absent', 'catch_ant', 'catch_post'],
-                    p=[0.4, 0.4, 0.1, 0.1]
+                    p=[0.4, 0.5, 0.05, 0.05]
                 )
 
             else:
