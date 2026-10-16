@@ -1250,7 +1250,7 @@ class WheelTask(Agent):
             if self.catch_trials:
                 self.trial_type = np.random.choice(
                     ['present', 'absent', 'catch_ant', 'catch_post'],
-                    p=[0.4, 0.5, 0.075, 0.075]
+                    p=[0.35, 0.5, 0.075, 0.075]
                 )
 
             else:
