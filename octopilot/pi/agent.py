@@ -1908,16 +1908,16 @@ class PoleDetectionTask(WheelTask):
         self.catch_trials_alt = False
         self.all_trials_alt = False
         self.response_window = False
-        
-        # Prevents wheel encoding if motor hasn't moved
-        self.choice_armed = False
-        self.choice_lock = threading.RLock()
-        self.trial_generation = 0
 
         ## Create the serial_reader object (for PDT, sets up present/absent motor and catch trial motor)
         self.surface_turner = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin, dir_pin=self.stepper_dir_pin)
         self.surface_turner2 = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin2, dir_pin=self.stepper_dir_pin2)
 
+        # Pole starts manually positioned at present
+        # ITI still equals 0 position to avoid movement logic issues
+        self.surface_turner.state.value = self.wheel_max
+        self.surface_turner.target.value = self.wheel_max
+        
         # Start acquistions in a separate Process
         self.proc = multiprocessing.Process(target=self.surface_turner.start)
         self.proc2 = multiprocessing.Process(target=self.surface_turner2.start)
