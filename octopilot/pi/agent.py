@@ -2183,14 +2183,9 @@ class PoleDetectionTask(WheelTask):
             )
             self.response_window_timer.start()
             
-    def handle_response_window_timeout(self, generation):
-        with self.choice_lock:
-            if (generation != self.trial_generation or
-                    not self.choice_armed or self.reward_delivered):
-                return
-
-            self.choice_armed = False
-            self.wheel_listener.report_callback = None
+    def handle_response_window_timeout(self):
+        """Ends trial if no choice made within response window"""
+        if not self.reward_delivered:
             self.choice = 'none'
             self.direction = 'none'
             self.prev_trial_outcome = 'incorrect'
