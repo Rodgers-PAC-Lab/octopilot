@@ -1899,7 +1899,7 @@ class PoleDetectionTask(WheelTask):
         self.anti_bias = 'none'
         
         ## Response window
-        self.response_window_dur = 15.0
+        self.response_window_dur = 10
         self.response_window_timer = None
         
         ## Mouse params (defaults)
