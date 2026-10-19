@@ -1880,18 +1880,24 @@ class PoleDetectionTask(WheelTask):
         self.reward_range = 100
 
 
-        ## These are initialized later
+        ## Wheel position info
         self.last_rewarded_position = None
         self.last_reported_time = None
         self.last_reward_time = None
         self.reward_delivered = False
         self.clipped_position = 0
         self.last_raw_position = 0
-        self.current_surface_position = 0
+        
+        ## Prevents erroneous wheel encoding during ITI
+        self.choice_armed = False
+        self.choice_lock = threading.Lock()
+        self.position_at_trial_start = self.wheel_listener.position
+        
+        ## Previous trial info
         self.prev_trial_outcome = 'correct'
         self.prev_trial_type = None
         
-        ## Logging
+        ## Current trial info
         self.trial_number = 0
         self.trial_type = None
         self.choice = None
@@ -1909,7 +1915,7 @@ class PoleDetectionTask(WheelTask):
         self.all_trials_alt = False
         self.response_window = False
 
-        ## Create the serial_reader object (for PDT, sets up present/absent motor and catch trial motor)
+        ## Create objects for moving main and catch motors
         self.surface_turner = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin, dir_pin=self.stepper_dir_pin)
         self.surface_turner2 = SurfaceTurner(pig=self.pig, step_pin=self.stepper_step_pin2, dir_pin=self.stepper_dir_pin2)
 
@@ -2050,6 +2056,10 @@ class PoleDetectionTask(WheelTask):
         # the terminal window just won't close
         self.timer_report_surface.stop()
         
+        # No choices can be made once session stops
+        with self.choice_lock:
+            self.choice_armed = False
+        
         # Ends wheel reporting and cancels pending wheel timers
         self.wheel_listener.report_callback = None
 
@@ -2087,8 +2097,10 @@ class PoleDetectionTask(WheelTask):
             self.response_window_timer.cancel()
             self.response_window_timer = None
 
-        # Wheel movement cannot affect trial while pole is moving
-        self.wheel_listener.report_callback = None
+        # Disable choices during motor movement and ITI
+        # Still encodes raw movement
+        with self.choice_lock:
+            self.choice_armed = False
 
         try:
 
@@ -2167,13 +2179,19 @@ class PoleDetectionTask(WheelTask):
                     'Main motor failed to reach trial position')
                 return
 
-            # Reset wheel reference
-            self.position_at_trial_start = self.wheel_listener.position
-            self.last_raw_position = self.wheel_listener.position
+            # Start each response period at 0 position
+            # Only arm choices after the pole reaches its trial position
+            with self.choice_lock:
+                self.position_at_trial_start = self.wheel_listener.position
+                self.last_raw_position = self.position_at_trial_start
+                self.choice_armed = True
+
+            # Send an explicit zero-position report at trial start
+            self.report_wheel(force_report=True)
 
         finally:
-            # Re-enable wheel
-            self.wheel_listener.report_callback = self.report_wheel
+            # Leaves wheel reporting active 
+            pass
 
         # Start response window only after checking timers/positions
         if self.response_window:
@@ -2184,12 +2202,19 @@ class PoleDetectionTask(WheelTask):
             self.response_window_timer.start()
             
     def handle_response_window_timeout(self):
-        """Ends trial if no choice made within response window"""
-        if not self.reward_delivered:
+        """End the trial if no choice was registered in time."""
+
+        with self.choice_lock:
+            if not self.choice_armed or self.reward_delivered:
+                return
+
+            self.choice_armed = False
+            self.reward_delivered = True
             self.choice = 'none'
             self.direction = 'none'
             self.prev_trial_outcome = 'incorrect'
-            self.reward(0)
+
+        self.reward(0)
         
     def wait_for_turner(self, turner, timeout=5.0, tol=10):
         t0 = time.time()
@@ -2265,11 +2290,19 @@ class PoleDetectionTask(WheelTask):
 
 
         ## Compute where the wheel is
-        # Get actual wheel position
         wheel_position = self.wheel_listener.position
 
-        # Normalize to the wheel_position at the start of the trial
-        clipped_position = wheel_position - self.position_at_trial_start
+        # During ITI and motor movement, report a trial-relative
+        # position of 0 while preserving raw encoder movement.
+        with self.choice_lock:
+            if self.choice_armed:
+                clipped_position = wheel_position - self.position_at_trial_start
+                clipped_position = max(
+                    self.wheel_min,
+                    min(self.wheel_max, clipped_position)
+                )
+            else:
+                clipped_position = 0
 
 
         ## Report to Dispatcher
@@ -2283,48 +2316,55 @@ class PoleDetectionTask(WheelTask):
                 )
 
         ## Reward conditions
-        if not self.reward_delivered:
+        outcome = None
+        direction = None
+        reward_size = 0
+
+        with self.choice_lock:
+            if not self.choice_armed or self.reward_delivered:
+                return
+
             if self.trial_type in ('present', 'catch_ant', 'catch_post'):
                 if clipped_position > 150:
-                    # They turned it positively on a present trial
-                    # Reward and end trial
-                    self.choice = 'correct'
-                    self.direction = 'right'
-                    self.prev_trial_outcome = 'correct'
-                    self.choice_history.append(self.direction)
-                    self.reward(self.max_reward)
-                
-                elif clipped_position < -150:
-                    # They turned it negatively on a present trial
-                    # Punish and end trial
-                    self.choice = 'incorrect'
-                    self.direction = 'left'
-                    self.prev_trial_outcome = 'incorrect'
-                    self.incorrect_left += 1
-                    self.choice_history.append(self.direction)
-                    self.reward(0)
+                    outcome = 'correct'
+                    direction = 'right'
+                    reward_size = self.max_reward
 
-            elif self.trial_type == 'absent': 
+                elif clipped_position < -150:
+                    outcome = 'incorrect'
+                    direction = 'left'
+
+            elif self.trial_type == 'absent':
                 if clipped_position < -150:
-                    # They turned it negatively on an absent trial
-                    # Reward and end trial
-                    self.choice = 'correct'
-                    self.direction = 'left'
-                    self.prev_trial_outcome = 'correct'
-                    self.choice_history.append(self.direction)
-                    self.reward(self.max_reward)
+                    outcome = 'correct'
+                    direction = 'left'
+                    reward_size = self.max_reward
 
                 elif clipped_position > 150:
-                    # They turned it positively on an absent trial
-                    # Punish and end trial
-                    self.choice = 'incorrect'
-                    self.direction = 'right'
-                    self.prev_trial_outcome = 'incorrect'
+                    outcome = 'incorrect'
+                    direction = 'right'
+
+            if outcome is None:
+                return
+
+            # Claim the choice before releasing the lock
+            self.choice_armed = False
+            self.reward_delivered = True
+
+            self.choice = outcome
+            self.direction = direction
+            self.prev_trial_outcome = outcome
+            self.choice_history.append(direction)
+
+            if outcome == 'incorrect':
+                if direction == 'left':
+                    self.incorrect_left += 1
+                else:
                     self.incorrect_right += 1
-                    self.choice_history.append(self.direction)
-                    self.reward(0)
-                    
-                    
+
+        # Deliver reward or punishment outside the lock
+        self.reward(reward_size)
+    
 
 class WheelHabituationTask(WheelTask):
     """Agent that runs the wheel-based habituation task"""
