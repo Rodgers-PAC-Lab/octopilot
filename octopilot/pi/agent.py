@@ -2150,26 +2150,22 @@ class PoleDetectionTask(WheelTask):
             elif self.trial_type == 'catch_ant':
                 self.surface_turner2.target.value = self.catch_max
 
-                """
                 if not self.wait_for_turner(self.surface_turner2):
                     self.logger.error(
                         'Catch motor failed to reach anterior position')
                     return
-                """
 
                 self.surface_turner.target.value = self.wheel_max
 
             elif self.trial_type == 'catch_post':
 
                 self.surface_turner2.target.value = self.catch_min
-
-                """
+               
                 if not self.wait_for_turner(self.surface_turner2):
                     self.logger.error(
                         'Catch motor failed to reach posterior position')
                     return
-                """
-
+              
                 self.surface_turner.target.value = self.wheel_max
 
             else:
@@ -2177,13 +2173,11 @@ class PoleDetectionTask(WheelTask):
                     f'Unknown trial type: {self.trial_type}')
                 return
 
-            """
             # Wait until main motor reaches position to turn off LED
             if not self.wait_for_turner(self.surface_turner):
                 self.logger.error(
                     'Main motor failed to reach trial position')
                 return
-            """
 
             # Start each response period at 0 position
             # Only arm choices after the pole reaches its trial position
