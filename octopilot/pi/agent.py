@@ -1927,9 +1927,12 @@ class PoleDetectionTask(WheelTask):
         # Start acquistions in a separate Process
         self.proc = multiprocessing.Process(target=self.surface_turner.start)
         self.proc2 = multiprocessing.Process(target=self.surface_turner2.start)
-
         self.proc.start()
         self.proc2.start()
+        
+        # Allow additional time until each motor first begins moving
+        self.main_motor_started = False
+        self.catch_motor_started = False
 
         # motor movement reporter
         self.timer_report_surface = PersistentRepeatedTimer(
@@ -2216,21 +2219,67 @@ class PoleDetectionTask(WheelTask):
 
         self.reward(0)
     
-    def wait_for_turner(self, turner, timeout=5.0, tol=10):
-        t0 = time.time()
+    def wait_for_turner(self, turner, timeout=None, tol=10):
+        """Wait for motor position, allowing extra startup time."""
 
-        while abs(turner.state.value - turner.target.value) > tol:
-            if time.time() - t0 > timeout:
+        is_catch = turner is self.surface_turner2
+        motor_name = 'Catch' if is_catch else 'Main'
+        started_attr = (
+            'catch_motor_started' if is_catch
+            else 'main_motor_started'
+        )
+        proc = self.proc2 if is_catch else self.proc
+
+        initial_state = turner.state.value
+        target = turner.target.value
+        distance = abs(target - initial_state)
+
+        if distance <= tol:
+            return True
+
+        # Allow for travel time plus process scheduling overhead.
+        if timeout is None:
+            timeout = max(5.0, distance / 800.0 + 3.0)
+
+        # Additional allowance until the first observed movement.
+        if not getattr(self, started_attr):
+            timeout += 5.0
+
+        start_time = time.monotonic()
+        last_state = initial_state
+        last_progress = start_time
+
+        while True:
+            state = turner.state.value
+            remaining = abs(target - state)
+            now = time.monotonic()
+
+            if state != last_state:
+                last_progress = now
+                last_state = state
+                setattr(self, started_attr, True)
+
+            if remaining <= tol:
+                return True
+
+            if not proc.is_alive():
                 self.logger.error(
-                    f'Surface turner timed out: '
-                    f'state={turner.state.value}, '
-                    f'target={turner.target.value}'
+                    f'{motor_name} motor process is not running: '
+                    f'state={state}, target={target}'
+                )
+                return False
+
+            if now - start_time > timeout:
+                self.logger.error(
+                    f'{motor_name} motor timed out: '
+                    f'state={state}, target={target}, '
+                    f'remaining={remaining}, '
+                    f'elapsed={now - start_time:.1f}s, '
+                    f'no_progress={now - last_progress:.1f}s'
                 )
                 return False
 
             time.sleep(0.01)
-
-        return True
 
     def report_surface(self):
         """Called by a RepeatedTimer to report surface movements"""
