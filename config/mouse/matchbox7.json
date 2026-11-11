@@ -1,6 +1,6 @@
 {
   "display": true,
-  "box": "roomB_cubbyC",
+  "box": "roomB_cubbyA",
   "task": "PDT",
   "reward_for_spinning": false,
   "spin_alt": false,
