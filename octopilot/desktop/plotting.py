@@ -697,7 +697,7 @@ class WheelPositionWidget(QWidget):
         * Sets y-limits to [1, 9]
         """
         # Show data only from the last N seconds
-        self.plot_widget.setXRange(-10, 0)  
+        self.plot_widget.setXRange(-20, 0)  
         
         # Setting the background of the plot to be black. Use 'w' for white
         self.plot_widget.setBackground("k") 
@@ -709,7 +709,7 @@ class WheelPositionWidget(QWidget):
         self.plot_widget.showGrid(x=True, y=True) 
         
         # Set the range for the Y axis to match wheel clipping
-        self.plot_widget.setYRange(-1050, 1050)
+        self.plot_widget.setYRange(-7000, 7000, padding=0)
         
         #~ # Set the ticks
         #~ ticks = list(enumerate(self.dispatcher.port_names))
