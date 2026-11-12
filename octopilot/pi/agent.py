@@ -1149,7 +1149,7 @@ class WheelTask(Agent):
             - forced_alt: repeat incorrect, switch correct
             - catch_trials_alt: alternate catch_ant/catch_post
             - all_trials_alt: cycle through all four types
-            - catch_trials: random trials with 20% catch trials
+            - catch_trials: random trials with 15% catch trials
             - default: random present/absent trials
 
         Anti-bias applies only to random selection modes.
@@ -1186,7 +1186,7 @@ class WheelTask(Agent):
                 self.trial_type = 'present'
 
             elif self.prev_trial_type in ('present', 'absent'):
-                if self.prev_trial_outcome == 'incorrect':
+                if self.prev_trial_outcome in ('incorrect', None):
                     self.trial_type = self.prev_trial_type
 
                 elif self.prev_trial_outcome == 'correct':
@@ -2131,7 +2131,7 @@ class PoleDetectionTask(WheelTask):
             if self.prev_trial_outcome == 'correct' or self.trial_number == 0:
                 time.sleep(2.5)
 
-            elif self.prev_trial_outcome == 'incorrect':
+            elif self.prev_trial_outcome in ('incorrect', None):
                 time.sleep(7.5)
 
             else:
