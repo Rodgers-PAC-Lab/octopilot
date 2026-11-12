@@ -66,6 +66,7 @@ Agent is not running.
 
 import queue
 import logging
+import time
 import datetime
 import threading
 import numpy as np
@@ -614,6 +615,9 @@ class PiNetworkCommunicator(object):
         # Connecting to the GUI IP address stored in params
         self.router_ip = f"tcp://{self.gui_ip}:{self.zmq_port}"
         self.poke_socket.connect(self.router_ip) 
+        
+        if threading.current_thread().name.startswith('Thread'):
+            time.sleep(0.1)
 
         # Print acknowledgment
         self.socket_is_open = True
