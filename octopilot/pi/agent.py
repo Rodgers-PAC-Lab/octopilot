@@ -2219,67 +2219,117 @@ class PoleDetectionTask(WheelTask):
 
         self.reward(0)
     
+    
     def wait_for_turner(self, turner, timeout=None, tol=10):
-        """Wait for motor position, allowing extra startup time."""
-
+        """Wait for a target; recover once if the worker makes no progress."""
+        
         is_catch = turner is self.surface_turner2
-        motor_name = 'Catch' if is_catch else 'Main'
-        started_attr = (
-            'catch_motor_started' if is_catch
-            else 'main_motor_started'
-        )
-        proc = self.proc2 if is_catch else self.proc
-
+        name = 'Catch' if is_catch else 'Main'
+        started_attr = 'catch_motor_started' if is_catch else 'main_motor_started'
         initial_state = turner.state.value
         target = turner.target.value
         distance = abs(target - initial_state)
-
+        
         if distance <= tol:
             return True
 
-        # Allow for travel time plus process scheduling overhead.
         if timeout is None:
             timeout = max(5.0, distance / 800.0 + 3.0)
-
-        # Additional allowance until the first observed movement.
         if not getattr(self, started_attr):
             timeout += 5.0
 
-        start_time = time.monotonic()
-        last_state = initial_state
-        last_progress = start_time
+        for attempt in range(2):
+            start_time = time.monotonic()
+            last_state = turner.state.value
+            last_progress = start_time
+            observed_progress = False
 
-        while True:
-            state = turner.state.value
-            remaining = abs(target - state)
-            now = time.monotonic()
+            while True:
+                state = turner.state.value
+                remaining = abs(target - state)
+                now = time.monotonic()
+                proc = self.proc2 if is_catch else self.proc
 
-            if state != last_state:
-                last_progress = now
-                last_state = state
-                setattr(self, started_attr, True)
+                if state != last_state:
+                    observed_progress = True
+                    last_progress = now
+                    last_state = state
+                    setattr(self, started_attr, True)
 
-            if remaining <= tol:
-                return True
+                if remaining <= tol:
+                    return True
+                
+                if not proc.is_alive():
+                    self.logger.error(
+                        f'{name} motor worker exited: exitcode={proc.exitcode}, '
+                        f'state={state}, target={target}'
+                    )
+                    break
+                
+                if now - start_time > timeout:
+                    self.logger.error(
+                        f'{name} motor timed out: state={state}, target={target}, '
+                        f'remaining={remaining}, elapsed={now - start_time:.1f}s, '
+                        f'no_progress={now - last_progress:.1f}s'
+                    )
+                    break
+                
+                time.sleep(0.01)
 
-            if not proc.is_alive():
-                self.logger.error(
-                    f'{motor_name} motor process is not running: '
-                    f'state={state}, target={target}'
-                )
+            # Only restart a completely unresponsive worker.
+            if attempt == 1 or observed_progress or turner.state.value != initial_state:
+                return False
+            self.logger.warning(f'{name} motor: attempting one worker restart')
+            if not self.restart_turner_process(turner):
                 return False
 
-            if now - start_time > timeout:
-                self.logger.error(
-                    f'{motor_name} motor timed out: '
-                    f'state={state}, target={target}, '
-                    f'remaining={remaining}, '
-                    f'elapsed={now - start_time:.1f}s, '
-                    f'no_progress={now - last_progress:.1f}s'
-                )
-                return False
+        return False
+        
+    
+    def restart_turner_process(self, turner):
+        """Restart one unresponsive motor worker, never two at once.
 
-            time.sleep(0.01)
+        Only call after a wait detected no software position progress.
+        The position estimate is open-loop; a physical position check is
+        still required if steps were emitted without updating state.
+        """
+        is_catch = turner is self.surface_turner2
+        name = 'Catch' if is_catch else 'Main'
+        attr = 'proc2' if is_catch else 'proc'
+        old_proc = getattr(self, attr)
+
+        self.logger.warning(
+            f'{name} motor worker unresponsive; stopping PID={old_proc.pid}, '
+            f'alive={old_proc.is_alive()}, exitcode={old_proc.exitcode}'
+        )
+        
+        if old_proc.is_alive():
+            old_proc.terminate()
+        
+        old_proc.join(timeout=2.0)
+        
+        if old_proc.is_alive():
+            self.logger.error(f'{name} motor worker could not be stopped; refusing restart')
+            return False
+
+        # Do not reset turner.state or turner.target: both are shared values.
+        # The new process must resume toward the original requested target.
+        turner.stop_event.clear()
+        new_proc = multiprocessing.Process(target=turner.start)
+        new_proc.start()
+        setattr(self, attr, new_proc)
+        time.sleep(0.1)
+        
+        if not new_proc.is_alive():
+            self.logger.error(
+                f'{name} replacement worker exited immediately: '
+                f'exitcode={new_proc.exitcode}'
+            )
+            return False
+        
+        self.logger.warning(f'{name} motor worker restarted: PID={new_proc.pid}')
+        return True
+
 
     def report_surface(self):
         """Called by a RepeatedTimer to report surface movements"""
@@ -2688,6 +2738,11 @@ class SurfaceTurner(object):
         
         It will repeatedly call `self._update` until `self.stop_event` is set.
         """
+        
+        # Initialize the STEP output in this worker (also after recovery).
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self.stepper_step_pin, GPIO.OUT, initial=GPIO.LOW)
+        
         while not self.stop_event.is_set():
             self._update()
             time.sleep(.0001)
