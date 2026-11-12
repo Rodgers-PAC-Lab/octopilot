@@ -67,7 +67,6 @@ Agent is not running.
 import uuid
 import queue
 import logging
-import time
 import datetime
 import threading
 import numpy as np
