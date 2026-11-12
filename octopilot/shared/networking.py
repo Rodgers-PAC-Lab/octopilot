@@ -806,7 +806,12 @@ class PiNetworkCommunicator(object):
 
 
     def send_report(self, message):
-        """
-        Send immediately using the calling thread's own socket.
-        """
-        self.get_report_socket().send_string(message)
+        sock = self.get_report_socket()
+    
+        if message.startswith('reward;'):
+            self.logger.info(
+                f'REWARD SEND: thread={threading.get_ident()}, '
+                f'socket={id(sock)}, message={message}'
+            )
+
+        sock.send_string(message)
