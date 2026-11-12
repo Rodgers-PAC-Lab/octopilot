@@ -2021,7 +2021,10 @@ class PoleDetectionTask(WheelTask):
 
             self.report_reward(reward_time)
 
-
+        if self.all_trials_alt and self.trial_type == 'present' and self.choice == 'none':
+            self.logger.info('DEBUG: Waiting before present timeout motor return')
+            time.sleep(0.5)
+        
         ## Move it to ITI position
         self.surface_turner.target.value = 0
         self.prev_trial_type = self.trial_type
