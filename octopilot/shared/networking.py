@@ -64,6 +64,7 @@ I'm not sure if messages can build up in the Dispatcher's queue when the
 Agent is not running.
 """
 
+import uuid
 import queue
 import logging
 import time
@@ -790,10 +791,8 @@ class PiNetworkCommunicator(object):
             sock = self.poke_context.socket(zmq.DEALER)
 
             # Unique identity for this thread's reporting connection.
-            report_identity = (
-                f"{self.identity}__report__{threading.get_ident()}"
-            )
-
+            report_identity = f"{self.identity}__report__{uuid.uuid4().int}"
+            
             sock.setsockopt(
                 zmq.IDENTITY,
                 report_identity.encode("utf-8"),
