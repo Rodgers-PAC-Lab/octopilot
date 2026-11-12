@@ -1186,7 +1186,7 @@ class WheelTask(Agent):
                 self.trial_type = 'present'
 
             elif self.prev_trial_type in ('present', 'absent'):
-                if self.prev_trial_outcome in ('incorrect', 'none'):
+                if self.prev_trial_outcome == 'incorrect':
                     self.trial_type = self.prev_trial_type
 
                 elif self.prev_trial_outcome == 'correct':
@@ -2043,6 +2043,16 @@ class PoleDetectionTask(WheelTask):
             f'anti_bias={self.anti_bias}=str;' # left/right/none
             f'reward_time={reward_time}=str'
             )
+        
+        # all_trial_alt debugging
+        self.logger.info(
+            f'TRIAL END REPORT SENT: '
+            f'trial={self.trial_number}, '
+            f'type={self.trial_type}, '
+            f'choice={self.choice}, '
+            f'direction={self.direction}, '
+            f'prev_outcome={self.prev_trial_outcome}'
+        )
 
     def stop_session(self):
         """Stop the session.
@@ -2131,7 +2141,7 @@ class PoleDetectionTask(WheelTask):
             if self.prev_trial_outcome == 'correct' or self.trial_number == 0:
                 time.sleep(2.5)
 
-            elif self.prev_trial_outcome in ('incorrect', 'none'):
+            elif self.prev_trial_outcome == 'incorrect':
                 time.sleep(7.5)
 
             else:
