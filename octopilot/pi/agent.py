@@ -2722,7 +2722,7 @@ class SurfaceTurner(object):
         # Larger numbers incur less overhead but decrease update frequency
         # E.g. if the target is oscillating frequency, a large number means
         # it will overshoot by more until it realizes the target has changed
-        self.max_steps_per_update = 60
+        self.max_steps_per_update = 30
 
         
         ## Controls
@@ -2754,7 +2754,7 @@ class SurfaceTurner(object):
         
         while not self.stop_event.is_set():
             self._update()
-            time.sleep(.0001)
+            time.sleep(.00001)
     
     def _update(self):
         """Actually move the stepper to the target
