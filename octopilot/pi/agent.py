@@ -2754,7 +2754,7 @@ class SurfaceTurner(object):
         
         while not self.stop_event.is_set():
             self._update()
-            time.sleep(.00001)
+            time.sleep(.000001)
     
     def _update(self):
         """Actually move the stepper to the target
